@@ -52,6 +52,18 @@ _Avoid_: SNR, SNQR
 Sample-by-sample RTL vs golden-vector comparison from `sim/vectors/`.
 _Avoid_: matching test, golden test
 
+**Packed complex vector**:
+One fixed-point vector record containing the I and Q components of a complex sample.
+_Avoid_: separate sample record, vector word without component order
+
+**Vector manifest**:
+Generated metadata describing a vector set, its count, packing, and comparison boundaries.
+_Avoid_: hand-written vector metadata
+
+**Valid output window**:
+The aligned output interval used to compare models without implementation-only padding.
+_Avoid_: arbitrary comparison slice
+
 **Serial version**:
 RTL processing one sample per cycle (or one shared MAC).
 _Avoid_: slow version, simple version
