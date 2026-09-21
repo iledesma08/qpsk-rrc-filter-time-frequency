@@ -1,8 +1,8 @@
 # Plan + Gantt — QPSK RRC time vs frequency (4-person team)
 
-> GitHub Project: [QPSK RRC Filter - Plan](https://github.com/users/iledesma08/projects/3). The Project is the live scheduler for status, assignees, and dates.
-> This document is the milestone snapshot: update it at M1-M5 and when the planned-vs-actual Gantt is recorded.
-> GitHub issues mirror these tasks (one issue per T task).
+> Planning Project: [QPSK RRC Filter - Plan](https://github.com/users/iledesma08/projects/3). It tracks repository setup and Wayfinder map #1 only.
+> The execution Project, created with Wayfinder map #2, will be the live scheduler for technical work, status, assignees, and dates.
+> This document is the setup milestone snapshot; the second map owns the detailed execution Gantt and issues.
 
 ## Phases and dependencies
 
