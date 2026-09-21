@@ -52,7 +52,7 @@ docs/plan-gantt.md phases, milestones, 4-way split
 
 \* See the detailed split in `docs/plan-gantt.md`. Fill in this table in the first PR.
 
-GitHub Project: [QPSK RRC Filter - Plan](https://github.com/users/iledesma08/projects/3). The Project is the live scheduler; `docs/plan-gantt.md` is the milestone snapshot.
+Planning Project: [QPSK RRC Filter - Plan](https://github.com/users/iledesma08/projects/3). This Project tracks repository setup and Wayfinder map #1 only. The execution Project will be created with Wayfinder map #2; `docs/plan-gantt.md` is the setup milestone snapshot.
 
 ## Status
 
