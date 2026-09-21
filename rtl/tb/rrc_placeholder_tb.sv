@@ -12,6 +12,7 @@ module rrc_placeholder_tb;
   logic valid_o;
   logic signed [DATA_WIDTH-1:0] sample_o;
   integer vectors_fd;
+  reg [8*256-1:0] manifest_line;
 
   always #5 clk = ~clk;
 
@@ -29,6 +30,9 @@ module rrc_placeholder_tb;
     if (vectors_fd == 0) begin
       $fatal(1, "Cannot open sim/vectors/README.md");
     end
+    if ($fgets(manifest_line, vectors_fd) == 0) begin
+      $fatal(1, "Cannot read sim/vectors/README.md");
+    end
     $fclose(vectors_fd);
 
     repeat (2) @(posedge clk);
@@ -43,8 +47,8 @@ module rrc_placeholder_tb;
     sample_i = 16'sh1234;
     @(posedge clk);
     #1;
-    if (valid_o !== 1'b1 || sample_o !== 16'sh1234) begin
-      $fatal(1, "Placeholder stream transaction did not pass through");
+    if (valid_o !== 1'b0 || sample_o !== '0) begin
+      $fatal(1, "Placeholder must remain idle until the RTL contract is defined");
     end
 
     @(negedge clk);

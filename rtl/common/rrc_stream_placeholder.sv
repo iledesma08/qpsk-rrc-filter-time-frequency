@@ -14,8 +14,8 @@ module rrc_stream_placeholder #(
       valid_o  <= 1'b0;
       sample_o <= '0;
     end else begin
-      valid_o  <= valid_i;
-      sample_o <= sample_i;
+      valid_o  <= 1'b0;
+      sample_o <= '0;
     end
   end
 endmodule
