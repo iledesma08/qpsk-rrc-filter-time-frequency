@@ -93,16 +93,18 @@ Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback
 | T50 | Slides: contrast + PPA + lessons learned | T44 | PDF in `docs/slides/` |
 | T51 | Actual vs planned Gantt + final demo | T50 | this table updated + `v1.1-close` tag |
 
-Total: ~20 issues. Create with `gh issue create` using the feature template.
+The T-task taxonomy below is the high-level plan. Detailed execution issues,
+technical research, and their native dependencies belong to the second
+execution Wayfinder map; do not create all T00-T51 issues from this setup map.
 
 ## Initial 4-way split (rotate if needed)
 
-| Person | Main lane | Issues |
-| ------ | --------- | ------ |
-| A | Time end-to-end | T11, T30, T31, T40, T41 |
-| B | Frequency end-to-end | T12, T32, T33, T42, T43 |
-| C | Transversal sim + FXP | T10, T13, T20, T21, T22 |
-| D | PPA + close | T44, T50, T51 + timing reviews |
+| Person | Member | Main lane | Initial responsibility |
+| ------ | ------ | --------- | --------------------- |
+| A | Ignacio (`iledesma08`) | Time end-to-end | T10 + T11 before 2026-10-15; T30, T31, T40, T41 after return |
+| B | Juan (`JRondon23`) | Frequency end-to-end | T12, T32, T33, T42, T43 |
+| C | Matias (`matiascostamagna`) | Transversal sim + FXP | T13, T20, T21, T22; vector guard |
+| D | Andres (`AndresCesana`) | PPA + close | T44, T50, T51 + timing reviews |
 
 Rules:
 
@@ -110,33 +112,37 @@ Rules:
 - C guards `sim/vectors/` (only one who regenerates).
 - D keeps this table and the slides up to date.
 - If a lane stalls for >2 days, ask for help and move an issue (leave a comment as record).
+- A is unavailable from 2026-10-15 through 2026-11-08; the time lane must not
+  require A during that window and resumes on 2026-11-09.
 
-## Estimated Gantt (8 weeks, adjust dates)
+## Estimated Gantt (tentative, adjust dates)
 
 ```mermaid
 gantt
   title QPSK RRC — plan x4
   dateFormat YYYY-MM-DD
   section F0 setup
-  T00-T01 repo          :done, 2026-09-21, 7d
+  T00-T01 repo          :done, 2026-09-21, 1d
   section F1 float
-  T10 RRC coefs         :2026-09-28, 7d
-  T11 time float        :2026-09-28, 14d
-  T12 freq float        :2026-09-28, 14d
-  T13 vectors           :2026-10-12, 7d
+  T10 RRC coefs         :2026-09-22, 7d
+  T11 time float        :2026-09-29, 14d
+  T12 freq float        :2026-09-29, 14d
+  T13 vectors           :2026-10-13, 7d
   section F2 fxp
-  T20-T22 SQNR          :2026-10-12, 14d
+  T20-T22 SQNR          :2026-10-20, 14d
   section F3 serial
-  T30-T31 time serial   :2026-10-26, 14d
-  T32-T33 freq serial   :2026-10-26, 14d
+  T30-T31 time serial   :2026-11-09, 14d
+  T32-T33 freq serial   :2026-11-03, 14d
   section F4 opt PPA
-  T40-T41 opt time      :2026-11-09, 21d
-  T42-T43 opt freq      :2026-11-09, 21d
-  T44 PPA table         :2026-11-30, 7d
+  T40-T41 opt time      :2026-11-23, 14d
+  T42-T43 opt freq      :2026-11-23, 14d
+  T44 PPA table         :2026-12-07, 5d
   section F5 close
-  T50-T51 slides        :2026-12-01, 14d
+  T50-T51 slides        :2026-12-07, 5d
 ```
 
+> Presentation target: 2026-12-11. Internal completion target: 2026-12-04;
+> the final week is reserved for PPA synthesis, slides, and rehearsal.
 > If the presentation date moves, shift the F4–F5 block while keeping dependency order.
 
 ## Risks
@@ -147,4 +153,5 @@ gantt
 | SQNR never reaches 40 dB | Wide sweep (coefs + data + accumulator) before touching RTL |
 | 100 MHz timing does not close | Keep a 10 MHz plan B + justify PPA anyway; request early review |
 | Vectors edited by hand | `sim/vectors/README` + CONTRIBUTING rule + PR check |
+| A unavailable during travel | Finish T10/T11 before 2026-10-15; resume the time lane after 2026-11-08 |
 | One lane races ahead | Weekly cross-reviews + actual Gantt in T51 |
