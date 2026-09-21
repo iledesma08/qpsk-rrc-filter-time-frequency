@@ -1,0 +1,22 @@
+---
+name: Task / feature
+description: New work (sim, rtl, docs, PPA, slides)
+title: "[feat] "
+labels: ["needs-triage"]
+---
+
+## What needs to be done
+
+<!-- Concrete description. Use CONTEXT.md terms. -->
+
+## Acceptance criteria
+
+<!-- Measurable. E.g. "time float sim filters QPSK and pytest is green", "SQNR ≥ 40 dB with N bits", "100% vector matching". Without this the issue cannot move to ready-*. -->
+
+## Area
+
+<!-- Check: sim / rtl / time / freq / ppa / docs / repo / verif -->
+
+## Notes
+
+<!-- Links, plots, dependencies on other issues (Blocked by: #...). -->
