@@ -1,0 +1,62 @@
+# .gitignore — QPSK RRC (Python + RTL + docs)
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.hypothesis/
+*.egg-info/
+dist/
+build/
+
+# Sim / large vectors (regenerated, don't commit if heavy)
+# Uncomment if vectors exceed ~1MB:
+# sim/vectors/*.npy
+# sim/vectors/*.csv
+# !sim/vectors/README.md
+# !sim/vectors/*.sha256
+
+# RTL / EDA
+*.log
+*.wlf
+*.vcd
+*.fst
+work/
+transcript
+vsim.wlf
+*.jou
+*.pb
+.Xil/
+*.xpr
+*.runs/
+*.cache/
+*.hw/
+*.ip_user_files/
+quartus/
+db/
+incremental_db/
+output_files/
+*.rpt
+*.sdc.bak
+
+# OS / editors
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Docs / intermediate slides
+docs/slides/*.pdf
+!docs/slides/README.md
+*.aux
+*.toc
+*.out
+
+# Secrets
+.env
+*.pem
+*.key

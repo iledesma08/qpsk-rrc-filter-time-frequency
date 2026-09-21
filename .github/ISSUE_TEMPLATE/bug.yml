@@ -1,0 +1,28 @@
+---
+name: Bug (sim / RTL)
+description: Something broken in simulation, SQNR, or vector matching
+title: "[bug] "
+labels: ["needs-triage", "bug"]
+---
+
+## Expected behavior
+
+<!-- E.g. SQNR ≥ 40 dB, 100% vector matching. -->
+
+## Actual behavior
+
+<!-- What goes wrong + logs. Paste command and output. -->
+
+```text
+
+```
+
+## Repro
+
+1.
+2.
+3.
+
+## Environment
+
+<!-- commit, seed, Python/simulator version, RTL tool. -->
