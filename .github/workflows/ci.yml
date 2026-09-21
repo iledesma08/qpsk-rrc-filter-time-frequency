@@ -27,3 +27,29 @@ jobs:
       - name: Check generated vector checksums
         working-directory: .
         run: bash scripts/check-vectors.sh
+
+  rtl:
+    name: RTL smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install Icarus Verilog
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y iverilog
+      - name: Compile and run RTL placeholders
+        run: bash rtl/run.sh
+
+  verilator-lint:
+    name: Optional Verilator lint
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install Verilator
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y verilator
+      - name: Lint DUT sources
+        run: |
+          verilator --lint-only -sv -Wall -Wno-fatal \
+            --top-module time_serial_filter \
+            rtl/common/rrc_stream_placeholder.sv rtl/time_serial/time_serial_filter.sv

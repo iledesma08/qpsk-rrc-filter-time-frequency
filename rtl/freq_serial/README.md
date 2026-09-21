@@ -1,3 +1,10 @@
 # rtl/freq_serial — frequency-domain filter, serial version
 
-Serial FFT → × → IFFT (T32). TB in `../tb/` with vector matching (T33).
+Run the placeholder smoke test from the repository root:
+
+```bash
+bash rtl/freq_serial/run.sh
+```
+
+The actual serial FFT → × → IFFT implementation is T32; the current module
+is only a compileable shell for the repository toolchain.

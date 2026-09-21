@@ -10,6 +10,7 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.build/
 
 # Sim / large vectors (regenerated, don't commit if heavy)
 # Uncomment if vectors exceed ~1MB:
