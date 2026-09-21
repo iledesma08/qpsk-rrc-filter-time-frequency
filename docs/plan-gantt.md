@@ -36,7 +36,7 @@ flowchart LR
 | M4 optimized | fmax target + PPA report + vector matching | `v1.0-opt` |
 | M5 close | slides + actual Gantt + demo | `v1.1-close` |
 
-Clocks: fast 100 MHz, slow 10 MHz (per-lane choice; justify in slides).
+Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback when timing does not close.
 
 ## Tasks (T) — issue granularity
 
@@ -54,14 +54,14 @@ Clocks: fast 100 MHz, slow 10 MHz (per-lane choice; justify in slides).
 | T10 | RRC coefficients α=0.5, 8 taps, OS 2x + generator script | T00 | coefs + documented impulse/freq plot |
 | T11 | QPSK gen + 2x upsampling + **time** float filter | T10 | pytest + eye/spectrum |
 | T12 | **Frequency** float filter (FFT→×→IFFT, overlap-add/save) | T10 | pytest + equality vs time (tolerance) |
-| T13 | `sim/vectors/` generator + checksum | T11, T12 | vectors + README, never by hand |
+| T13 | `sim/vectors/` generator + checksum | T11, T12 | packed `.hex` input/expected vectors + generated manifest + SHA-256, per ADR-0004, never by hand |
 
 ### F2 — Fixed point + SQNR
 
 | ID | Task | Depends on | DoD |
 | -- | ---- | ---------- | --- |
-| T20 | Fxp model (coefs + data) + SQNR function | T13 | `pytest` SQNR |
-| T21 | Bit-width sweep + N choice (SQNR ≥ 40 dB) | T20 | bits→SQNR table + justified N |
+| T20 | Fxp model (coefs + data) + SQNR function | T13 | `pytest` common complex SQNR per ADR-0005 |
+| T21 | Bit-width sweep + N choice (SQNR ≥ 40 dB) | T20 | bits→SQNR table + smallest common width justified |
 | T22 | Freeze fxp coefs in `rtl/common/` | T21 | hex/bin coefs + doc |
 
 ### F3 — Serial RTL + vector matching
@@ -75,16 +75,16 @@ Clocks: fast 100 MHz, slow 10 MHz (per-lane choice; justify in slides).
 
 ### F4 — Optimized RTL (parallel lanes, different techniques)
 
-> Each lane picks a different technique so the team can discuss. Initial proposal (changeable via ADR):
+> Each lane picks a different technique so the team can discuss, per ADR-0006:
 > time → **pipeline + systolic**, frequency → **unfolded** (and if area allows, evaluate **folded** as contrast).
 
 | ID | Task | Depends on | DoD |
 | -- | ---- | ---------- | --- |
-| T40 | Opt **time** RTL (pipeline/systolic) | T31 | vector matching + fmax/area/power report |
-| T41 | Constraints + timing closure **time** (100 or 10 MHz) | T40 | timing pass |
-| T42 | Opt **frequency** RTL (unfolded / folded) | T33 | vector matching + report |
-| T43 | Constraints + timing closure **frequency** | T42 | timing pass |
-| T44 | Compared PPA table time vs freq | T41, T43 | table + best-PPA conclusion |
+| T40 | Opt **time** RTL (pipeline/systolic) | T31 | vector matching + ADR-0006 PPA evidence |
+| T41 | Constraints + timing closure **time** | T40 | 100 MHz pass or labelled 10 MHz fallback |
+| T42 | Opt **frequency** RTL (unfolded / folded) | T33 | vector matching + ADR-0006 PPA evidence |
+| T43 | Constraints + timing closure **frequency** | T42 | 100 MHz pass or labelled 10 MHz fallback |
+| T44 | Compared PPA table time vs freq | T41, T43 | same-target table, activity status, and best-PPA conclusion |
 
 ### F5 — Slides + close
 
