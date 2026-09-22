@@ -6,7 +6,7 @@ Map: [#12](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/issues/1
 
 Date: 2026-09-21
 
-Updated: 2026-09-22 (expanded human decisions and added the Concepts and FAQ section)
+Updated: 2026-09-22 (expanded human decisions, added the Concepts and FAQ section, and recorded the accepted decisions)
 
 Branch: `research/rrc-coefficient-contract`
 
@@ -271,7 +271,7 @@ All web sources below were consulted on 2026-09-21.
 
 ## Concepts and FAQ
 
-This section explains the vocabulary and the questions that come up while reading this contract. It sits between Sources and Open Human Decisions so the terms are clear before the team accepts or changes a decision.
+This section explains the vocabulary and the questions that come up while reading this contract. It sits between Sources and Human Decisions so the terms are clear before the team accepts or changes a decision.
 
 ### Q1. What exactly is an RRC, and why research its coefficients?
 
@@ -392,12 +392,13 @@ Because they depend on measured SQNR behavior and on architecture/PPA trade-offs
 
 No. It is an expectation-setting statement, not an error: an 8-tap FIR is a coarse truncation of an infinite response, so the stopband and passband will deviate from ideal. The assignment fixes eight coefficients, so the correction is in presentation (plot the finite response and the ideal target separately) rather than changing the formula.
 
-## Open Human Decisions
+## Human Decisions
 
-The team must accept, modify, or reject each item below before T10 freezes the simulator contract. Each entry lists what is being chosen, the alternatives on the table, why it matters for this project, and the research recommendation with its justification.
+The team accepted the decisions below on 2026-09-22, before T10 freezes the simulator contract. Each entry keeps what was chosen, the alternatives that were on the table, why it matters for this project, the research recommendation, and the accepted status.
 
 ### D1. Coefficient normalization
 
+- **Status:** accepted 2026-09-22 — discrete unit energy (`sum(h^2)=1`).
 - **What is being chosen:** how the eight raw RRC samples are scaled before they become the golden coefficients.
 - **Alternatives:** (a) discrete unit energy `h = raw / norm(raw)` — recommended; (b) unity DC gain `h = raw / sum(raw)`, the convention used by GNU Radio; (c) store raw unnormalized samples and normalize elsewhere.
 - **Why it matters here:** it fixes the amplitude scale of the golden model, the SQNR reference, the coefficient integer scaling, the matched-filter interpretation, and every generated vector. Changing it later invalidates vectors, tests, and RTL results.
@@ -406,6 +407,7 @@ The team must accept, modify, or reject each item below before T10 freezes the s
 
 ### D2. Half-sample delay and grid
 
+- **Status:** accepted 2026-09-22 — keep the centered grid and `D=3.5` samples (`1.75T`), documented in the artifact and manifest.
 - **What is being chosen:** whether to keep the centered even-length grid and its `3.5`-sample (`1.75T`) group delay.
 - **Alternatives:** (a) keep `D=3.5` — recommended; (b) round the delay to `3` or `4` samples for integer-sample convenience; (c) switch to a 9-tap integer-delay filter, which violates the fixed 8-tap assignment.
 - **Why it matters here:** the delay drives the alignment between time and frequency output, the vector manifest fields, the impulse/eye plots, and the FFT block valid window. A mismatch is a silent vector-matching failure.
@@ -414,6 +416,7 @@ The team must accept, modify, or reject each item below before T10 freezes the s
 
 ### D3. Constellation convention
 
+- **Status:** accepted 2026-09-22 — keep the declared unnormalized QPSK `+/-1 +/- j` with `Q2.14` input.
 - **What is being chosen:** keep the repository-declared unnormalized QPSK `I,Q in {+1,-1}`, or switch to unit-magnitude `(+/-1 +/- j)/sqrt(2)`.
 - **Alternatives:** (a) unnormalized `+/-1` with input scale `Q2.14` — recommended; (b) unit-magnitude with `Q1.15` as the data format; (c) any other declared scale.
 - **Why it matters here:** it sets average power, input integer scaling, saturation margins, the SQNR reference, and all generated vectors.
@@ -422,6 +425,7 @@ The team must accept, modify, or reject each item below before T10 freezes the s
 
 ### D4. FXP numerics freeze
 
+- **Status:** accepted 2026-09-22 — round-to-nearest-even, saturation at explicit narrowing boundaries, wide non-wrapping accumulator, and a single rescale after the full sum; the actual widths are frozen in the T20/T21 sweep.
 - **What is being chosen:** rounding mode, saturation versus wrap, coefficient/input/output `Q` formats, accumulator width, and output rescaling policy.
 - **Alternatives:** round-to-nearest-even versus truncation; saturate versus wrap on narrowing; wide non-wrapping accumulator versus minimal-width accumulator; single rescale after the full sum versus per-term rescale.
 - **Why it matters here:** these choices determine whether `SQNR >= 40 dB` is met, whether overflow is possible, and how much area and timing the arithmetic costs. They are the core of ticket #16 and of the T20/T21 sweep.
@@ -430,6 +434,7 @@ The team must accept, modify, or reject each item below before T10 freezes the s
 
 ### D5. Canonical artifact storage
 
+- **Status:** accepted 2026-09-22 — store both float64 (golden) and quantized integers (derived).
 - **What is being chosen:** what the generated RRC artifact stores: full float64 decimals, quantized integers, or both.
 - **Alternatives:** float only; integer only; both — recommended.
 - **Why it matters here:** the artifact is the golden source for vectors and RTL coefficient tables. Divergence between the float and integer representations would produce false vector mismatches.
@@ -438,14 +443,17 @@ The team must accept, modify, or reject each item below before T10 freezes the s
 
 ### D6. Frequency block convention
 
+- **Status:** accepted 2026-09-22 — deferred to ticket #14 under the professor gate below.
 - **What is being chosen:** FFT block size, overlap convention, padding, and valid output alignment.
 - **Alternatives:** overlap-save with 50% overlap and FFT16 (the professor's baseline) versus overlap-add; different first/last-block edge handling.
 - **Why it matters here:** it controls the equality between the frequency-domain output and the time-domain golden, and the valid comparison window. This ticket does not resolve it because it belongs to ticket #14.
 - **Recommendation:** defer to the #14 research result and then freeze it, keeping `D=3.5` visible in the manifest.
-- **Why:** it prevents mixing partially decided conventions across the two domains.
+- **Professor gate:** the #14 research may compare overlap-save, overlap-add, or other alternatives, but any deviation from the professor's stated baseline (overlap-save with 50% overlap, 16-point FFT, explicit IFFT) must be proposed to the professor and approved before adoption, even if the alternative looks technically better.
+- **Why:** it prevents mixing partially decided conventions across the two domains, and it keeps the assignment owner in the loop for changes to the reference design.
 
 ### D7. Eye and spectrum presentation
 
+- **Status:** accepted 2026-09-22 — natural half-sample grid for verification evidence; symbol-center interpolation only in labelled slides; nine-tap reference optional.
 - **What is being chosen:** how to present the natural half-sample output grid.
 - **Alternatives:** (a) plot the natural half-sample grid — recommended for verification; (b) interpolate to symbol centers for presentation only; (c) add a nine-tap reference filter for contrast.
 - **Why it matters here:** symbol-center interpolation can hide the real half-sample alignment and mislead the FFT alignment work. Plots are evidence, not decoration.
