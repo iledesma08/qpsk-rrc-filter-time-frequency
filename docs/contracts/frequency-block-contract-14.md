@@ -483,3 +483,145 @@ D2 and D3 are resolved naturally by later tickets.
 - **Why it matters here:** a duplicated or missing `1/N` changes the output scale and breaks vector matching; it must be recorded once and compensated exactly once.
 - **Recommendation:** use the NumPy default in the float golden and freeze the RTL core convention when the FFT core is selected in the FXP/RTL phases.
 - **Why:** it keeps the golden simple and makes the compensation point explicit.
+
+## Baseline Alternatives and Professor Proposal
+
+This section supports D1. It compares the accepted forced-50% baseline with the
+canonical OLS partition, sketches the implementation of both, lists their
+advantages and disadvantages, and drafts the proposal the team can send to the
+professor if it wants to change or extend the baseline. It does not change D1
+by itself.
+
+### Comparison criteria
+
+| Criterion | Forced 50% (accepted baseline) | Canonical OLS |
+| --- | --- | --- |
+| Frame layout | 8 history + 8 new samples | 7 history + 9 new samples |
+| Frame formula | `frame_b[r] = x[8b-8+r]` | `frame_b[r] = x[9b-7+r]` |
+| Input overlap | 8 samples (50% of `N`) | 7 samples (`M-1`) |
+| Hop | 8 samples | 9 samples (`N-M+1`) |
+| Discarded IFFT samples | `z[0:8]`: 7 alias-corrupted plus 1 valid duplicate/pre-boundary sample | `z[0:7]`: only the 7 alias-corrupted samples |
+| Emitted samples | `z[8:16] = y[8b:8b+8]` | `z[7:16] = y[9b:9b+9]` |
+| Valid outputs per 16-point transform | 8 | 9 |
+| Transforms per output sample | 0.250 | 0.222 (about 11.1% fewer) |
+| Discarded valid outputs | one valid sample per block (the `r=7` duplicate) | none |
+| First frame | eight zeros plus `x[0:8]` | seven zeros plus `x[0:9]` |
+| Block cadence at 2x oversampling | 4 symbols | 4.5 symbols |
+| Buffer and control | 8+8 frame, hop counter 8 | 7+9 frame, hop counter 9 |
+| FFT core effort | same 16-point complex FFT/IFFT, but 11% more transforms per output sample | same core, fewer transforms per output sample |
+| Expected PPA direction | slightly higher dynamic energy per sample if the FFT dominates; same area | slightly lower energy per sample if the FFT dominates; same area |
+| Conformance | matches the professor's stated architecture | deviates from the stated overlap |
+| Numerical evidence | max absolute error `9.93e-16` | max absolute error `1.33e-15` |
+| Main risk | the extra discard must stay documented to avoid a one-sample misalignment | needs professor approval; changes selector, manifest, tests, and RTL counters |
+
+### Implementation sketch
+
+Shared by both alternatives:
+
+- one 16-point complex FFT and one 16-point complex IFFT (or one reconfigurable
+  core);
+- a per-bin complex multiply by the precomputed `H[k] = FFT16(h16)`;
+- `{Q[15:0], I[15:0]}` packing and the same FXP policy, scaling compensation,
+  and alignment base `y_time[n] = sum(h[k] * x[n-k])`.
+
+Forced 50%:
+
+1. Keep the last 8 input samples in the frame buffer; append 8 new samples.
+2. Compute `z = IFFT16(FFT16(frame) * H)`.
+3. Select `z[8:16]` as `y[8b:8b+8]`.
+4. Advance the buffer by 8 input samples.
+
+Canonical OLS:
+
+1. Keep the last 7 input samples in the frame buffer; append 9 new samples.
+2. Compute `z = IFFT16(FFT16(frame) * H)`.
+3. Select `z[7:16]` as `y[9b:9b+9]`.
+4. Advance the buffer by 9 input samples.
+
+The differences are confined to the frame-buffer history depth, the hop
+counter, and the output selector. The FFT/IFFT cores, twiddles, complex
+multiplier, packing, and memory data path are unchanged.
+
+### Advantages and disadvantages
+
+Forced 50% (hop 8):
+
+- Pros: matches the professor's assignment and the accepted D1 contract; a
+  power-of-two hop with an 8+8 frame gives simple counters and a clean
+  streaming interface; the cadence is exactly 4 QPSK symbols per block at 2x
+  oversampling; it is already validated to about `1e-15` against the
+  time-domain reference.
+- Cons: it discards one valid output per block to keep the cadence; it performs
+  about 11% more FFT/IFFT work per output sample than canonical OLS; the
+  "50% overlap" rule is a scheduling choice that must stay documented so it is
+  not confused with the textbook OLS overlap.
+
+Canonical OLS (hop 9):
+
+- Pros: it is the mathematically canonical and most efficient OLS partition;
+  no valid sample is discarded; it performs about 11% fewer transforms per
+  output sample, so FFT-dominated energy per sample would be lower; it is also
+  already validated to about `1.3e-15`.
+- Cons: it deviates from the professor's stated baseline; the 7+9 frame and
+  9-sample hop are slightly less regular than 8+8; the 4.5-symbols-per-block
+  cadence is less convenient for symbol-aligned presentation and vector
+  framing; it changes the selector, manifest, tests, and RTL counters relative
+  to the accepted contract.
+
+### What changes if the alternative is approved
+
+- Contract: hop 9, overlap 7, discard `z[0:7]`, emit `z[7:16]`, first frame
+  with seven zeros plus `x[0:9]`.
+- Golden and vectors: regenerated with the hop-9 selector and updated manifest
+  metadata.
+- RTL: frame-buffer history depth 7 and hop counter 9; the output selector
+  emits 9 values.
+- Unchanged: FFT/IFFT size and cores, per-bin multiply, packing, FXP policy,
+  and the alignment base.
+- Numerical checks: the canonical variant is already covered as a separate
+  check in this document, with maximum error `1.33e-15`.
+
+### Draft proposal to the professor
+
+This is a draft the team can adapt; it does not change D1 on its own.
+
+**Subject:** Frequency-domain RRC filter — OLS overlap and hop confirmation
+
+Dear Professor,
+
+We are implementing the frequency-domain 8-tap RRC filter for QPSK (2x
+oversampling, `alpha=0.5`) with the OLS plus 16-point FFT architecture you
+proposed. Our research verified the following:
+
+- With `N=16` and `M=8`, the canonical OLS partition uses an input overlap of
+  `M-1 = 7` samples and a hop of `N-M+1 = 9` samples; the first 7 IFFT samples
+  are discarded and 9 valid outputs are kept per frame.
+- The 50% overlap you proposed implies hop 8. We implemented it as an explicit
+  fixed-phase schedule (8 history plus 8 new samples, discard `z[0:8]`, emit
+  `z[8:16]`). It is mathematically valid and numerically equivalent to the
+  canonical partition in our float checks (maximum error about `1e-15`).
+- Compared with the 50% schedule, canonical hop 9 keeps one more valid sample
+  per frame and performs about 11% fewer FFT/IFFT operations per output
+  sample.
+
+We plan to keep the 50% overlap baseline as our reference contract unless you
+prefer otherwise. Could you confirm your preference?
+
+- (a) Keep 50% overlap (hop 8) as the baseline.
+- (b) Switch the baseline to canonical OLS with hop 9.
+- (c) Keep 50% overlap for the golden baseline and also implement hop 9 as an
+  additional PPA comparison in the optimized frequency version.
+
+We would also like to confirm the emitted output window (full causal
+`y[0:S+7]` versus input-length `y[0:S]`) and that the NumPy default FFT
+scaling is acceptable for the floating-point golden model.
+
+Thank you,
+[Team]
+
+### Status
+
+- D1 remains accepted as the forced-50% hop-8 baseline.
+- This section is the comparison and the proposal draft requested by the team.
+- No contract change happens until the professor answers; option (c) is the
+  team's preferred middle ground if a comparison experiment is welcome.
