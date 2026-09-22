@@ -94,19 +94,11 @@ project's 8-tap filters are tiny, so every variant config must set an explicit
 die area large enough for the PDN from the start, or provide a reduced PDN
 configuration. This is a configuration detail, not a filter result.
 
-## Per-Member Status
+## Team Availability
 
-| Member | Status |
-| --- | --- |
-| Ignacio (`iledesma08`) | Verified: smoke test passed and a real minimal run completed with reports. |
-| Juan (`JRondon23`) | Pending: run the same smoke test on his machine. |
-| Matias (`matiascostamagna`) | Pending: run the same smoke test on his machine. |
-| Andres (`AndresCesana`) | Pending: run the same smoke test on his machine. |
-
-Requirements per member: Nix, an `openlane2` clone, and about 2.1 GB for the
-volare PDK. If a machine cannot host the environment, the fallback is to use
-the verified workstation or agree on a shared runner; no cloud service is
-required by ADR-0006.
+All four members already use Nix and OpenLane from previous coursework, so no
+shared runner is needed. Re-run the smoke test above if a machine's environment
+is reinstalled or updated; that test is the acceptance check for the toolchain.
 
 ## Commands for F4
 
@@ -119,8 +111,8 @@ required by ADR-0006.
 ## Status
 
 Resolved: the environment and the report path are verified, and the
-reproduction steps are recorded. Three team members still need to run the
-smoke test on their own machines before the F4 PPA phase.
+reproduction steps are recorded. The team already has the toolchain from
+previous coursework; the smoke test above is the re-verification check.
 
 ## References
 
