@@ -44,6 +44,10 @@ _Avoid_: ideal model, floating reference
 Quantization of coefficients and data to N bits with SQNR ≥ 40 dB.
 _Avoid_: generic fixed point without SQNR, intN
 
+**Common width**:
+The shared external word width selected for data and coefficients in both domains.
+_Avoid_: bit width, generic precision
+
 **SQNR**:
 Signal-to-quantization-noise ratio in dB between float and fxp outputs.
 _Avoid_: SNR, SNQR
