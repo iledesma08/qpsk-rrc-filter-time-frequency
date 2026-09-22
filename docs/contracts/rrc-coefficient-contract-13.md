@@ -21,7 +21,7 @@ Use the following contract unless the human team explicitly chooses a different 
 - Evaluate the standard RRC impulse response, including explicit finite-value branches at `t=0` and `t=+/-T/(4*alpha)`.
 - Normalize the eight sampled values to discrete unit energy: `sum(h[n]^2) = 1`.
 - Store coefficients in increasing time order, from `t=-1.75*T` to `t=+1.75*T`.
-- Treat each QPSK real component as the repository's declared value `+/-1.0`. For a 16-bit signed input, use scale `2^14` (`Q2.14`) so both `+1` and `-1` are exact. Use a 16-bit `Q1.15` coefficient scale for the recommended normalized coefficients.
+- Treat each QPSK real component as the repository's declared value `+/-1.0`. For a 16-bit signed input, use scale `2^14` (`Q2.14`) so both `+1` and `-1` are exact. Use the common `Q2.(W-2)` scale for coefficients as well (refined by #16; at 16 bits this is `Q2.14`).
 - Document the FIR delay as `(N-1)/2 = 3.5` samples, not as either 3 or 4 samples.
 
 This recommendation preserves the fixed repository constraints while making the even-length half-sample delay explicit. It is not the same as asking a standard integer-span RRC API for eight taps.
@@ -198,6 +198,11 @@ The recommended 16-bit coefficient representation is `Q1.15`, with coefficient s
 [359, -3636, 3636, 22590, 22590, 3636, -3636, 359]
 ```
 
+Refinement (#16): the FXP policy contract selects the common `Q2.(W-2)` format
+for data and coefficients, so at `W=16` the coefficient integers become
+`[179, -1818, 1818, 11295, 11295, 1818, -1818, 179]`. The `Q1.15` values above
+remain as the labelled sensitivity experiment in phase E of the FXP sweep.
+
 The coefficient and input integer products have scale `Sc*Sx`. If the output keeps the input's Q2.14 scale, accumulate at the product scale and rescale by `Sc` only after the full eight-term sum. Rounding, saturation, accumulator width, and overflow behavior remain implementation decisions and must be frozen before the FXP sweep.
 
 ## Reproducible Checks
@@ -249,7 +254,8 @@ ordering: ascending_time
 delay_samples: 3.5
 input_constellation_components: [-1.0, +1.0]
 input_scale_16bit: Q2.14
-coefficient_scale_16bit: Q1.15
+coefficient_scale_16bit: Q2.14
+coefficient_scale_sensitivity: Q1.15 (optional phase E)
 coefficients_float64: [the eight values listed above]
 ```
 
@@ -426,6 +432,7 @@ The team accepted the decisions below on 2026-09-22, before T10 freezes the simu
 ### D4. FXP numerics freeze
 
 - **Status:** accepted 2026-09-22 — round-to-nearest-even, saturation at explicit narrowing boundaries, wide non-wrapping accumulator, and a single rescale after the full sum; the actual widths are frozen in the T20/T21 sweep.
+- **Refinement (#16):** the coefficient format is refined to the common `Q2.(W-2)`; at `W=16` the coefficient integers are `[179, -1818, 1818, 11295, 11295, 1818, -1818, 179]`. See `docs/contracts/fxp-policy-16.md`.
 - **What is being chosen:** rounding mode, saturation versus wrap, coefficient/input/output `Q` formats, accumulator width, and output rescaling policy.
 - **Alternatives:** round-to-nearest-even versus truncation; saturate versus wrap on narrowing; wide non-wrapping accumulator versus minimal-width accumulator; single rescale after the full sum versus per-term rescale.
 - **Why it matters here:** these choices determine whether `SQNR >= 40 dB` is met, whether overflow is possible, and how much area and timing the arithmetic costs. They are the core of ticket #16 and of the T20/T21 sweep.
