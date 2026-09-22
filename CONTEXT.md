@@ -64,6 +64,14 @@ _Avoid_: hand-written vector metadata
 The aligned output interval used to compare models without implementation-only padding.
 _Avoid_: arbitrary comparison slice
 
+**Stimulus frame**:
+The deterministic QPSK sample sequence shared by the golden, FXP, and RTL flows.
+_Avoid_: test vector, random input
+
+**Edge pattern**:
+A fixed symbol sequence prepended to the random part of the stimulus to stress extrema and I/Q imbalance.
+_Avoid_: corner case set, special vector
+
 **Serial version**:
 RTL processing one sample per cycle (or one shared MAC).
 _Avoid_: slow version, simple version
