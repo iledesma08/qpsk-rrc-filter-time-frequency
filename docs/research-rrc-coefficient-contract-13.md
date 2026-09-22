@@ -6,6 +6,8 @@ Map: [#12](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/issues/1
 
 Date: 2026-09-21
 
+Updated: 2026-09-22 (expanded human decisions and added the Concepts and FAQ section)
+
 Branch: `research/rrc-coefficient-contract`
 
 Scope: research only. This note does not add simulator, RTL, vectors, or other project implementation code.
@@ -272,18 +274,6 @@ times=-1.75,-1.25,-0.75,-0.25,0.25,0.75,1.25,1.75
 coefficients=0.010942691568693054,-0.11095557645481881,0.11095557645481886,0.68938956882766222,0.68938956882766222,0.11095557645481886,-0.11095557645481881,0.010942691568693054
 ```
 
-## Open Human Decisions
-
-These items should be reviewed and accepted by the project team before T10 freezes the simulator contract:
-
-- Accept discrete unit-energy normalization, or choose unity DC gain instead.
-- Accept the required 3.5-sample delay, or change the design length/grid despite the fixed eight-coefficient assignment.
-- Keep the declared `+/-1 +/- j` constellation, or explicitly change to unit-magnitude QPSK.
-- Freeze rounding mode, saturation versus wrap, coefficient/input/output Q formats, accumulator width, and output rescaling for FXP.
-- Freeze whether the canonical artifact stores full float64 decimals, quantized integers, or both. The recommendation is both, with the float values as golden and integers as derived data.
-- Freeze FFT block size, overlap convention, padding, and valid output alignment. This ticket does not resolve the map's separate frequency-domain baseline question.
-- Decide whether eye plots should show the natural half-sample output grid, interpolate to symbol centers for presentation only, or use a nine-tap comparison as a separate reference.
-
 ## Sources
 
 All web sources below were consulted on 2026-09-21.
@@ -299,6 +289,189 @@ All web sources below were consulted on 2026-09-21.
 - [S9] SciPy `fftconvolve` documentation/source. Official API documents FFT-based linear convolution and output modes: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.fftconvolve.html
 - [S10] SciPy `fft` and `ifft` documentation/source. Official API documents transform normalization and frequency ordering: https://docs.scipy.org/doc/scipy/reference/generated/scipy.fft.fft.html and https://docs.scipy.org/doc/scipy/reference/generated/scipy.fft.ifft.html
 - [R1] Repository `README.md`, `CONTEXT.md`, ADR-0001, ADR-0004, ADR-0005, and `sim/python/README.md`, inspected on the same date.
+
+## Concepts and FAQ
+
+This section explains the vocabulary and the questions that come up while reading this contract. It sits between Sources and Open Human Decisions so the terms are clear before the team accepts or changes a decision.
+
+### Q1. What exactly is an RRC, and why research its coefficients?
+
+A root-raised-cosine filter is the square root (in magnitude) of a raised-cosine spectrum. In a matched pair, the transmitter and receiver each apply an RRC; their cascade is a raised-cosine response whose impulse response crosses zero at every symbol instant except its own, giving zero inter-symbol interference. This project implements that pulse as an 8-tap FIR, so its coefficients are the golden data that every later artifact (vectors, FXP model, RTL) must reproduce. Research was needed because standard APIs disagree about length, ordering, delay, and normalization.
+
+### Q2. What is the difference between a symbol period and a sample?
+
+The symbol period `T` is the time between QPSK symbols (`T = 1/Rs`). A sample is one value after oversampling; with 2x oversampling there are two samples per symbol, spaced `T/2`. `CONTEXT.md` uses exactly this distinction: symbols exist before filtering, samples exist after oversampling.
+
+### Q3. What is a centered even-length grid, what alternatives exist, and why choose it?
+
+The grid is `t[n] = (n-(N-1)/2)/sps` for `n=0..7`. With `N=8`, `sps=2`, it gives `+/-0.25T, +/-0.75T, +/-1.25T, +/-1.75T`: symmetric about zero, with no sample at `t=0` and the center falling between the fourth and fifth taps. Alternatives:
+
+- A one-sided (causal) grid `t[n] = n/sps`, which includes `g(0)` and produces an asymmetric truncation of the pulse.
+- A standard integer-span API grid, whose length `span*sps+1` is odd (9 taps for `span=4`, `sps=2`) and cannot satisfy the fixed 8-tap requirement.
+
+Centering is chosen because it keeps the truncation symmetric about the symbol center, matches the symmetry of the ideal pulse, and exposes the half-sample delay explicitly.
+
+### Q4. Why is it important to evaluate the RRC limits (singular points)?
+
+The ordinary formula has `0/0` forms at `t=0` and `t=+/-T/(4*alpha)`. Those are removable singularities, so the correct values come from limits (L'Hopital). Even though the eight-tap grid never lands on them, the implementation must branch explicitly: the continuous curve plotted over `[-2,2]` does pass through `t=0` and `t=+/-0.5`, and any future longer filter may sample those points. A naive implementation would produce `NaN`.
+
+### Q5. Why normalize the sampled values to discrete unit energy?
+
+Normalization fixes the amplitude scale of the golden coefficients. Unit energy, `sum(h^2)=1`, is the convention documented by MathWorks and implemented by Sionna (L2/unit power), makes a matched transmit/receive interpretation straightforward, and gives a clean, length-independent contract for SQNR and quantization. The alternative, unity DC gain (`sum(h)=1`), is valid but produces a different vector and must never be mixed with an energy-normalized one.
+
+### Q6. Why store coefficients in increasing time order, and why from `-1.75T` to `+1.75T`?
+
+Increasing index maps directly to increasing physical time, which is also the causal delay order used by `y[m] = sum(h[k]*x[m-k])`. The endpoints come from the grid: `+/-(N-1)/2` samples `= +/-3.5` samples `= +/-1.75T`. The vector is symmetric, so reversing it yields the same numbers, but the convention must still be fixed because it determines the documented delay, FFT bin alignment, vector manifests, and future non-symmetric experiments.
+
+### Q7. What does "treat each QPSK real component as the repository's declared value `+/-1.0`" mean? Why `2^14`, and what are Q2.14 and Q1.15?
+
+It means do not silently normalize the constellation. The repository declares `I,Q in {+1,-1}`, so each component is exactly `+/-1.0`. A signed 16-bit two's-complement word with scale `2^14` (`Q2.14`: two integer bits including the sign, fourteen fractional bits) represents `-1` and `+1` exactly as `-16384` and `+16384`; its range is `[-2, +1.99994]`. Signed `Q1.15` (scale `2^15`) has range `[-1, +0.99997]`, so `+1.0` is not exactly representable and would need saturation. Coefficients use `Q1.15` because normalized coefficients satisfy `abs(h) < 1`, and fifteen fractional bits give finer resolution (`2^-15`) than `Q2.14` (`2^-14`).
+
+`Qm.n` notation: `m` integer bits (sign included) plus `n` fractional bits, `m+n` bits total; the stored integer represents the real value multiplied by `2^n`.
+
+### Q8. Where does the FIR delay come from?
+
+For any symmetric (linear-phase) FIR of length `N`, the transfer function factors as `z^-((N-1)/2)` times a real zero-phase polynomial, so the filter group delay is `(N-1)/2` samples. With `N=8` that is `3.5` samples, or `1.75T` at 2 samples per symbol. The half-integer value comes precisely from the even tap count.
+
+### Q9. What is the RRC alpha, and why is it 0.5?
+
+`alpha` is the roll-off factor of the RRC (`0 < alpha <= 1`). It controls excess bandwidth: the occupied one-sided bandwidth is `(1+alpha)/(2T)` versus the Nyquist minimum `1/(2T)`. `alpha=0.5` gives 50% excess bandwidth, a moderate transition band, and faster tail decay than smaller values; the assignment fixes this value.
+
+### Q10. What does 2x oversampling imply, and what are its advantages and disadvantages?
+
+It means two samples per symbol, with sample spacing `T/2`. Advantages: minimal data rate increase, simple hardware, and enough resolution for a half-symbol-aligned pulse in this project. Disadvantages: eye resolution is coarser than 4x/8x, the half-sample delay becomes explicit in the output grid, and spectral images are closer to the band. The assignment fixes this rate, and the design must handle the half-sample grid rather than assume integer symbol centers.
+
+### Q11. Why 8 coefficients?
+
+Fixed by the assignment. Eight taps span `3.5T` (about `1.75` symbols on each side), a deliberately short FIR: cheap hardware and a good PPA exercise, at the cost of a visibly imperfect stopband.
+
+### Q12. What exactly is the NVIDIA Sionna `RootRaisedCosineFilter`, where does it come from, and why is it relevant?
+
+Sionna is NVIDIA's open-source, GPU-accelerated link-level simulation library for communications. Its `RootRaisedCosineFilter` documents the piecewise RRC formula, both singular-point limits, the span/samples length behavior, and an optional L2/unit-power normalization. It is this document's primary implementation-grade source for the formula and its edge cases.
+
+### Q13. What exactly is the Purdue EE538 square-root raised-cosine reference, and how does it relate to Sionna?
+
+EE538 is a Purdue University course whose notes describe the ideal square-root raised-cosine pulse and stress that its support is infinite. It provides independent academic confirmation of the same ideal pulse Sionna implements. The conclusion "a practical FIR is a time-truncated approximation" means that any finite tap count (8, in this project) can only approximate the ideal infinite response; it is a statement about truncation, not a defect in the formula.
+
+### Q14. What exactly is MathWorks `rcosdesign`, and what does the quoted sentence mean?
+
+`rcosdesign` is MATLAB's standard RRC design function. It takes an integer symbol span and samples per symbol, and the sentence means: the returned tap count is `span*sps+1`, the filter order is `span*sps`, and the coefficients are scaled to unit energy. Because `span*sps+1` is odd for integer spans, the standard API cannot directly produce the even 8-tap filter required here, which is why this contract defines an explicit custom grid.
+
+### Q15. What exactly is GNU Radio's `firdes::root_raised_cosine`, and why is it relevant?
+
+It is the RRC tap generator in GNU Radio, an open-source SDR framework. Its source forces an odd tap count and normalizes the taps by their sum, i.e. unity DC gain. It is relevant as a counterexample showing that "RRC normalization" and tap-count conventions are not universal, so this project must write its choices down explicitly.
+
+### Q16. What exactly is SciPy, and why is it relevant?
+
+SciPy is the Python scientific-computing library. This project uses it only for independent checks and future tooling: `freqz` for the frequency response, `upfirdn` for the upsample-filter-downsample operation, `fftconvolve` for FFT-based linear convolution, and `fft`/`ifft` for transform conventions. It does not define the RRC formula for us.
+
+### Q17. What does the "endpoints are 3.5 symbol periods apart" warning mean?
+
+It means the outermost taps sit at `-1.75T` and `+1.75T`, so the aperture is `3.5T`, not `4T`. A conventional `rcosdesign` with `span=4` and `sps=2` would produce nine taps spanning `+/-2T`. Ours is a custom even-length truncation; do not describe it as a "four-symbol-span, eight-tap" standard filter, because that combination does not exist in the standard integer-span convention.
+
+### Q18. What is exposed in the Raw Values section?
+
+It records the eight values produced directly by the formula before normalization, plus their raw energy and sum. This separates formula correctness from the normalization decision, lets anyone recompute the scale factor `sqrt(sum(raw^2))`, and gives a debugging checkpoint if the normalized vector is ever questioned.
+
+### Q19. Where does the recommended finite-FIR normalization come from?
+
+From this contract: `scale = sqrt(sum(raw[n]^2))` and `h[n] = raw[n]/scale`, so that `sum(h^2)=1`. It is the discrete-L2 normalization chosen to match MathWorks unit energy and Sionna's L2/unit-power normalization.
+
+### Q20. What is the L2 choice? Why does it match the MathWorks unit-energy convention and Sionna's unit-power normalization? How does it differ from unity DC?
+
+L2 normalization means dividing the coefficient vector by its Euclidean (L2) norm. MathWorks documents unit-energy coefficients (`sum(h^2)=1`) and Sionna's `normalize=True` path divides by the L2 norm, so the three agree. Unity DC instead divides by `sum(h)` so the DC gain is exactly 1; it produces a different coefficient vector and a different gain interpretation, and the two must not be mixed within one contract.
+
+### Q21. Why does it say that "the order still matters for the documented delay, FFT bin alignment, vector manifests, and future non-symmetric experiments"?
+
+Because the index convention defines the causal delay mapping, how coefficients are placed for FFT bin alignment, what the vector manifest states, and how future non-symmetric experiments (truncated or deliberately asymmetric filters) are interpreted. Symmetry makes the values palindromic but does not remove the need for a fixed convention.
+
+### Q22. What are linear-phase delay and half-sample delay, and why does an even tap count cause the latter?
+
+A symmetric FIR has a phase response that is linear in frequency, equivalent to a pure delay: the group delay is constant at `(N-1)/2` samples. If `N` is odd that delay is an integer; if `N` is even it is a half-integer. With `N=8` the delay is `3.5` samples `= 1.75T`, so output samples do not land exactly on symbol centers.
+
+### Q23. What is the difference between an unnormalized and a unit-magnitude QPSK constellation? Why is Q2.14 recommended for the unnormalized one instead of Q1.15?
+
+Unnormalized QPSK (`+/-1 +/- j`) has per-component values exactly `+/-1` and total symbol power 2. Unit-magnitude QPSK (`(+/-1 +/- j)/sqrt(2)`) has per-component values `+/-0.707` and total power 1. `Q1.15` cannot represent exactly `+1` (its maximum is `+0.99997`), so using it for the declared `+/-1` components would force saturation or a different interpretation; `Q2.14` represents `+/-1` exactly while still covering the needed range. The repository declares the unnormalized constellation, hence `Q2.14`.
+
+### Q24. Why do coefficients use Q1.15 when the constellation section says not to use it?
+
+The restriction applies to data samples, which include the exact value `1`. Coefficients are normalized to `max(abs(h))=0.689 < 1`, so `Q1.15` covers them with room to spare and gives one extra fractional bit of precision compared with `Q2.14`. Different signals have different dynamic ranges, so their binary-point placement differs.
+
+### Q25. What does "if the output keeps the input's Q2.14 scale, accumulate at the product scale and rescale by Sc only after the full eight-term sum" mean?
+
+Each product `h_int*x_int` carries scale `Sc*Sx = 2^15 * 2^14 = 2^29`. All eight products are summed in that scale, with an accumulator wide enough not to overflow, and only the final sum is divided by `Sc=2^15` to return to the input's `Q2.14` scale. Rescaling once at the end avoids accumulating per-term rounding errors. The rounding mode, actual accumulator width, and saturation policy are decided in the FXP sweep.
+
+### Q26. Why can rounding, saturation, accumulator width, and overflow behavior not be decided now?
+
+Because they depend on measured SQNR behavior and on architecture/PPA trade-offs, not only on the RRC contract. Ticket #16 owns that policy and the T20/T21 sweep chooses the widths; freezing them here without data would be guesswork. They must be frozen before the FXP sweep, not before T10.
+
+### Q27. It says "the eight taps are very short for an ideal RRC approximation". Is it wrong, and should it be changed?
+
+No. It is an expectation-setting statement, not an error: an 8-tap FIR is a coarse truncation of an infinite response, so the stopband and passband will deviate from ideal. The assignment fixes eight coefficients, so the correction is in presentation (plot the finite response and the ideal target separately) rather than changing the formula.
+
+### Q28. Why was the SHA-256 line added?
+
+It is a reproducibility fingerprint of the canonical text serialization of this contract (version, parameters, times, and coefficients). If a future generator (T10/T13) reproduces the contract exactly, it can recompute the same hash; a mismatch means the text or the coefficients drifted. It is not used by RTL and does not replace the float values as golden.
+
+## Open Human Decisions
+
+The team must accept, modify, or reject each item below before T10 freezes the simulator contract. Each entry lists what is being chosen, the alternatives on the table, why it matters for this project, and the research recommendation with its justification.
+
+### D1. Coefficient normalization
+
+- **What is being chosen:** how the eight raw RRC samples are scaled before they become the golden coefficients.
+- **Alternatives:** (a) discrete unit energy `h = raw / norm(raw)` — recommended; (b) unity DC gain `h = raw / sum(raw)`, the convention used by GNU Radio; (c) store raw unnormalized samples and normalize elsewhere.
+- **Why it matters here:** it fixes the amplitude scale of the golden model, the SQNR reference, the coefficient integer scaling, the matched-filter interpretation, and every generated vector. Changing it later invalidates vectors, tests, and RTL results.
+- **Recommendation:** unit energy.
+- **Why:** it matches the MathWorks unit-energy convention and Sionna's L2/unit-power normalization, is standard for matched transmit/receive pulse shaping, and gives a scale-independent contract.
+
+### D2. Half-sample delay and grid
+
+- **What is being chosen:** whether to keep the centered even-length grid and its `3.5`-sample (`1.75T`) group delay.
+- **Alternatives:** (a) keep `D=3.5` — recommended; (b) round the delay to `3` or `4` samples for integer-sample convenience; (c) switch to a 9-tap integer-delay filter, which violates the fixed 8-tap assignment.
+- **Why it matters here:** the delay drives the alignment between time and frequency output, the vector manifest fields, the impulse/eye plots, and the FFT block valid window. A mismatch is a silent vector-matching failure.
+- **Recommendation:** keep `D=3.5` and document it in the artifact and vector manifest.
+- **Why:** it is a mathematical consequence of an even tap count; rounding it changes the filter contract rather than simplifying it.
+
+### D3. Constellation convention
+
+- **What is being chosen:** keep the repository-declared unnormalized QPSK `I,Q in {+1,-1}`, or switch to unit-magnitude `(+/-1 +/- j)/sqrt(2)`.
+- **Alternatives:** (a) unnormalized `+/-1` with input scale `Q2.14` — recommended; (b) unit-magnitude with `Q1.15` as the data format; (c) any other declared scale.
+- **Why it matters here:** it sets average power, input integer scaling, saturation margins, the SQNR reference, and all generated vectors.
+- **Recommendation:** keep the declared `+/-1 +/- j`; record any change as a new ADR-level decision.
+- **Why:** the assignment and repository already fix it, and changing it silently would break ADR-0004's data contract.
+
+### D4. FXP numerics freeze
+
+- **What is being chosen:** rounding mode, saturation versus wrap, coefficient/input/output `Q` formats, accumulator width, and output rescaling policy.
+- **Alternatives:** round-to-nearest-even versus truncation; saturate versus wrap on narrowing; wide non-wrapping accumulator versus minimal-width accumulator; single rescale after the full sum versus per-term rescale.
+- **Why it matters here:** these choices determine whether `SQNR >= 40 dB` is met, whether overflow is possible, and how much area and timing the arithmetic costs. They are the core of ticket #16 and of the T20/T21 sweep.
+- **Recommendation:** round-to-nearest-even, saturation at explicit narrowing boundaries, wide non-wrapping accumulator, and a single rescale after the full sum; freeze the actual widths after the sweep.
+- **Why:** it preserves precision at low cost and keeps the sweep interpretable. This ticket already fixes data `Q2.14` and coefficient `Q1.15` but deliberately does not fix accumulator or output formats.
+
+### D5. Canonical artifact storage
+
+- **What is being chosen:** what the generated RRC artifact stores: full float64 decimals, quantized integers, or both, plus the hash.
+- **Alternatives:** float only; integer only; both — recommended.
+- **Why it matters here:** the artifact is the golden source for vectors and RTL coefficient tables. Divergence between the float and integer representations would produce false vector mismatches.
+- **Recommendation:** store both, with float as golden and integers as derived data, plus the SHA-256 manifest.
+- **Why:** Python tests can verify exact reproduction while RTL consumes frozen integers.
+
+### D6. Frequency block convention
+
+- **What is being chosen:** FFT block size, overlap convention, padding, and valid output alignment.
+- **Alternatives:** overlap-save with 50% overlap and FFT16 (the professor's baseline) versus overlap-add; different first/last-block edge handling.
+- **Why it matters here:** it controls the equality between the frequency-domain output and the time-domain golden, and the valid comparison window. This ticket does not resolve it because it belongs to ticket #14.
+- **Recommendation:** defer to the #14 research result and then freeze it, keeping `D=3.5` visible in the manifest.
+- **Why:** it prevents mixing partially decided conventions across the two domains.
+
+### D7. Eye and spectrum presentation
+
+- **What is being chosen:** how to present the natural half-sample output grid.
+- **Alternatives:** (a) plot the natural half-sample grid — recommended for verification; (b) interpolate to symbol centers for presentation only; (c) add a nine-tap reference filter for contrast.
+- **Why it matters here:** symbol-center interpolation can hide the real half-sample alignment and mislead the FFT alignment work. Plots are evidence, not decoration.
+- **Recommendation:** keep the natural grid for all verification evidence; use symbol-center interpolation only in slides, clearly labelled; the nine-tap reference is optional.
+- **Why:** it preserves reproducible evidence while still allowing readable presentations.
 
 ## Independent Calculation Evidence
 
