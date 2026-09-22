@@ -35,6 +35,106 @@ The team accepted these decisions on 2026-09-22:
 - **D8 — Location:** this contract lives in `docs/contracts/` and follows the
   integration-branch flow.
 
+## Decision Rationale
+
+### D1 — Frame length: 1024 symbols
+
+- **Alternatives:** 256 symbols (lighter vectors) and 4096 symbols (more
+  statistical stability).
+- **Why they were rejected:** 256 symbols leave less margin for the SQNR
+  statistics and fewer samples around the edge patterns, which weakens the
+  measurement; 4096 symbols make the vector files and the RTL matching run
+  longer without adding information for an 8-tap filter.
+- **Why 1024 was chosen:** it gives enough samples for a stable SQNR, keeps
+  each vector around a few kilobytes, keeps the RTL matching fast, and still
+  provides enough symbols for the eye and spectrum plots.
+
+### D2 — PRNG and seed: `numpy.random.default_rng(2026)`
+
+- **Alternatives:** seed 42, Python `random.Random`, or no fixed seed.
+- **Why they were rejected:** seed 42 is equally valid and was displaced only
+  by a documented project constant, so it is not a technical rejection;
+  `random.Random` is a general-purpose PRNG with weaker stream-stability
+  guarantees than NumPy's PCG64; an unfixed seed would break reproducibility
+  and vector matching entirely.
+- **Why this was chosen:** NumPy is already a project dependency, PCG64 is the
+  modern generator with documented stream stability, and a fixed integer seed
+  plus an explicit corner mapping makes regeneration deterministic across
+  machines.
+
+### D3 — Edge patterns: five fixed 8-symbol patterns
+
+- **Alternatives:** random symbols only; a different or larger pattern set;
+  patterns appended at the end of the frame.
+- **Why they were rejected:** random-only can under-sample extrema and I/Q
+  imbalance; a larger set would reduce the random portion without adding
+  coverage beyond the intended cases; appending patterns at the end would
+  complicate the frame end and the valid-window checks.
+- **Why this set was chosen:** the five patterns cover all corners, the
+  anti-diagonal, I-only alternation, Q-only alternation, and a constant corner,
+  in a small prefix that is easy to verify while keeping the rest of the frame
+  random.
+
+### D4 — Oversampling: zero insertion, vectors carry samples
+
+- **Alternatives:** vectors carry symbols and the RTL performs the upsampling;
+  sample-and-hold upsampling.
+- **Why they were rejected:** RTL upsampling would add logic that is not part
+  of the filter and would make the RTL diverge from the simulator flow;
+  sample-and-hold has a sinc-shaped droop and would require a different pulse
+  design.
+- **Why this was chosen:** zero insertion followed by the RRC filter is the
+  canonical pulse-shaping chain, it matches the 2-samples-per-symbol design of
+  the coefficient contract, and the RTL receives one sample per clock with no
+  extra upsampler.
+
+### D5 — Initial state: zero history, no guards
+
+- **Alternatives:** prepend guard symbols; start from random history; wait for
+  a history fill before emitting.
+- **Why they were rejected:** guards consume samples and complicate the valid
+  window; random history adds hidden state that must be reproduced exactly;
+  waiting complicates the streaming contract for no mathematical benefit.
+- **Why this was chosen:** zero history is the natural causal start
+  (`x[n] = 0` for `n < 0`), it matches the zero pre-frame padding of the
+  frequency OLS contract, and it is trivially reproducible.
+
+### D6 — Valid window: full causal output
+
+- **Alternatives:** input-length window (2048 samples); symbol-aligned trimmed
+  window; different windows per domain.
+- **Why they were rejected:** trimming the tail discards real signal energy; a
+  symbol-aligned trim interacts with the half-sample delay and is easy to get
+  wrong; per-domain windows violate the common-window requirement of
+  ADR-0005.
+- **Why this was chosen:** it keeps all the energy, contains no
+  implementation-only padding, gives both domains and the FXP model identical
+  absolute indices, and the manifest declares `valid_start` and `valid_len`
+  explicitly.
+
+### D7 — Symbol centers: natural grid, presentation-only interpolation
+
+- **Alternatives:** interpolate to symbol centers for all evidence; display
+  with sample-and-hold; forbid interpolation entirely.
+- **Why they were rejected:** interpolated evidence compares derived values
+  rather than implementation output and can hide one-sample alignment errors;
+  sample-and-hold distorts the waveform; forbidding interpolation in slides
+  adds no value.
+- **Why this was chosen:** verification stays exact on the samples that the
+  golden and RTL actually produce, while slides can use a clearly labelled
+  presentation-only view.
+
+### D8 — Location: `docs/contracts/` with the integration flow
+
+- **Alternatives:** keep the decision in the issue text; commit directly to
+  `main`; keep it only on a research branch.
+- **Why they were rejected:** issue text is hard to diff and review; a direct
+  `main` commit bypasses the protected-branch flow; research branches are
+  throwaway snapshots and are not the canonical home.
+- **Why this was chosen:** it matches the existing contracts, keeps the
+  decision reviewable in a PR, and lands on `main` through the single final
+  integration PR.
+
 ## Signal Model
 
 Symbols are the unnormalized QPSK corners accepted in the RRC contract:
