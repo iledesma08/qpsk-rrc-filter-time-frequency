@@ -272,6 +272,23 @@ drc, lvs, antenna, run_tag`.
   finalists after the reproducible environment ticket (#19) reports the
   available tool versions and seed controls.
 
+## Resolution Status
+
+This report was written before the decision contracts. The open items and the
+superseded recommendations are resolved as follows.
+
+| Research item | Resolution |
+| --- | --- |
+| #14 finalize the 50% overlap FFT16 baseline, zero padding, and index alignment | #14 D1/D2: forced-50% OLS accepted (`N=16`, `H=8`, discard `z[0:8]`, emit `z[8:16]`), zero pre-frame history, and the full causal window via #15; #18 D8 cites the accepted schedule. |
+| #17 define handshake, latency, and `II` semantics | #17 D1-D7: `valid`/`ready`, `latency_samples`/`latency_cycles` per variant, and `II` measured from the handshake; #18 D2 uses those definitions. |
+| `P=1` and `P=2` realizable without changing truncation or saturation | Deferred to F3, recorded as an open item in `ppa-matrix-18.md`; all variants must be bit-exact, and the datapath owner confirms the cut placement during implementation. |
+| Second identical OpenLane run for finalists | #18 D7: rerun a finalist only on a genuine tie or unexplained outlier; the environment and tool revisions are recorded per #19. |
+| Research workload recommendation (256 samples) | Superseded by #18 D4: the canonical #15 frame (1024 symbols, 2048 samples) is used for matching and activity; the frequency lane processes 256 blocks of 8. |
+| Research OLS wording ("discard `L-1=7`, retain 8") | Corrected by #18 D8: the accepted #14 schedule is discard `z[0:8]` and emit `z[8:16]`. |
+
+The report remains the long-form research record; the accepted decisions live
+in the contracts under `docs/contracts/`.
+
 ## Sources
 
 1. Repository `CONTEXT.md`, especially the PPA and architecture vocabulary:
