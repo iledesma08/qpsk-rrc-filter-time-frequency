@@ -374,12 +374,36 @@ are kept; the fact that the RRC taps are real does not make the data real.
 
 ### Q4. What does 50% frame overlap mean, what is the hop, and how does the overlap set the hop?
 
-The frame length is `N=16`. The overlap is how many samples a frame shares
-with the previous one. With 50% overlap, 8 of the 16 samples are reused, so
-each new frame contributes `H = N - overlap = 16 - 8 = 8` new input samples;
-that count is the hop. The hop therefore follows directly from the chosen
-overlap. Canonical OLS instead uses the mathematically required overlap
-`M-1 = 7`, which gives the hop `N - (M-1) = 9`.
+The hop (also called the stride or hop size) is how many new input samples
+each new frame advances, that is, the distance in samples between the first
+sample of one frame and the first sample of the next frame. The overlap is how
+many samples the new frame reuses from the previous one. Together they fill the
+frame:
+
+```text
+N = overlap + H        # H is the hop
+H = N - overlap
+```
+
+With `N=16` and 50% overlap, the overlap is 8 samples, so the hop is
+`H = 16 - 8 = 8` new samples per frame. Consecutive frames look like this:
+
+```text
+frame 0: x[-8] ... x[7]     (8 zeros + x[0:8])
+frame 1: x[ 0] ... x[15]    (8 history + 8 new)
+frame 2: x[ 8] ... x[23]    (8 history + 8 new)
+```
+
+The start indices are `-8, 0, 8, ...`; the step between consecutive starts is
+the hop, here 8. The first 8 samples of each frame are reused history and the
+last 8 are new, which is exactly why each block emits 8 new outputs
+(`z[8:16]`).
+
+Canonical OLS reuses only the mathematically required `M-1 = 7` history
+samples, so its hop is `N - (M-1) = 9` and consecutive frames start at
+`-7, 2, 11, ...`. In short: overlap is what you reuse, hop is what you consume
+and advance, and `overlap + hop = N`. A larger hop means fewer frames per input
+sample, hence fewer FFT/IFFT operations per output sample.
 
 ### Q5. What is a fixed-phase OLS frame?
 
