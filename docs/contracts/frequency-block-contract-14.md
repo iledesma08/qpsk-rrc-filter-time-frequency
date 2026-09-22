@@ -605,6 +605,33 @@ Canonical OLS (hop 9):
 - Numerical checks: the canonical variant is already covered as a separate
   check in this document, with maximum error `1.33e-15`.
 
+### Switching cost if hop 9 is approved later
+
+The hop is a parameter of the frequency block engine, not a change to the
+signal definition, so switching later is bounded and mostly documentation:
+
+| Artifact | Depends on hop? | Work if hop 9 is approved |
+| --- | --- | --- |
+| Frequency contract D1 | Yes | Update the selector, discard range, and hop, and record the new acceptance. |
+| Emitted `y[n]` values and vector records | No | None; both schedules produce the same sequence. |
+| Time-domain golden and RTL | No | None. |
+| ADR-0004 vector format and ADR-0005 SQNR | No | None. |
+| #15 stimulus and valid output window | No | None. |
+| #16 FXP policy and width sweep | No | None. |
+| #19 OpenLane environment | No | None. |
+| Frequency float model (F1/T12) | Parameter | Use the hop parameter; not implemented yet. |
+| Vector manifest metadata (T13) | Parameter | Update `hop`, `overlap`, `discard_prefix`, and `emit_start`; not implemented yet. |
+| Frequency RTL control (F3/T32) | Yes | Hop counter and output selector only; not implemented yet. |
+| #17 RTL contract | Parameter | Define `HOP`, `DISCARD_PREFIX`, and `EMIT_START` as parameters instead of constants. |
+| #18 PPA frequency baseline row | Yes | Update the workload row and rerun synthesis for that baseline. |
+| Presentation and eye/spectrum views | Minor | Block cadence changes from 4 to 4.5 symbols per block; presentation impact only. |
+
+Because no frequency implementation exists yet, the current cost of a future
+switch is documentation-level. To keep it that way: parameterize the hop in the
+#17 RTL contract, ask the professor before the F3 frequency implementation and
+before freezing the final PPA matrix in #18, and record the active schedule in
+every run manifest.
+
 ### Draft proposal to the professor
 
 This is a draft the team can adapt; it does not change D1 on its own.
