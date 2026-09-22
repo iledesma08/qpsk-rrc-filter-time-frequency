@@ -460,6 +460,50 @@ The team accepted the decisions below on 2026-09-22, before T10 freezes the simu
 - **Recommendation:** keep the natural grid for all verification evidence; use symbol-center interpolation only in slides, clearly labelled; the nine-tap reference is optional.
 - **Why:** it preserves reproducible evidence while still allowing readable presentations.
 
+## Decision Rationale
+
+### D1 — Normalization: discrete unit energy
+
+- **Alternatives:** unity DC gain (the GNU Radio convention) or raw unnormalized samples.
+- **Why they were rejected:** unity DC optimizes DC gain rather than matched-filter energy and produces a different vector that is incompatible with the MathWorks and Sionna conventions recorded here; raw samples leave an arbitrary scale that would make SQNR and FXP scaling incomparable.
+- **Why this was chosen:** it matches the MathWorks unit-energy convention and Sionna's L2/unit-power normalization, is the standard matched transmit/receive convention, and gives a scale-independent contract.
+
+### D2 — Half-sample delay and grid: centered even grid with `D=3.5`
+
+- **Alternatives:** round the delay to `3` or `4` samples; switch to a nine-tap odd-length filter.
+- **Why they were rejected:** rounding introduces a systematic alignment error against the ideal pulse and changes the documented delay; a nine-tap filter violates the fixed eight-coefficient assignment.
+- **Why this was chosen:** the even tap count mathematically forces the half-sample group delay, and keeping the centered grid preserves symmetry and exact alignment with the ideal RRC.
+
+### D3 — Constellation: unnormalized `+/-1 +/- j` with `Q2.14`
+
+- **Alternatives:** unit-magnitude `(+/-1 +/- j)/sqrt(2)` with `Q1.15`; any other declared scale.
+- **Why they were rejected:** the unit-magnitude constellation changes the declared average power and would require re-deriving every vector and the SQNR reference; other scales silently reinterpret the declared data.
+- **Why this was chosen:** the assignment and repository declare `+/-1 +/- j`, and `Q2.14` represents both `+1` and `-1` exactly.
+
+### D4 — FXP numerics: RNE, saturation, wide accumulator, single rescale
+
+- **Alternatives:** truncation instead of RNE; wrap instead of saturation; a minimal-width accumulator; per-term rescaling.
+- **Why they were rejected:** truncation adds a DC bias; wrap can hide overflow and corrupt vectors; a minimal accumulator risks internal overflow; per-term rescaling accumulates rounding noise.
+- **Why this was chosen:** the chosen policy preserves precision at low cost, keeps overflow detectable, and makes the T20/T21 width sweep interpretable; the actual widths are frozen from measured data.
+
+### D5 — Artifact storage: float golden plus derived integers
+
+- **Alternatives:** float only, or integers only.
+- **Why they were rejected:** float-only forces the RTL flow to quantize on the fly with a second, divergent implementation; integer-only loses the golden reference needed for regeneration and auditing.
+- **Why this was chosen:** the float64 values stay the golden source and the integers are derived data consumed by RTL, both in one artifact so they cannot diverge.
+
+### D6 — Frequency block convention: deferred to #14 under the professor gate
+
+- **Alternatives:** choose canonical OLS hop 9 or OLA immediately.
+- **Why they were rejected:** both alternatives deviate from the professor's stated baseline and require his approval; deciding them here would also mix a partially decided convention into the RRC contract.
+- **Why this was chosen:** deferring keeps a single decision owner (#14), which later accepted the forced-50% baseline and documented hop 9 as the alternative under the professor gate.
+
+### D7 — Eye and spectrum presentation: natural half-sample grid
+
+- **Alternatives:** interpolate to symbol centers for all evidence; compare against a nine-tap reference filter.
+- **Why they were rejected:** interpolated evidence compares derived values rather than implementation output and can hide a one-sample alignment error; the nine-tap reference is a different filter and can confuse the contract.
+- **Why this was chosen:** the natural grid is exactly what the golden and RTL produce; interpolation remains a clearly labelled slide-only view, and the nine-tap comparison stays optional context.
+
 ## Independent Calculation Evidence
 
 The numeric values in this note were independently calculated with CPython `3.12.3` using the displayed formula, `T=1`, `alpha=0.5`, `sps=2`, `N=8`, absolute-time evaluation for symmetry, and float64 arithmetic. No project source file was modified and no project implementation was run.

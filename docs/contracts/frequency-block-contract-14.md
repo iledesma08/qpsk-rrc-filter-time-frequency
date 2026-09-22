@@ -676,3 +676,43 @@ Thank you,
 - This section is the comparison and the proposal draft requested by the team.
 - No contract change happens until the professor answers; option (c) is the
   team's preferred middle ground if a comparison experiment is welcome.
+
+## Decision Rationale
+
+### D1 — Frequency baseline: forced 50% OLS (hop 8)
+
+- **Alternatives:** canonical OLS with hop 9; OLA with an 8-sample cadence.
+- **Why they were rejected:** hop 9 is the more efficient canonical partition,
+  but it deviates from the professor's stated architecture and cannot be
+  adopted without the professor gate; OLA is numerically valid but needs
+  per-block zero padding and an output accumulation buffer, so it was kept as
+  a comparison rather than the baseline.
+- **Why this was chosen:** it matches the assignment owner's proposal, keeps a
+  simple 8+8 streaming cadence aligned to exactly 4 symbols per block at 2x
+  oversampling, and is numerically equivalent to the alternatives (about
+  `1e-15`). The full comparison and the draft proposal to the professor are in
+  the section above.
+
+### D2 — Emitted vector window: full causal
+
+- **Alternatives:** input-length window (`y[0:S]`); symbol-aligned trimmed
+  window; different windows per domain.
+- **Why they were rejected:** the input-length window discards the real filter
+  tail energy; a symbol-aligned trim interacts with the 3.5-sample delay and is
+  easy to misalign; per-domain windows break the common-window requirement of
+  ADR-0005.
+- **Why this was chosen:** it preserves all the energy, contains no
+  implementation-only padding, and gives the time, frequency, and FXP flows
+  identical absolute indices. Accepted via ticket #15 with `valid_start = 0`
+  and `valid_len = L + M - 1`.
+
+### D3 — FFT/IFFT scaling: NumPy default for the golden
+
+- **Alternatives:** a per-stage scaled RTL core, or any documented equivalent.
+- **Why they were rejected or deferred:** a per-stage scaled core cannot be
+  fixed until the core is selected, and mixing conventions risks a duplicated
+  or missing `1/N`.
+- **Why this was chosen:** the NumPy default (forward unscaled, inverse `1/N`)
+  keeps the float golden simple and matches the reference used in the research
+  checks; the RTL convention is recorded and compensated exactly once when the
+  core is chosen.
