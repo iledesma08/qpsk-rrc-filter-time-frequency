@@ -459,7 +459,7 @@ D2 and D3 are resolved naturally by later tickets.
 
 ### D1. Which frequency baseline to lock
 
-- **Status:** pending team acceptance.
+- **Status:** accepted 2026-09-22 — professor's forced-50% baseline with the explicit schedule.
 - **What is being chosen:** the OLS schedule used by the frequency-domain golden: the professor's forced-50% schedule (`N=16`, `H=8`, discard `z[0:8]`, emit `z[8:16]`) or the canonical OLS contract (`H=9`, overlap 7, discard `z[0:7]`, emit 9 samples).
 - **Alternatives:** (a) professor's forced 50% with the explicit schedule — recommended; (b) canonical OLS `H=9`; (c) OLA with an 8-sample cadence.
 - **Why it matters here:** the schedule fixes the frame grid, the discard/output mapping, the block cadence, and the alignment against the time-domain golden. It is also the contract the RTL implementation must follow.
