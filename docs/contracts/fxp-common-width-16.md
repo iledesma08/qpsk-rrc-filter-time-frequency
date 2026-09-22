@@ -301,6 +301,28 @@ The research recommendation does not make these decisions for the team:
 - Freeze the vector manifest schema, including sign extension into the existing 16-bit fields.
 - Select the exact PPA ranking rule when area, fmax, and power disagree. The FXP width should not be changed after seeing one preferred PPA axis without recording the trade-off.
 
+## Resolution Status
+
+This report was written before the decision contracts. Every item above is now
+resolved; this table records where.
+
+| Research item | Resolution |
+| --- | --- |
+| QPSK PRNG, seed, symbol count, edge cases | #15 `qpsk-stimulus-15.md`: `default_rng(2026)`, 1024 symbols, five fixed edge patterns, zero insertion, full causal window. |
+| RRC normalization, order, coefficient peak | #13 `rrc-coefficient-contract-13.md`: discrete unit energy, ascending time order, `max(abs(h)) = 0.6894 < 1`. |
+| Common `Q2.(W-2)` vs separate `Q1.(W-1)` coefficients | #16 D2: common `Q2.(W-2)`; `Q1.(W-1)` coefficients only as the labelled phase E sensitivity experiment; RRC D4 refined. |
+| FFT/IFFT contract, hop, padding, latency, valid window | #14 D1/D2: forced-50% OLS (`N=16`, `H=8`, discard `z[0:8]`, emit `z[8:16]`), internal zero history, full causal window via #15. |
+| Frequency stage scaling baseline | #16 D5: run baseline A (grow-by-stage) and baseline B (one-bit-per-stage) at the same `W`; the winner comes from the F4 measurements. |
+| Zero output saturation as a hard gate | #16 D3 and acceptance rule: zero canonical output saturation and zero internal overflow are hard gates; wrap is a diagnostic only. |
+| `2W+3` accumulator frozen or reducible | #16 D4: `2W+3` is the frozen baseline; `2W+1`/`2W+2` are a separate experiment with an overflow assertion. |
+| Coefficient-specific binary point scope | #16 D2/D5: phase E sensitivity only, outside the common-width comparison. |
+| Vector manifest schema and sign extension | #16 D7 and the Manifest section: fields frozen; sign-extend into the 16-bit packed fields when `W < 16`. |
+| PPA ranking rule | #16 D8 (deferred) and #18 D7: Pareto front with gates and no arbitrary weights; the width is not changed after seeing one preferred axis without recording the trade-off. |
+
+Two items keep execution-time components by design: the FFT core selection
+belongs to F3, and the frequency scaling winner comes from the F4
+measurements.
+
 ## Sources
 
 ### Primary external sources
