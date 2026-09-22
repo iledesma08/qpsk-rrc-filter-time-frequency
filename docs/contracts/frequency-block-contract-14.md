@@ -492,7 +492,7 @@ D2 and D3 are resolved naturally by later tickets.
 
 ### D2. Emitted vector window
 
-- **Status:** deferred to ticket #15.
+- **Status:** accepted 2026-09-22 via ticket #15 — full causal window `y[0:S+7]` for golden, SQNR, and vector matching; the stimulus contract declares `valid_start = 0` and `valid_len = L + M - 1`.
 - **What is being chosen:** whether the emitted vectors use the full causal window `y[0:S+7]` (including the filter tail) or the input-length window `y[0:S]`.
 - **Alternatives:** full causal; input-length; any other documented trim.
 - **Why it matters here:** both domains must compare on the same absolute indices and the vector manifest must declare the window; a silent trim would produce vector-matching failures.
