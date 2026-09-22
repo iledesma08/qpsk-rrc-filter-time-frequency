@@ -17,10 +17,10 @@ or PPA result is included.
 
 | Item | Value |
 | --- | --- |
-| Machine used | Ignacio's workstation (12 cores, 31 GiB RAM) |
+| Machine used | Verified workstation (12 cores, 31 GiB RAM) |
 | Nix | Determinate Nix 3.21.8 |
 | Nix binaries | `/nix/var/nix/profiles/default/bin` (not in `PATH` inside the container used for this session) |
-| OpenLane | v2.3.10 at `/home/askesis/openlane2` |
+| OpenLane | v2.3.10 from a local `~/openlane2` clone |
 | PDK | volare; `~/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af` with `sky130A` and `sky130B` (2.1 GB) |
 | Standard cell library | `sky130_fd_sc_hd` (confirmed in the smoke test and the minimal run) |
 | Functional simulator | Icarus Verilog (not used by the smoke test; used by the project TBs) |
