@@ -1,8 +1,15 @@
 # Frequency-Domain Block Contract Research
 
 Research ticket: [#14](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/issues/14)
+
 Map: [#12](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/issues/12)
+
 Date: 2026-09-21
+
+Updated: 2026-09-22
+
+Branch: `research/frequency-block-contract`
+
 Scope: research only; no simulator or RTL implementation is included.
 
 ## Recommendation
@@ -316,3 +323,163 @@ replacement for the project's eventual pytest test and RRC/QPSK vectors.
 All web sources above were checked on 2026-09-21. The source-backed facts are
 separated from project-specific choices in the table above; the latter should
 be confirmed by the team before implementation.
+
+## Concepts and FAQ
+
+This section explains the vocabulary used by the contract, in the order the
+questions usually come up while reading it.
+
+### Q1. What is the difference between the FFT and the IFFT, and why should they be twice as wide as the filter?
+
+The FFT analyzes a time block into frequency bins; the IFFT synthesizes a time
+block back from frequency bins. They are the same transform with conjugated
+phase factors and reciprocal normalization. With NumPy defaults, the forward
+transform is unscaled and the inverse applies `1/N`, so `ifft(fft(a))` returns
+`a` within numerical accuracy.
+
+"Twice as wide as the filter" here means `N=16` against `M=8`. It is not a
+universal law: a length-`N` circular convolution represents the linear
+convolution of a hop of `H` samples with `M` taps without wrap only when
+`N >= H + M - 1`. For the 8-sample hop and 8-tap filter used here,
+`H + M - 1 = 15`, so 16 is the smallest power-of-two FFT that fits. The width
+beyond the filter is what leaves room for the filter memory and the valid
+output samples.
+
+### Q2. What is circular convolution, how does it relate to this project, and what is the role of zero padding?
+
+Multiplying `FFT(x)` by `FFT(h)` and applying an IFFT computes a circular
+convolution: output index `n` wraps around modulo `N`, so the tail of the
+linear convolution reappears at the beginning of the block. The time-domain
+reference for this project is the linear, causal FIR
+`y[n] = sum(h[k] * x[n-k])`, so the wrapped part must be prevented or
+discarded.
+
+Zero padding is the standard way to make circular convolution behave like
+linear convolution: pad the input block (OLA) or the filter (`h16` here) so
+the full linear result fits into `N` samples. In OLS, the input frames are not
+zero-padded in steady state; the frame is already full of real history, and
+the `M-1` wrapped samples are discarded because they are known to be
+corrupted. Zero padding then appears only at the start (initial history) and
+at the finite end (flushing the tail).
+
+### Q3. What is the `complex FFT -> pointwise complex multiply -> explicit IFFT` flow?
+
+It is the frequency-domain filtering pipeline: take a 16-sample block, compute
+its 16 complex frequency bins, multiply them bin by bin with the 16 bins of
+the zero-padded filter (`H[k] = FFT16(h16)`), and transform the product back
+to time with an inverse FFT. "Explicit IFFT" means the design performs an
+actual inverse transform rather than using a real-input shortcut or
+precomputing a time-domain result. The QPSK stream is complex, so all 16 bins
+are kept; the fact that the RRC taps are real does not make the data real.
+
+### Q4. What does 50% frame overlap mean, what is the hop, and how does the overlap set the hop?
+
+The frame length is `N=16`. The overlap is how many samples a frame shares
+with the previous one. With 50% overlap, 8 of the 16 samples are reused, so
+each new frame contributes `H = N - overlap = 16 - 8 = 8` new input samples;
+that count is the hop. The hop therefore follows directly from the chosen
+overlap. Canonical OLS instead uses the mathematically required overlap
+`M-1 = 7`, which gives the hop `N - (M-1) = 9`.
+
+### Q5. What is a fixed-phase OLS frame?
+
+It is the alignment convention that anchors every frame at the same offset
+relative to the input stream. For the forced-50% schedule, frame `b` is
+
+```text
+frame_b[r] = x[8b - 8 + r], 0 <= r < 16
+```
+
+so it always contains eight history samples followed by eight new samples.
+"Fixed-phase" emphasizes that the frame grid does not slide or recenter: the
+same eight-plus-eight structure repeats every block, which makes the streaming
+interface simple. The alternative seven-history/nine-new phase is
+mathematically valid but needs one extra lookahead sample and drops the last
+valid output.
+
+### Q6. What are the pre-frame positions, why are they initialized to zero, and why is there "no steady-state zero padding" in OLS?
+
+The pre-frame positions are the inputs before the first real sample,
+`x[-8:-1]`. A causal FIR sees zero outside the support of its input, so those
+positions are zero; that is what lets the first frame produce the correct
+causal output. In steady state, OLS reuses the previous frame's samples as
+history instead of padding: each new frame is filled with real saved samples
+plus real new samples. Zero padding exists only at the two boundaries: the
+initial history and the final blocks needed to flush the filter tail. OLA is
+different: it pads every input block with `N-H` zeros before the FFT.
+
+### Q7. Why are IFFT values discarded, and what does "time-alias corrupted" mean?
+
+A length-16 circular convolution wraps the linear-convolution tail back to the
+start of the block. For an `M=8` filter, the first `M-1 = 7` samples of the
+IFFT result are exactly that wrapped contribution added to the true values,
+so they are corrupted by time-domain aliasing and cannot be used. In the
+forced-50% schedule the eighth sample (index 7) is not corrupted: it is the
+valid output `y[8b-1]` that the previous block already emitted, or the
+pre-input sample `y[-1]` for `b=0`, and it is discarded only to avoid
+duplication. Discarding `z[0:8]` leaves the eight alias-free samples
+`z[8:16] = y[8b:8b+8]`.
+
+### Q8. Why does the contract say that 50% overlap is not canonical, and what would the canonical application be?
+
+Canonical OLS for `M=8`, `N=16` uses hop 9 and 7-sample overlap: seven leading
+IFFT samples are discarded and nine valid outputs are kept. 50% overlap means
+hop 8, so one valid output per frame has to be dropped to keep the cadence,
+and the discard/output policy must be written down for the schedule to be well
+defined. The professor's baseline is still valid as an engineering choice; the
+point of the sentence is that it is a project scheduling decision, not the
+textbook OLS rule, and the contract must state it explicitly.
+
+### Q9. Why is the efficient canonical contract `R = N - M + 1 = 9` with input overlap `M-1 = 7`?
+
+Because the first `M-1` samples of every length-`N` circular convolution are
+corrupted, at most `N - (M-1) = N - M + 1` samples per frame are usable. To
+consume exactly the usable samples with no gaps, the next frame must start
+`N - M + 1` samples later; that is the hop `R = 9`. Its first `M-1 = 7`
+samples are the last seven samples of the previous frame, which is where the
+input overlap comes from. This partition maximizes the number of valid outputs
+per FFT, so it is the efficient canonical OLS contract.
+
+### Q10. What are OLS and OLA?
+
+Overlap-save (OLS) splits the input into frames that overlap by `M-1` samples,
+transforms each frame, multiplies by the filter's frequency response,
+inverse-transforms, discards the first `M-1` corrupted samples, and
+concatenates the survivors. Overlap-add (OLA) splits the input into adjacent,
+non-overlapping blocks, zero-pads each block to length `N`, filters it in the
+frequency domain, and adds the overlapping output tails into an accumulator.
+Both compute the same linear convolution; OLS avoids output addition but
+reuses input overlap, while OLA avoids input overlap but needs output
+accumulation and zero padding.
+
+## Human Decisions
+
+The team must record the choices below. Only D1 blocks locking this contract;
+D2 and D3 are resolved naturally by later tickets.
+
+### D1. Which frequency baseline to lock
+
+- **Status:** pending team acceptance.
+- **What is being chosen:** the OLS schedule used by the frequency-domain golden: the professor's forced-50% schedule (`N=16`, `H=8`, discard `z[0:8]`, emit `z[8:16]`) or the canonical OLS contract (`H=9`, overlap 7, discard `z[0:7]`, emit 9 samples).
+- **Alternatives:** (a) professor's forced 50% with the explicit schedule — recommended; (b) canonical OLS `H=9`; (c) OLA with an 8-sample cadence.
+- **Why it matters here:** the schedule fixes the frame grid, the discard/output mapping, the block cadence, and the alignment against the time-domain golden. It is also the contract the RTL implementation must follow.
+- **Recommendation:** adopt the professor's baseline and write the forced-50% schedule explicitly, keeping canonical OLS `H=9` documented as the mathematical alternative. Any proposal to change the baseline goes to the professor first (professor gate).
+- **Why:** it respects the assignment owner's architecture, gives a simple 8-sample streaming cadence, and the numerical checks in this document already validate the alignment to about `1e-15`.
+
+### D2. Emitted vector window
+
+- **Status:** deferred to ticket #15.
+- **What is being chosen:** whether the emitted vectors use the full causal window `y[0:S+7]` (including the filter tail) or the input-length window `y[0:S]`.
+- **Alternatives:** full causal; input-length; any other documented trim.
+- **Why it matters here:** both domains must compare on the same absolute indices and the vector manifest must declare the window; a silent trim would produce vector-matching failures.
+- **Recommendation:** let ticket #15 (stimulus, seed, and valid output window) decide, and record the result in both domain contracts.
+- **Why:** it is the same decision for time and frequency, so it belongs with the stimulus contract rather than here.
+
+### D3. FFT/IFFT scaling convention
+
+- **Status:** deferred to the FXP/RTL phases.
+- **What is being chosen:** the numeric scaling of the forward and inverse transforms, both in the Python golden and in the RTL FFT core.
+- **Alternatives:** NumPy default (forward unscaled, inverse `1/N`) — recommended for the float golden; a per-stage scaled RTL core; any documented equivalent.
+- **Why it matters here:** a duplicated or missing `1/N` changes the output scale and breaks vector matching; it must be recorded once and compensated exactly once.
+- **Recommendation:** use the NumPy default in the float golden and freeze the RTL core convention when the FFT core is selected in the FXP/RTL phases.
+- **Why:** it keeps the golden simple and makes the compensation point explicit.
