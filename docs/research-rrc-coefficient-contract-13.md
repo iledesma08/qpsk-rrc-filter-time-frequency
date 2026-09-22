@@ -253,27 +253,6 @@ coefficient_scale_16bit: Q1.15
 coefficients_float64: [the eight values listed above]
 ```
 
-For a canonical text serialization using the exact decimal strings in this document, the independently computed SHA-256 is:
-
-```text
-dfde3e70071c5c921a7237bd02e91de53a68f94063b4f1b54f231912a10c37a1
-```
-
-The hash covers this canonical content, in this order, with a final newline:
-
-```text
-rrc8-v1
-alpha=0.5
-symbol_period=1
-samples_per_symbol=2
-num_coefficients=8
-grid=t_n=(n-(N-1)/2)/sps
-normalization=divide_by_sqrt(sum(raw**2))
-ordering=ascending_time
-times=-1.75,-1.25,-0.75,-0.25,0.25,0.75,1.25,1.75
-coefficients=0.010942691568693054,-0.11095557645481881,0.11095557645481886,0.68938956882766222,0.68938956882766222,0.11095557645481886,-0.11095557645481881,0.010942691568693054
-```
-
 ## Sources
 
 All web sources below were consulted on 2026-09-21.
@@ -355,7 +334,11 @@ EE538 is a Purdue University course whose notes describe the ideal square-root r
 
 ### Q14. What exactly is MathWorks `rcosdesign`, and what does the quoted sentence mean?
 
-`rcosdesign` is MATLAB's standard RRC design function. It takes an integer symbol span and samples per symbol, and the sentence means: the returned tap count is `span*sps+1`, the filter order is `span*sps`, and the coefficients are scaled to unit energy. Because `span*sps+1` is odd for integer spans, the standard API cannot directly produce the even 8-tap filter required here, which is why this contract defines an explicit custom grid.
+`rcosdesign` is MATLAB's standard RRC design function. This contract cites it as:
+
+> MathWorks `rcosdesign` documents an RRC FIR specified by integer symbol span and samples per symbol. Its length is `span*sps+1`, its order is `span*sps`, and its coefficients have unit energy.
+
+That means: the returned tap count is `span*sps+1`, the filter order is `span*sps`, and the coefficients are scaled to unit energy. Because `span*sps+1` is odd for integer spans, the standard API cannot directly produce the even 8-tap filter required here, which is why this contract defines an explicit custom grid.
 
 ### Q15. What exactly is GNU Radio's `firdes::root_raised_cosine`, and why is it relevant?
 
@@ -409,10 +392,6 @@ Because they depend on measured SQNR behavior and on architecture/PPA trade-offs
 
 No. It is an expectation-setting statement, not an error: an 8-tap FIR is a coarse truncation of an infinite response, so the stopband and passband will deviate from ideal. The assignment fixes eight coefficients, so the correction is in presentation (plot the finite response and the ideal target separately) rather than changing the formula.
 
-### Q28. Why was the SHA-256 line added?
-
-It is a reproducibility fingerprint of the canonical text serialization of this contract (version, parameters, times, and coefficients). If a future generator (T10/T13) reproduces the contract exactly, it can recompute the same hash; a mismatch means the text or the coefficients drifted. It is not used by RTL and does not replace the float values as golden.
-
 ## Open Human Decisions
 
 The team must accept, modify, or reject each item below before T10 freezes the simulator contract. Each entry lists what is being chosen, the alternatives on the table, why it matters for this project, and the research recommendation with its justification.
@@ -451,10 +430,10 @@ The team must accept, modify, or reject each item below before T10 freezes the s
 
 ### D5. Canonical artifact storage
 
-- **What is being chosen:** what the generated RRC artifact stores: full float64 decimals, quantized integers, or both, plus the hash.
+- **What is being chosen:** what the generated RRC artifact stores: full float64 decimals, quantized integers, or both.
 - **Alternatives:** float only; integer only; both — recommended.
 - **Why it matters here:** the artifact is the golden source for vectors and RTL coefficient tables. Divergence between the float and integer representations would produce false vector mismatches.
-- **Recommendation:** store both, with float as golden and integers as derived data, plus the SHA-256 manifest.
+- **Recommendation:** store both, with float as golden and integers as derived data.
 - **Why:** Python tests can verify exact reproduction while RTL consumes frozen integers.
 
 ### D6. Frequency block convention
