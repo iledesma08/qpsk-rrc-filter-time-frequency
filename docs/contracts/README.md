@@ -20,7 +20,7 @@ checks.
 | [ppa-experiment-matrix-18.md](ppa-experiment-matrix-18.md) | #18 (closed) | Research report — historical, superseded fields in Resolution Status; normative is ppa-matrix-18.md | Long-form PPA matrix study that backs `ppa-matrix-18.md`. |
 | [ppa-matrix-18.md](ppa-matrix-18.md) | #18 (closed) | Accepted D1-D9 | 12-row matrix, factor definitions, canonical workload, controlled conditions, VCD/SAIF power policy, and Pareto ranking. |
 | [openlane-env-19.md](openlane-env-19.md) | #19 (closed) | Task record | Verified Nix/OpenLane/PDK, smoke test, report paths, and the small-design PDN fix. |
-| [link-awgn-annex-35.md](link-awgn-annex-35.md) | #35 (open) | Proposed, dormant until built | Optional Python-only AWGN link annex (F5): chain, noise model, timing, significance rule; no RTL/vector/TB/DoD changes. |
+| [link-awgn-annex-35.md](link-awgn-annex-35.md) | #35 (open) | Accepted D1-D8; dormant until built | Optional Python-only AWGN link annex (F5): chain, noise model, timing, significance rule; no RTL/vector/TB/DoD changes. |
 
 Original research branches remain as history; the copies in this folder are
 the maintained ones.
