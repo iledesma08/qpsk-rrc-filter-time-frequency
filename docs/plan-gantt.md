@@ -90,8 +90,8 @@ Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback
 | T40 | Opt **time** RTL: `T-S2P1,S4P1,S8P1,S2P2,S4P2,S8P2` (`S`=tap PEs, `P=1` 1-cut / `P=2` mul-add split) | T31 | vector matching (all rows) + Booth-share + `$readmemh`-vs-`case`-ROM paths tested; `P=1/P=2` realizability confirmed without numeric change |
 | T41 | Constraints + timing closure **time** | T40 | same SDC (`PNR/SIGNOFF` identical except period), sizing 55% util floor `200×200` (PDN-0185), die/core/util per row; 100 MHz pass or unchanged-RTL 10 MHz fallback in **separate** table |
 | T42 | Opt **frequency** RTL: `F-U2,U4,U8` + `F-F2` (F2 = U8-schedule folded ×2) | T33 | vector matching + same source/bit-exact rule; `U=8` = full radix-2 butterfly parallelism |
-| T43 | Constraints + timing closure **frequency** | T42 | same rules as T41; freq VCD covers all 257 blocks |
-| T44 | Compared 12-row PPA table time vs freq (D owns; A/B run own synth + VCD/SAIF power) | T41, T43 | Pareto (area vs effective throughput, power/output when annotated) with gates (100% match + DRC/LVS/antenna + timing); fields `lane,arch,S,P,U,F,fft_n,hop,clock,timing,vector,area,die,core,util,ws/tns,hold,fmax,ii,samp_per_cycle,power,power_status,activity,coverage,drc,lvs,antenna,run_tag` + raw `resolved.json/metrics.json/csv/summary.rpt/max/min/checks/power.rpt`; derived `samp/s/um², energy/output, II`; syn-commit rule (inputs committed even if unrun; unrun≠result) |
+| T43 | Constraints + timing closure **frequency** | T42 | same rules as T41; freq VCD (C-operated pipeline) covers all 257 blocks |
+| T44 | Compared 12-row PPA table time vs freq (D owns; A/B run own synth, C runs shared activity pipeline, D assembles) | T41, T43 | Pareto (area vs effective throughput, power/output when annotated) with gates (100% match + DRC/LVS/antenna + timing); fields `lane,arch,S,P,U,F,fft_n,hop,clock,timing,vector,area,die,core,util,ws/tns,hold,fmax,ii,samp_per_cycle,power,power_status,activity,coverage,drc,lvs,antenna,run_tag` + raw `resolved.json/metrics.json/csv/summary.rpt/max/min/checks/power.rpt`; derived `samp/s/um², energy/output, II`; syn-commit rule (inputs committed even if unrun; unrun≠result) |
 
 > D3 interpretation for T41/T43/T44: 10 MHz is recovery, never ranked with 100 MHz passes. T44 compares only rows closed at the same target.
 
@@ -99,7 +99,7 @@ Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback
 
 | ID | Task | Depends on | DoD |
 | -- | ---- | ---------- | --- |
-| T50 | Slides: contrast + PPA + lessons learned | T44 | PDF in `docs/slides/`; evidence per `ppa-matrix-18.md` (taps/response, SQNR, EVM vs float golden, constellation, eye/zero-ISI on canonical frame) + dormant `link-awgn-annex-35.md` if built (dual-arm float vs FXP-at-`W_common`, ideal/long TX ±8 sym — never 8-tap, `Es=2`, seed 2035, labelled interp, ideal-sync list, ≥100 errors/point, `Q(sqrt(Es/N0))`, loss at ref BER; no `vectors/rtl/tb` touch, never DoD) |
+| T50 | Slides: contrast + PPA + lessons learned | T44 | PDF in `docs/slides/` (D assembles; technical plots delivered by C by 12-06); evidence per `ppa-matrix-18.md` (taps/response, SQNR, EVM vs float golden, constellation, eye/zero-ISI on canonical frame) + dormant `link-awgn-annex-35.md` if built (dual-arm float vs FXP-at-`W_common`, ideal/long TX ±8 sym — never 8-tap, `Es=2`, seed 2035, labelled interp, ideal-sync list, ≥100 errors/point, `Q(sqrt(Es/N0))`, loss at ref BER; no `vectors/rtl/tb` touch, never DoD) |
 | T51 | Actual vs planned Gantt + final demo | T50 | this table updated + `v1.1-close` tag |
 
 The T-task taxonomy below is the high-level plan. Detailed execution issues,
@@ -111,15 +111,15 @@ execution Wayfinder map; do not create all T00-T51 issues from this setup map.
 | Person | Member | Main lane | Responsibility |
 | ------ | ------ | --------- | -------------- |
 | A | Ignacio (`iledesma08`) | Time + infra (front-loaded pre-travel) | **09-28→10-12:** T10 (09-29→10-02) + T02 (09-29→10-04) + T11 (10-02→10-10) + T03 (10-06→10-12) + T20a time-arm review; **absent 10-15→11-08;** **11-09→:** T30, T31, T40, T41 + time synth/VCD |
-| B | Juan (`JRondon23`) | Frequency lane | **09-28→10-02:** T12 prep — study #13/#14/#17 contracts; T12 (10-02→10-13, needs only frozen T10); **10-15→11-08 (no A needed):** T32 datapath (parameterized, frozen T03) + hop-9 professor draft + SDC/JSON verify; **11-09→:** T32, T33, T42, T43 + freq synth/VCD + T44 support |
-| C | Matias (`matiascostamagna`) | Sim + FXP | **09-28→10-13:** T13 prep — generator skeleton + review of T10/T11; T13 (10-13→10-22, no A after 10-13); **10-22→11-09:** T20, T21, T22; **11-09→12-07:** vector guard + SQNR debug support for F3/F4 |
-| D | Andres (`AndresCesana`) | PPA + close | **09-28→10-15:** T02 review + OpenLane smoke on all machines; **10-15→11-08:** T44 framework + area pre-checks + slides outline; **11-09→12-07:** T41/T43 timing reviews for F3/F4; **12-07→:** T44, T50, T51 |
+| B | Juan (`JRondon23`) | Frequency lane | **09-28→10-02:** T12 prep — study #13/#14/#17 contracts; T12 (10-02→10-13, needs only frozen T10); **10-15→11-08 (no A needed):** T32 datapath (parameterized, frozen T03) + hop-9 professor draft + SDC/JSON verify; **11-09→12-07:** T32, T33, T42, T43 design-only (activity runs covered by C's pipeline) + freq synth/VCD + T44 support |
+| C | Matias (`matiascostamagna`) | Sim + FXP | **09-28→10-13:** T13 prep — generator skeleton + review of T10/T11; T13 (10-13→10-22, no A after 10-13); **10-22→11-09:** T20, T21, T22; **11-09→12-07:** matching debug + shared activity-run pipeline (all rows) + evidence plots for slides (by 12-06) + vector guard |
+| D | Andres (`AndresCesana`) | PPA + close | **09-28→10-15:** T02 co-author (JSON/SDC skeletons, A reviews) + OpenLane smoke on all machines; **10-15→11-08:** T44 framework + intake pipeline + area pre-checks + slides outline; **11-09→12-07:** per-row timing reviews + incremental table intake as rows close; **12-07→:** T44, T50, T51 |
 
 Rules:
 
 - Nobody merges their own PR (cross-review A↔B, C↔D).
 - C guards `sim/vectors/` (only one who regenerates).
-- A/B lanes: each lane owner runs their own synthesis + VCD-annotated power runs (A: time lane, B: freq lane); D owns the compared 12-row PPA table (T44) and checks same-target/activity status.
+- A/B lanes: each lane owner runs their own synthesis (A: time lane, B: freq lane); C operates the shared activity-run pipeline producing one VCD/SAIF per row for every candidate; D owns the compared 12-row PPA table (T44) and checks same-target/activity status.
 - D keeps this table and the slides up to date.
 - If a lane stalls for >2 days, ask for help and move an issue (leave a comment as record).
 - A is unavailable 2026-10-15 – 2026-11-08. Handoff rule: A must leave `T10+T11+T02+T03` green on `main` (or PR ready) by 2026-10-13; T13/F2/freq-prep during absence MUST NOT require A. A reviews the T20a time-arm plan before 2026-10-14 async; after 2026-11-09 A resumes time lane only.
@@ -127,7 +127,7 @@ Rules:
 
 ## Estimated Gantt (starts Mon 2026-09-28; by person)
 
-> **How to read:** each `section` is one person. Everyone starts **09-28**. Only A compacts work before travel; B/C/D spread work across the full timeline.
+> **How to read:** each `section` is one person. Everyone starts **09-28**. Only A compacts work before travel; B/C/D carry even loads across the full timeline with no end funnel (see legend + audit).
 > Mermaid colors (GitHub-limited): `crit` = **red** (A pre-travel load + leave gap, A lane only), `active` = **blue** (full-scope work done while A is away), unmarked = **normal**, `milestone` = diamond.
 > Every bar names the T-task it implements; the legend below details input, output, and why absence-period bars need no A.
 
@@ -157,9 +157,9 @@ gantt
   T20a model+checks C       :2026-10-22, 7d
   T20b-c sweep A-E C        :active, 2026-10-29, 7d
   T21-22 freeze C           :2026-11-05, 4d
-  T13 guard+SQNR support C  :2026-11-09, 28d
+  T31-44 debug+activity+plots C :2026-11-09, 28d
   section D Andres
-  T02 review+smoke all D    :2026-09-28, 17d
+  T02 co-author JSON+SDC+smoke D :2026-09-28, 17d
   T44 table framework D       :active, 2026-10-15, 24d
   T41-43 timing reviews D   :2026-11-09, 28d
   T44 PPA table D           :2026-12-07, 5d
@@ -190,7 +190,7 @@ gantt
 **B Juan** — full workload, no gap.
 - `T12 prep contract study` (09-28, 4d): study #13/#14/#17, set up the freq sim harness. Input: draft `T10`. Output: ready harness.
 - `T12 freq float golden` (10-02, 11d): forced-50% OLS float model + 7-check suite. Input: frozen `T10` only.
-- `T32 datapath parameterized` (10-15, 24d, blue): full serial freq datapath with parameterized `W` and block params, verified against the float golden with placeholder coefs; the frozen coef table is plugged in after the `W` freeze. Includes the hop-9 professor draft + SDC/JSON verify. Input: frozen `T03+T12` only — no A needed. This is full design scope, not filler.
+- `T32 datapath parameterized` (10-15, 24d, blue): full serial freq datapath with parameterized `W` and block params, verified against the float golden with placeholder coefs; the frozen coef table is plugged in after the `W` freeze. Includes the hop-9 professor draft + SDC/JSON verify. Input: frozen `T03+T12` only — no A needed. This is full design scope, not filler. Activity runs for freq rows are covered by C's pipeline, keeping this stretch design-only.
 - `T32-33 freq serial` (11-09, 14d): coef integration + 257-block matching.
 - `T42-43 freq opt` (11-23, 14d): `U`/`F` rows + closure.
 - `T44 freq synth support` (12-07, 5d): freq synth runs + VCD activity for D's table.
@@ -201,18 +201,18 @@ gantt
 - `T20a model+checks` (10-22, 7d): FXP model + SQNR + directed/tie checks.
 - `T20b-c sweep phases A-E` (10-29, 7d, blue): width/rounding/accumulator/FFT-schedule sweep + split-half check.
 - `T21-22 width freeze` (11-05, 4d): common-`Q2` ints + artifact; unblocks F3.
-- `T13+F2 support for F3-F4` (11-09, 28d): vector guard + SQNR debug for serial/opt mismatches.
+- `T31-44 debug+activity+plots` (11-09, 28d): three sub-streams filling the former valley — matching debug during serial bring-up (11-09→11-23), shared activity-run pipeline producing one VCD/SAIF per row as candidates close (11-09→12-05), technical evidence plots for slides from the FXP model (delivered by 12-06) + ongoing vector guard.
 
 **D Andres** — full workload, no gap.
-- `T02 review+smoke all` (09-28, 17d): review A's infra, run smoke on every machine.
-- `T44 framework` (10-15, 24d, blue): table template, constraint/config checks, area pre-checks, slides outline. Input: `T02` only — no A needed. This is full PPA-groundwork scope, not filler.
-- `T41-43 timing reviews` (11-09, 28d): timing review of every F3/F4 row.
-- `T44 PPA table` (12-07, 5d): 12-row Pareto with gates + evidence.
-- `T50-51 slides+demo` (12-07, 5d): slides + actual-vs-planned Gantt + demo.
+- `T02 co-author JSON+SDC+smoke` (09-28, 17d): author OpenLane JSON/SDC skeletons (A reviews), run smoke on every machine — real infra authorship up front.
+- `T44 framework` (10-15, 24d, blue): table template with auto-fill intake, constraint/config checks, area pre-checks, slides outline. Input: `T02` only — no A needed.
+- `T41-43 timing reviews` (11-09, 28d): per-row timing review + incremental table intake as each row closes — assembled continuously, no December crunch.
+- `T44 PPA table` (12-07, 5d): assembly-from-filled-template + Pareto defense + any C2/C3 trigger handling.
+- `T50-51 slides+demo` (12-07, 5d): assembly on plots arriving from C by 12-06 + actual-vs-planned Gantt + demo + rehearsal.
 
 **Milestones** — `SQNR-retry` runs only if no width hits 40 dB; `professor-gate` is a zero-duration wait; `signoff-respin` follows `T44`.
 
-**Absence audit:** every bar overlapping 10-15→11-08 consumes only outputs frozen by 10-13 (`rrc8-v1`, time/freq goldens, package/TB skeleton). None requires A. Had any bar required A, its scope would have moved before 10-13; the audit found none, so no extra pre-leave load was added.
+**Absence audit:** every bar overlapping 10-15→11-08 consumes only outputs frozen by 10-13 (`rrc8-v1`, time/freq goldens, package/TB skeleton). None requires A. Had any bar required A, its scope would have moved before 10-13; the audit found none, so no extra pre-leave load was added. Leveling: C absorbs activity runs + evidence plots, D assembles incrementally from 11-23, B stays design-only — B/C/D loads stay even with no end funnel.
 
 ## Risks
 
@@ -223,7 +223,8 @@ gantt
 | 100 MHz timing does not close | Same-SDC + sizing rule; unchanged-RTL 10 MHz fallback in separate table; request early review |
 | Vectors edited by hand / manifest drift | `sim/vectors/README` + CONTRIBUTING + per-file `.sha256` CI gate; TB reads manifest, never hardcodes; C is sole regenerator |
 | Professor gate (hop-9) | Keep hop-8 baseline; B drafts proposal (option c) during absence; hop params, no RTL fork until approval |
-| 12-row PPA overload | One parameterized source + finalist-only reruns; A/B run own synth/VCD, D owns table; syn-commit rule |
+| 12-row PPA overload | One parameterized source + finalist-only reruns; A/B run own synth, C runs activity pipeline, D owns table; syn-commit rule |
+| D end-funnel (table+slides pile up Dec07) | Incremental intake from 11-23, C plots by 12-06, assembly-from-template; rehearsal starts on a draft table, never on empty docs |
 | Power ranked without activity | VCD/SAIF full-257 per candidate; unannotated = estimate, excluded from dynamic ranking |
 | A unavailable 10-15–11-08 | A-full-load Sep29–Oct12 (T10+T02+T11+T03 green); absence work (T13/F2/freq-datapath/T44-framework) needs no A; time lane resumes 11-09 |
 | One lane races ahead | Weekly cross-reviews + actual Gantt in T51 |
