@@ -77,7 +77,12 @@ A fixed symbol sequence prepended to the random part of the stimulus to stress e
 _Avoid_: corner case set, special vector
 
 **Serial version**:
-RTL processing one sample per cycle (or one shared MAC).
+RTL processing one sample per cycle (or one shared MAC). `SPC` is the
+interface width; `II` (initiation interval, from the handshake) depends on
+`S`: `S=1 => II=8` (`ready_o` deasserts 7/8 cycles). `ready_o = 1` always holds
+only for fully-parallel variants; the TB measures `II` from `valid && ready`
+with no loss under backpressure. See
+`docs/contracts/rtl-streaming-17.md`.
 _Avoid_: slow version, simple version
 
 **Optimized version**:

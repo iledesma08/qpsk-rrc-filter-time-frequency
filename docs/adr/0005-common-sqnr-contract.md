@@ -1,6 +1,6 @@
 # Common SQNR contract for both domains
 
-**Status: accepted**
+**Status:** accepted, extended by contracts. Normative: `docs/contracts/fxp-policy-16.md` + `docs/contracts/qpsk-stimulus-15.md` + `docs/contracts/rrc-coefficient-contract-13.md` (as refined by #16). This ADR defines only the SQNR formula, the >=40 dB bar in both domains, and float equality `rtol=1e-10`/`atol=1e-12`; sweep policy and stimulus frame live in the contracts.
 
 SQNR is measured over the same deterministic QPSK frame for both filter
 domains, aggregating I and Q power:

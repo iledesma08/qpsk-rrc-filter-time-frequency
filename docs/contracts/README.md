@@ -13,10 +13,11 @@ checks.
 | [rrc-coefficient-contract-13.md](rrc-coefficient-contract-13.md) | #13 (closed) | Accepted D1-D7 | 8-tap RRC grid, raw values, unit-energy normalization, 3.5-sample delay, data `Q2.14`; the coefficient format was refined to the common `Q2.(W-2)` by #16. |
 | [frequency-block-contract-14.md](frequency-block-contract-14.md) | #14 (closed) | Accepted D1; D2 via #15; D3 deferred | Forced-50% OLS (`N=16`, `H=8`, discard `z[0:8]`, emit `z[8:16]`), OLA comparison, professor gate, and the concept FAQ. |
 | [qpsk-stimulus-15.md](qpsk-stimulus-15.md) | #15 (closed) | Accepted D1-D8 | 1024 symbols, `default_rng(2026)`, edge patterns, zero-insertion upsampling, and the full causal output window. |
-| [fxp-common-width-16.md](fxp-common-width-16.md) | #16 (closed) | Research report | Long-form FXP study that backs `fxp-policy-16.md`. |
+| [fxp-common-width-16.md](fxp-common-width-16.md) | #16 (closed) | Research report — historical, superseded fields in Resolution Status; normative is fxp-policy-16.md | Long-form FXP study that backs `fxp-policy-16.md`. |
 | [fxp-policy-16.md](fxp-policy-16.md) | #16 (closed) | Accepted D1-D9 | Common `Q2.(W-2)`, phased `W=8..18` sweep, RNE/saturation policy, and the manifest schema. |
 | [rtl-streaming-17.md](rtl-streaming-17.md) | #17 (closed) | Accepted D1-D9 | `valid`/`ready` handshake, reset synchronizer, packed `{Q,I}`, latency declaration, and frequency block parameters. |
-| [ppa-experiment-matrix-18.md](ppa-experiment-matrix-18.md) | #18 (closed) | Research report | Long-form PPA matrix study that backs `ppa-matrix-18.md`. |
+| [vector-manifest-schema.md](vector-manifest-schema.md) | #15/#16/#17 (via #12) | Normative | Single vector-manifest schema (stimulus + FXP + streaming + hashes); per-doc lists are non-normative examples. |
+| [ppa-experiment-matrix-18.md](ppa-experiment-matrix-18.md) | #18 (closed) | Research report — historical, superseded fields in Resolution Status; normative is ppa-matrix-18.md | Long-form PPA matrix study that backs `ppa-matrix-18.md`. |
 | [ppa-matrix-18.md](ppa-matrix-18.md) | #18 (closed) | Accepted D1-D9 | 12-row matrix, factor definitions, canonical workload, controlled conditions, VCD/SAIF power policy, and Pareto ranking. |
 | [openlane-env-19.md](openlane-env-19.md) | #19 (closed) | Task record | Verified Nix/OpenLane/PDK, smoke test, report paths, and the small-design PDN fix. |
 

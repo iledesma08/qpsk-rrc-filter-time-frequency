@@ -1,6 +1,6 @@
 # Packed external vectors for vector matching
 
-**Status: accepted**
+**Status:** accepted, extended by contracts. Normative manifest: `docs/contracts/qpsk-stimulus-15.md` + `docs/contracts/fxp-policy-16.md` + `docs/contracts/rtl-streaming-17.md` + `docs/contracts/vector-manifest-schema.md`. This ADR defines only packing {Q[15:0],I[15:0]} + $readmemh + hash.
 
 Python remains the golden-vector source of truth. `gen_vectors.py` generates
 packed `.hex` input and expected-output files, one 32-bit record per complex

@@ -117,17 +117,44 @@ openlane --flow Classic \
 
 Use `CLOCK_PERIOD: 10.0` ns for the 100 MHz target and `CLOCK_PERIOD: 100.0` ns for the 10 MHz target. Do not compare a 100 MHz candidate against a 10 MHz candidate without recording the target as part of the result. OpenLane documents `sky130A` as the fully qualified PDK name and `sky130_fd_sc_hd` as the Sky130 default SCL; the SkyWater documentation identifies `sky130_fd_sc_hd` as the high-density digital standard-cell library. Sources: [OpenLane design configuration](https://openlane2.readthedocs.io/en/stable/reference/configuration.html), [OpenLane PDK/SCL selection](https://openlane2.readthedocs.io/en/stable/usage/about_pdks.html), and [SkyWater standard-cell libraries](https://skywater-pdk.readthedocs.io/en/main/contents/libraries/foundry-provided.html).
 
-Start with the default constraints. Once the RTL interface is stable, provide the same design-specific SDC assumptions to all variants using `PNR_SDC_FILE` and `SIGNOFF_SDC_FILE`; OpenLane explicitly places responsibility for custom input/output constraints on the designer. Source: [OpenLane timing closure](https://openlane2.readthedocs.io/en/stable/usage/timing_closure/index.html).
+Pin the toolchain for every F4 run: `iverilog --version` must report 11.0 or
+newer, compiled with `-g2012`; DUT sources use the synthesizable SV subset
+allowlist (no `interface`, no `randomize`, no `assert property` in the DUT —
+testbench-only constructs stay out of `VERILOG_FILES`); OpenLane v2.3.10 via
+Nix with volare `0fe599` (`0fe599b2afb6708d281543108caf8310912f54af`),
+`sky130A`, `sky130_fd_sc_hd`, `Classic` flow (see
+`docs/contracts/openlane-env-19.md`).
+
+Provide the same SDC template to all variants via `PNR_SDC_FILE` and
+`SIGNOFF_SDC_FILE`, identical except the clock period. Template:
+
+```tcl
+create_clock -name clk -period 10.000 [get_ports clk]
+# 10 MHz fallback: create_clock -name clk -period 100.000 [get_ports clk]
+set_input_delay 2.0 -clock clk [all_inputs]
+set_output_delay 2.0 -clock clk [all_outputs]
+set_false_path -from [get_ports rst_n]
+set_max_transition 1.5 [current_design]
+set_max_fanout 16 [current_design]
+```
+
+`PNR_SDC_FILE` and `SIGNOFF_SDC_FILE` point to copies identical except the
+`create_clock` period (10.0 ns for 100 MHz, 100.0 ns for the labelled 10 MHz
+fallback). Size each die per `docs/contracts/ppa-matrix-18.md`: 50-60% core
+utilization (target ~55%), floor `max(sized-for-target, 200x200 um)` for
+PDN-0185; record die area, core area, and utilization per row. OpenLane
+explicitly places responsibility for custom input/output constraints on the
+designer. Source: [OpenLane timing closure](https://openlane2.readthedocs.io/en/stable/usage/timing_closure/index.html).
 
 ### Required PPA evidence
 
 For each completed run, archive or link these outputs from the run directory. Step numbers are version-dependent, so match by step name rather than number:
 
-- `final/metrics.json` and `final/metrics.csv`: canonical final metrics for the run. Record cell/design area in square micrometres and the final design health metrics. Source: [OpenLane final results](https://openlane2.readthedocs.io/en/stable/getting_started/newcomers/index.html).
+- `final/metrics.json` and `final/metrics.csv`: canonical final metrics for the run. Record die area, core area, and utilization per row plus cell/design area in square micrometres and the final design health metrics. Source: [OpenLane final results](https://openlane2.readthedocs.io/en/stable/getting_started/newcomers/index.html).
 - `*-openroad-stapostpnr/summary.rpt`: multi-corner signoff summary. Record setup and hold worst slack, TNS, and violation counts.
 - The per-corner `*-openroad-stapostpnr/<corner>/max.rpt` and `min.rpt`: the critical setup and hold paths used to explain the summary.
 - The per-corner `checks.rpt`: max-capacitance, max-slew, fanout, unconstrained-path, and related timing checks.
-- The per-corner `power.rpt`: report the power value and corner, but also record whether switching activity was annotated.
+- The per-corner `power.rpt`: report the power value and corner, but also record the VCD/SAIF file name and annotation coverage; report core + clock-tree power and exclude any IO split.
 - DRC, LVS, antenna, and flow status: a PPA number is not an implementation pass if signoff checks failed.
 
 OpenLane documents `summary.rpt`, `max.rpt`, `min.rpt`, `checks.rpt`, and `power.rpt` under the post-PnR STA step. OpenROAD documents `report_design_area` for area and accepts VCD or SAIF activity as inputs to STA power analysis. Sources: [OpenLane signoff reports](https://openlane2.readthedocs.io/en/stable/getting_started/newcomers/index.html), [OpenLane timing reports](https://openlane2.readthedocs.io/en/stable/usage/timing_closure/index.html), [OpenROAD area reporting](https://openroad.readthedocs.io/en/latest/main/src/rsz/README.html), and [OpenSTA inputs](https://openroad.readthedocs.io/en/latest/main/src/sta/README.html).
@@ -140,7 +167,7 @@ fmax_MHz = 1000 / critical_path_delay_ns
 
 Take `critical_path_delay_ns` from the signoff critical path in `max.rpt`, or from `CLOCK_PERIOD_ns - signed_setup_slack_ns` when the report provides signed slack. Also retain the raw period and slack; the derived value must not hide a negative slack or a corner mismatch.
 
-Power is the main caveat. A `power.rpt` generated without VCD/SAIF activity is not a measured workload-dependent dynamic-power result. Until representative activity from the RTL testbench is annotated, label the number as an unannotated/static estimate and use it only for like-for-like comparison. Do not rank variants by power using different activity assumptions.
+Power is the main caveat. A `power.rpt` generated without VCD/SAIF activity is not a measured workload-dependent dynamic-power result. Annotate with a VCD/SAIF from the full 257-block canonical workload (256 steady-state + 1 tail-flush) after warm-up; until that representative activity from the RTL testbench is annotated, label the number as an unannotated/static estimate and use it only for like-for-like comparison. Do not rank variants by power using different activity assumptions.
 
 ## Exact Implementation Checklist
 

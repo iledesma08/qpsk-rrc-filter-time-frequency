@@ -195,7 +195,9 @@ The random part uses `idx = rng.integers(0, 4, size=984)` with this mapping:
 
 ## Vector Manifest Fields
 
-The future T13 generator should record at least these fields:
+Normative schema: `docs/contracts/vector-manifest-schema.md` (§1 stimulus
+fields). The example below is non-normative and must match the schema. The
+future T13 generator records these fields:
 
 ```text
 stimulus_version: qpsk-stim-15-v1
@@ -212,7 +214,8 @@ valid_start: 0
 valid_len: 2055
 symbol_center_offset_samples: 3.5
 input_scale_16bit: Q2.14
-coefficient_scale_16bit: Q1.15
+coefficient_scale_16bit: Q2.14
+coefficient_scale_sensitivity: Q1.15 (phase E only, never folded into common-width claim)
 output_scale_16bit: Q2.14 (provisional; frozen in T20/T21)
 evidence_interpolation: none
 ```
