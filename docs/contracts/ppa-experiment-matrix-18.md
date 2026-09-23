@@ -1,3 +1,5 @@
+> HISTORICAL RESEARCH — not normative. Accepted decisions live in ppa-matrix-18.md / fxp-policy-16.md. See Resolution Status. Do not implement workload/OLS wording from this file.
+
 # PPA Experiment Matrix Research
 
 Research ticket: [#18](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/issues/18)
