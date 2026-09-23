@@ -19,6 +19,9 @@ flowchart LR
 ```
 
 > T13 (`sim/vectors/` generator) is the F1 exit criterion and unblocks F2/F3. F4 time and F4 freq run in parallel and rejoin at T44.
+> Critical dependency chain: `T13 -> T20 -> T22 -> T30/T32` (vectors → fxp model → frozen coefs → serial RTL).
+> `SQNR-retry` (7d, only if no width hits 40 dB) extends F2; `signoff-respin` (5d) follows T44;
+> `professor-gate` is a zero-duration wait before F5 sign-off.
 
 - **F1** produces RRC coefficients (α=0.5, 8 taps, OS 2x) + float golden in time and frequency.
 - **F2** locks N bits with SQNR ≥ 40 dB (sweep, one shared decision).
@@ -112,6 +115,7 @@ Rules:
 
 - Nobody merges their own PR (cross-review A↔B, C↔D).
 - C guards `sim/vectors/` (only one who regenerates).
+- A/B lanes: each lane owner runs their own synthesis + VCD-annotated power runs (A: time lane, B: freq lane); D owns the compared 12-row PPA table (T44) and checks same-target/activity status.
 - D keeps this table and the slides up to date.
 - If a lane stalls for >2 days, ask for help and move an issue (leave a comment as record).
 - A is unavailable from 2026-10-15 through 2026-11-08; the time lane must not
@@ -132,6 +136,7 @@ gantt
   T13 vectors           :2026-10-13, 7d
   section F2 fxp
   T20-T22 SQNR          :2026-10-20, 14d
+  SQNR-retry 7d if no W hits 40dB :2026-11-03, 7d
   section F3 serial
   T30-T31 time serial   :2026-11-09, 14d
   T32-T33 freq serial   :2026-11-03, 14d
@@ -139,7 +144,9 @@ gantt
   T40-T41 opt time      :2026-11-23, 14d
   T42-T43 opt freq      :2026-11-23, 14d
   T44 PPA table         :2026-12-07, 5d
+  signoff-respin 5d     :2026-12-12, 5d
   section F5 close
+  professor-gate wait   :milestone, 2026-12-12, 0d
   T50-T51 slides        :2026-12-07, 5d
 ```
 
