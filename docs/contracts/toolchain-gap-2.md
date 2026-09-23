@@ -185,6 +185,12 @@ This is the recommended checklist for the follow-up implementation work; it is i
 - Choose `CLOCK_PERIOD=10.0` ns for 100 MHz or `100.0` ns for 10 MHz per lane, and record that choice with every PPA result.
 - For every PPA run, retain final metrics, post-PnR STA summary and critical reports, power report plus activity status, and DRC/LVS/antenna status.
 - Add representative VCD/SAIF activity before using power as a ranking axis.
+- Commit one OpenLane JSON config per top-level variant (DUT only) before
+  running it, so a missing number is traceable to an unrun config rather than
+  a missing setup.
+- Put PPA rows in the table only with `metrics.json` plus STA, DRC/LVS, and
+  activity status attached; an unrun flow step is recorded as unrun, never as
+  a result.
 - Put the final area/fmax/power rows in the PPA table only after vector matching is already 100 percent, as required by [ADR 0002](../adr/0002-serial-rtl-before-optimization.md).
 
 ## Sources

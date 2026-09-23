@@ -112,6 +112,21 @@ is reinstalled or updated; that test is the acceptance check for the toolchain.
 - Evidence: `final/metrics.json` plus the STA reports, DRC/LVS/antenna status,
   and the activity-annotation status for any power ranking.
 
+## Committed-but-unrun artifacts
+
+- Commit the synthesis and PnR inputs for every top-level variant even when
+  their numbers arrive later: SDC files, TCL build/timing scripts, and one
+  OpenLane JSON config per top-level variant (DUT only, never testbenches).
+- The committed evidence paths for each run are exactly: `resolved.json`;
+  `final/metrics.json` and `metrics.csv`; `*-openroad-stapostpnr/summary.rpt`;
+  per-corner `max.rpt`, `min.rpt`, `checks.rpt`, and `power.rpt` (see
+  `docs/contracts/toolchain-gap-2.md` for what each report proves). Area is
+  read in square micrometres; Fmax is derived as
+  `1000 / critical_path_delay_ns` from `max.rpt` (or `CLOCK_PERIOD` minus
+  signed setup slack), never from a dedicated estimate file.
+- An unrun script is recorded as unrun. Estimates MUST NOT be published as
+  measured results.
+
 ## Status
 
 Resolved: the environment and the report path are verified, and the
