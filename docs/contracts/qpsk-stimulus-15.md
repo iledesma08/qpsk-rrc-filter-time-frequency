@@ -212,7 +212,8 @@ valid_start: 0
 valid_len: 2055
 symbol_center_offset_samples: 3.5
 input_scale_16bit: Q2.14
-coefficient_scale_16bit: Q1.15
+coefficient_scale_16bit: Q2.14
+coefficient_scale_sensitivity: Q1.15 (phase E only, never folded into common-width claim)
 output_scale_16bit: Q2.14 (provisional; frozen in T20/T21)
 evidence_interpolation: none
 ```
