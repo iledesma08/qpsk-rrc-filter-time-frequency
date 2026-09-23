@@ -172,9 +172,12 @@ The team accepted these decisions on 2026-09-22:
 - **`S` (systolic tap PEs):** number of tap processing elements that can be
   active in one time-domain issue group. The remaining tap groups are
   scheduled in later cycles, so the expected initiation interval is
-  `II = 8/S` cycles per sample before interface bubbles. `S=8` is the fully
-  parallel tap array; the serial baseline is the `S=1` reference and is not
-  duplicated in the factorial.
+  `II = 8/S` cycles per accepted sample before interface bubbles. `S=8` is
+  the fully parallel tap array; the serial baseline is the `S=1` reference
+  (`II=8`: `ready_o` deasserts 7 of every 8 cycles under `valid_i = 1`) and
+  is not duplicated in the factorial. `S` sets compute parallelism; `SPC`
+  (`SAMPLES_PER_CLOCK` in `docs/contracts/rtl-streaming-17.md`) is the
+  interface width and must not be conflated with `S` or `II`.
 - **`P` (pipeline depth):** pipeline depth used consistently in every
   time-lane PE. `P=1` keeps the multiply/accumulate in one registered
   arithmetic stage; `P=2` inserts a register between the multiply and the add.
@@ -193,8 +196,11 @@ The team accepted these decisions on 2026-09-22:
   point, not a second folded sweep.
 - **`II` (initiation interval):** cycles between accepting two consecutive
   input samples (time lane) or issuing two consecutive work groups. It is
-  measured from the handshake, not inferred from RTL names, and it is the
-  basis of the effective-throughput comparison.
+  measured from the handshake (`valid && ready`), not inferred from RTL
+  names, `SPC`, or `S` alone, and it is the basis of the
+  effective-throughput comparison. `ready_o = 1` in every cycle holds only
+  for fully-parallel variants; every other variant backpressures and the
+  testbench measures `II` across that backpressure with no sample loss.
 
 ## Production Practice for Variants
 

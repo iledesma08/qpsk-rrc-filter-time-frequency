@@ -87,7 +87,11 @@ The team accepted these decisions on 2026-09-22:
   buffering that is not part of the filter and would distort the PPA result.
 - **Why this was chosen:** a single parameter covers the serial baseline and
   every unfolded variant, and the manifest declares the active value so the
-  testbench and the PPA matrix know the rate.
+  testbench and the PPA matrix know the rate. `SPC` is the interface width
+  (samples per clock on `sample_i`/`sample_o`); it is not throughput. The
+  initiation interval `II` is measured from the handshake (`valid && ready`)
+  and depends on the micro-architecture (for the serial time lane `S=1`,
+  `II=8`).
 
 ### D5 — Transfer semantics
 
@@ -98,7 +102,10 @@ The team accepted these decisions on 2026-09-22:
   stall bugs.
 - **Why this was chosen:** `valid && ready` transfer semantics with register
   hold is the standard streaming behavior, and the canonical vectors still
-  drive valid every cycle so the common case stays simple.
+  drive `valid_i = 1` every cycle so the common case stays simple. The DUT
+  backpressures via `ready_o`: the serial time lane (`S=1`, `II=8`) deasserts
+  `ready_o` 7 of every 8 cycles. `ready_o = 1` in every cycle holds only for
+  fully-parallel variants that can accept a new sample each clock.
 
 ### D6 — Latency declaration
 
@@ -192,13 +199,18 @@ The time and frequency paths use the same port layout.
 ### Transfer rules
 
 - A transfer happens when `valid && ready` on the same side.
+- `SPC` is the interface width (complex samples per clock on the bus); `II`
+  (initiation interval, in cycles between accepted input samples) is measured
+  from the handshake, never inferred from `SPC` alone.
 - `valid_o` must not depend combinationally on `ready_i`; `ready_o` may depend
   on `valid_i`.
 - When there is no transfer, every register that holds stream state must hold
   its value.
 - The canonical stimulus drives `valid_i = 1` in every clock after reset, and
-  the baseline variants drive `ready_o = 1`; the handshake exists for
-  integration and for stall tests.
+  the DUT backpressures via `ready_o`: the serial time lane (`S=1`, `II=8`)
+  deasserts `ready_o` 7 of every 8 accepted-sample cycles. `ready_o = 1` in
+  every cycle holds only for fully-parallel variants; the handshake exists
+  for integration and for stall tests.
 
 ### Reset behavior
 
@@ -227,7 +239,9 @@ fft_pipeline_cycles # FFT + multiply + IFFT pipeline depth
 ```
 
 The comparison never uses arrival time; the testbench places each captured
-sample at its absolute index using `latency_samples`.
+sample at its absolute index using `latency_samples`. The testbench measures
+`II` from accepted transfers (`valid && ready`) and asserts no sample is
+lost, duplicated, or invented under `ready_o` deassertion.
 
 ### Frequency block boundary
 
@@ -252,7 +266,9 @@ time and frequency variants.
   `valid_o && ready_i`.
 - The canonical run holds `ready_i = 1`; a separate robustness test inserts a
   bubble (`valid_i = 0`) and a stall (`ready_i = 0`) and checks that no sample
-  is lost, duplicated, or invented.
+  is lost, duplicated, or invented. The testbench also asserts no loss under
+  DUT-side `ready_o` deassertion (e.g. serial `S=1` backpressure) and measures
+  steady-state `II` from accepted transfers (`valid && ready`).
 - The comparison is exact on the stored integer codes after sign extension to
   the packed 16-bit fields; floating-point conversion is not used.
 - A mismatch reports the absolute index, the expected code, and the captured
