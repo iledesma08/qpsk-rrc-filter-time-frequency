@@ -143,6 +143,14 @@ Symbols are the unnormalized QPSK corners accepted in the RRC contract:
 s[k] in {+1+j, +1-j, -1+j, -1-j}, k = 0..S-1, S = 1024
 ```
 
+Nominal symbol energy is `Es = E[|s_k|^2]`; for `s_k in {+/-1 +/- j}`,
+`Es = 2`. This definition fixes the analysis scale only: it does not modify
+or rescale the `.hex` vectors, the RTL, or the generated expected codes,
+which keep the declared unnormalized constellation per the RRC contract D3.
+The `1/sqrt(2)` normalization (`Es = 1`) belongs solely to link-budget or
+presentation analysis when such analysis is explicitly defined; it is never
+folded into stimulus, vectors, or RTL.
+
 Zero-insertion upsampling produces `L = 2*S = 2048` complex samples:
 
 ```text
@@ -182,6 +190,11 @@ The random part uses `idx = rng.integers(0, 4, size=984)` with this mapping:
 3 -> (-1, -1)
 ```
 
+The mapping is Gray: symbols adjacent in the constellation (differing only
+in I or only in Q) differ in exactly one bit. Recorded as the descriptive
+manifest field `symbol_map_coding: gray`, which MUST stay consistent with
+this mapping without redefining it.
+
 ## Valid Output Window
 
 - The comparison window is the full causal output: `valid_start = 0`,
@@ -206,6 +219,10 @@ edge_pattern_symbols: 40
 random_seed: 2026
 prng: numpy.random.default_rng (PCG64)
 symbol_map: 0=+1+j, 1=+1-j, 2=-1+j, 3=-1-j
+symbol_map_coding: gray
+symbol_energy: 2
+vector_set: canonical
+vector_case: none
 samples_per_symbol: 2
 upsampling: zero_insertion
 input_samples: 2048
@@ -246,7 +263,31 @@ error. Verification evidence therefore uses the natural sample grid only.
 
 For slides, an interpolated eye diagram or symbol-center view is allowed when
 it is clearly labelled as presentation-only. It must not replace the
-verification plots or the comparison data.
+verification plots or the comparison data. The eye/zero-ISI evidence uses the
+canonical frame defined above; no separate clean-channel stimulus exists
+because the canonical stimulus is already noiseless.
+
+## Corner Sets
+
+In addition to the canonical frame, T13 generates the `sys_corners` vector
+set: full canonical-length frames (1024 symbols, 2048 samples, 2055 outputs,
+same window and invariants) with fully deterministic symbol content. Every
+symbol below is a valid QPSK corner; zero is not a valid end-to-end symbol
+and MUST NOT appear as a symbol value in these frames (upsampling zeros at
+odd sample indices are unaffected).
+
+| `vector_case` | Exact 1024-symbol sequence | Stresses |
+| --- | --- | --- |
+| `corner_repeat` | `+1+j` repeated 1024 times | Maximum sustained build-up; accumulator near maximum; output saturation |
+| `max_alternation` | (`+1+j`, `-1-j`) alternating, 512 pairs | Maximum sample-to-sample swing; I and Q flip every symbol |
+| `single_symbol_perturbation` | Background `+1+j` 1024 times except index **512** = `-1-j` (diagonal opposite: maximum single-symbol perturbation, mid-frame, away from edges) | Isolated transition spreading through the 8 taps |
+
+`vector_case` names are stable identifiers; future corners add new names
+without changing the schema. The true impulse-response check (impulse at
+`x[0]`, first eight outputs equal the tap sequence) stays a mathematical/sim
+check per Reproducibility Checks and the #14 numerical-equivalence check; it
+is NOT a QPSK end-to-end vector and MUST NOT be confused with
+`single_symbol_perturbation`.
 
 ## References
 

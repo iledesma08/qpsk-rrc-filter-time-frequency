@@ -237,6 +237,17 @@ explicitly named operation.
    saturation. If either occurs, increase the width or change the declared
    scaling instead of hiding it behind aggregate SQNR.
 5. Wrap-around appears once as a diagnostic negative control only.
+6. Directed arithmetic checks, owned by T20 as `pytest` on the FXP model
+   (arbitrary stimulus values are natural at model level; no RTL stimulus
+   changes): positive/negative quantizer saturation, representable extremes,
+   and `+/-1` LSB rounding behavior are MUST checks.
+7. RNE ties at the output cast: T20 MUST first determine whether a reachable
+   tie exists at the relevant narrowing boundary for the accepted `W` (i.e.
+   dropped fraction bits exactly `100...0` producible by the time/frequency
+   datapath on the canonical frame plus the `sys_corners` sets). If such a
+   tie exists, its exact-rounding check is MUST; if no tie is reachable, T20
+   documents the arithmetic reason instead of imposing an untestable MUST.
+   No RTL infrastructure is added to force ties.
 
 ### Signed SystemVerilog discipline
 
@@ -285,7 +296,7 @@ fft_mode, fft_stage_widths, W_acc_freq, ifft_scale
 sqnr_time_db, sqnr_freq_db
 max_abs_acc_time, max_abs_acc_freq
 internal_overflow_count, output_saturation_count
-valid_start, valid_count, latency_time, latency_freq
+valid_start, valid_len, latency_samples, latency_cycles
 vector_match_time, vector_match_freq
 area_um2, fmax_mhz, power_status
 ```
@@ -299,7 +310,8 @@ unannotated estimate.
 A candidate is numerically acceptable only when:
 
 - `SQNR_time >= 40 dB` and `SQNR_freq >= 40 dB`;
-- zero internal overflow on the canonical frame and the edge-case checks;
+- zero internal overflow on the canonical frame and the edge-case checks
+  (the `sys_corners` sets of #15 plus the directed arithmetic checks above);
 - zero canonical output saturation events;
 - float-to-FXP alignment follows the manifest;
 - serial RTL matches the generated fixed-point expected vectors exactly in

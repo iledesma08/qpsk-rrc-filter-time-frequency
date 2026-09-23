@@ -61,7 +61,11 @@ superseded by `W_common`/`F_data`/`F_coeff` + `rounding_mode`/`overflow_mode`);
 | `edge_pattern_symbols` | integer, `40` | Five fixed 8-symbol patterns prepended (D3). |
 | `random_seed` | integer, `2026` | Seed for `default_rng` (D2). |
 | `prng` | string, `numpy.random.default_rng (PCG64)` | Generator (D2). |
-| `symbol_map` | string, `0=+1+j, 1=+1-j, 2=-1+j, 3=-1-j` | `rng.integers(0,4)` corner mapping (Edge Patterns). |
+| `symbol_map` | string, `0=+1+j, 1=+1-j, 2=-1+j, 3=-1-j` | `rng.integers(0,4)` corner mapping (Edge Patterns). MUST NOT be mutated: it is the executable mapping. |
+| `symbol_map_coding` | string, `gray` | Descriptive metadata of `symbol_map` (adjacent symbols differ in one bit). MUST stay consistent with `symbol_map`; it describes the mapping without redefining it (T13 asserts consistency). |
+| `symbol_energy` | number, `2` | Nominal pre-filter symbol energy `Es = E[\|s_k\|^2]` (`2` for `s_k in {+/-1 +/- j}`). Metadata only: it does not rescale `.hex`, RTL, or expected codes. MUST match the computation from `symbol_map` (T13 checks). |
+| `vector_set` | enum: `canonical` \| `sys_corners` | Vector family. `canonical` is the 1024-symbol reference frame; `sys_corners` are full-length deterministic frames (Corner Sets). No `clean` family exists: the canonical stimulus is already noiseless. |
+| `vector_case` | string, `none` \| `corner_repeat` \| `max_alternation` \| `single_symbol_perturbation` (extensible) | Stable case identifier within the family; `none` for the single-case `canonical` set. Future corners add new names without schema changes. |
 | `samples_per_symbol` | integer, `2` | 2x oversampling (D4). |
 | `upsampling` | string, `zero_insertion` | Zero insertion; vectors carry post-upsampling samples (D4). |
 | `input_samples` | integer, `2048` | `L = 2*S` complex samples. |
@@ -182,6 +186,10 @@ edge_pattern_symbols: 40
 random_seed: 2026
 prng: numpy.random.default_rng (PCG64)
 symbol_map: 0=+1+j, 1=+1-j, 2=-1+j, 3=-1-j
+symbol_map_coding: gray
+symbol_energy: 2
+vector_set: canonical
+vector_case: none
 samples_per_symbol: 2
 upsampling: zero_insertion
 input_samples: 2048
@@ -221,8 +229,13 @@ Notes on the example: `W_product = 2*16 = 32`; `W_acc_time = 2*16+3 = 35`;
 `fft_stage_widths` is baseline A at `W=16`; `W_acc_freq = 45` derives from the
 `2*(16+4)+1 = 41`-bit pointwise product plus four unscaled-IFFT guard bits
 (per #16 Frequency-domain internal widths) and is illustrative of baseline A;
-`latency_cycles = 8` reflects the serial `II=8` accept cadence while
-`latency_samples = 0` keeps absolute-index comparison; `fft_pipeline_cycles`
+`latency_cycles = 8` is wall-clock cycles from the first accepted input to the
+first valid output measured with `ready_i = 1` held continuously and no
+testbench stalls or gaps (per `rtl-streaming-17.md` Testbench Contract); for
+this serial example it numerically coincides with the 8-cycle accept cadence,
+but `latency_cycles` and `II` are different quantities and diverge in
+pipelined or block variants. `latency_samples = 0` keeps absolute-index
+comparison; `fft_pipeline_cycles`
 is per-variant (12 shown as a placeholder depth); `W=16` packs directly so
 `component_sign_extension` records the rule that sub-16 widths use.
 
@@ -230,7 +243,7 @@ is per-variant (12 shown as a placeholder depth); `W=16` packs directly so
 
 | Manifest group | Normative contract | What that contract owns |
 | --- | --- | --- |
-| Stimulus (§1) | `docs/contracts/qpsk-stimulus-15.md` (D1-D8, Signal Model, Edge Patterns, Valid Output Window) | Frame, PRNG/seed, edge patterns, upsampling, causal window, symbol centers. |
+| Stimulus (§1) | `docs/contracts/qpsk-stimulus-15.md` (D1-D8, Signal Model, Edge Patterns, Valid Output Window, Corner Sets) | Frame, PRNG/seed, edge patterns, upsampling, causal window, symbol centers, `Es = 2`, Gray mapping, `canonical` + `sys_corners` sets. |
 | FXP policy (§2, §5, §6) | `docs/contracts/fxp-policy-16.md` (D1-D9, Numeric Policy, Sweep Matrix, Manifest Fields) | Common `Q2.(W-2)`, sweep widths, RNE/saturation, accumulator widths, FFT baselines, sign extension. Backed by `docs/contracts/fxp-common-width-16.md` (historical research report). |
 | Streaming (§3) | `docs/contracts/rtl-streaming-17.md` (D1-D9, Interface Specification, Latency declaration, Testbench Contract) | Handshake, reset, packed `{Q, I}` bus, `SPC` vs `II`, latency declaration, frequency block parameters, vector-matching rules. |
 | Block schedule (§7) | `docs/contracts/frequency-block-contract-14.md` (forced-50% OLS, Padding/Ending, Block latency) + `docs/contracts/ppa-matrix-18.md` (Workload) | `N=16`, `H=8`, discard `z[0:8]`, emit `z[8:16]`; 257-block tail-flush accounting. |
