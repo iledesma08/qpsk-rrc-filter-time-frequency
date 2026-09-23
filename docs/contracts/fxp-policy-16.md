@@ -321,22 +321,29 @@ unstable estimate near the 40 dB threshold.
 
 ## Manifest Fields
 
-The vector manifest extends the #15 fields with the active FXP policy:
+Normative schema: `docs/contracts/vector-manifest-schema.md` (§2 FXP policy
+fields, §5 common format, §6 sign extension). The example below is
+non-normative and must match the schema. The vector manifest extends the #15
+fields with the active FXP policy:
 
 ```text
 W_common, F_data, F_coeff
 rounding_mode, overflow_mode
 W_product, W_acc_time
 fft_mode, fft_stage_widths, W_acc_freq, ifft_scale
-latency_time, latency_freq
+latency_samples, latency_cycles
 valid_start, valid_len
 component_sign_extension: sign_extend_to_16
 ```
 
+(`latency_time, latency_freq` in earlier wording are aliases of
+`latency_samples, latency_cycles`; the schema names are canonical.)
+
 When `W < 16`, each component is sign-extended into the existing 16-bit I/Q
 field of the packed vector; when `W = 16`, the field is direct. A future
 candidate above 16 bits requires revisiting the record format instead of
-truncating silently.
+truncating silently. Normative rule: `docs/contracts/vector-manifest-schema.md`
+§6.
 
 ## Relationship to SQNR, Area, Timing, and Vector Matching
 

@@ -224,7 +224,9 @@ The time and frequency paths use the same port layout.
 
 ### Latency declaration
 
-Each variant records in its manifest:
+Normative schema: `docs/contracts/vector-manifest-schema.md` (§3 RTL
+streaming fields). Each variant records in its manifest (examples below,
+non-normative):
 
 ```text
 latency_samples    # sample-index distance from first input to first valid output
@@ -274,7 +276,8 @@ time and frequency variants.
 - A mismatch reports the absolute index, the expected code, and the captured
   code.
 - The testbench reads `DATA_WIDTH`, `SAMPLES_PER_CLOCK`, and
-  `latency_samples` from the vector manifest, never from hardcoded values.
+  `latency_samples` from the vector manifest
+  (`docs/contracts/vector-manifest-schema.md`), never from hardcoded values.
 
 ## Relationship to the Placeholder Shell
 
