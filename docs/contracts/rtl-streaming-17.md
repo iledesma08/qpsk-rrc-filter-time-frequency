@@ -206,6 +206,16 @@ The time and frequency paths use the same port layout.
   on `valid_i`.
 - When there is no transfer, every register that holds stream state must hold
   its value.
+- The FIR history advances exactly on accepted input samples
+  (`valid && ready` on the input side). Source gaps (`valid_i = 0`), sink
+  backpressure (`ready_i = 0`), and DUT-side `ready_o = 0` MUST cause no
+  sample loss, duplication, or history corruption. This is an observable
+  property; the micro-architecture is not prescribed.
+- Recommended implementation pattern (non-normative): separate the sample
+  enable (`sample_en = valid && ready`, moves filter history) from the
+  pipeline enable (`pipe_en = ready`, moves arithmetic registers and the
+  `valid` shift chain), so an idle source injects an invalid bubble that
+  drains a pending output exactly once instead of transferring it twice.
 - The canonical stimulus drives `valid_i = 1` in every clock after reset, and
   the DUT backpressures via `ready_o`: the serial time lane (`S=1`, `II=8`)
   deasserts `ready_o` 7 of every 8 accepted-sample cycles. `ready_o = 1` in
@@ -271,6 +281,28 @@ time and frequency variants.
   is lost, duplicated, or invented. The testbench also asserts no loss under
   DUT-side `ready_o` deassertion (e.g. serial `S=1` backpressure) and measures
   steady-state `II` from accepted transfers (`valid && ready`).
+- Latency is asserted in a dedicated run with `ready_i = 1` held continuously
+  and no testbench stalls or gaps: the first `valid_o` MUST agree with
+  `latency_samples` and the wall-clock cycles from the first accepted input
+  to that emission MUST agree with `latency_cycles` from the manifest.
+  DUT-side `ready_o` deassertion is declared accept cadence (`II`), not a
+  stall; testbench-induced stalls are excluded from this measurement.
+- Randomized stall/gap runs keep a scoreboard: expected outputs queued in
+  emission order, and for every captured output the testbench checks no loss,
+  no duplication, preserved order, and a bit-exact code match against the
+  queue head. The accepted-transfers-equals-emitted-outputs count is an
+  additional invariant, never the sole check.
+- The `sys_corners` sets (`corner_repeat`, `max_alternation`,
+  `single_symbol_perturbation` per `qpsk-stimulus-15.md` Corner Sets) are
+  matched exactly like the canonical set. Saturated expected codes match by
+  construction against the T20 model; the testbench reports them, it does not
+  excuse them.
+- After reset completes, all observable controls are known and no valid
+  transaction carries X/Z. No additional internal datapath resets are
+  required beyond the reset behavior above.
+- Direct arbitrary-code driving at `sample_i` beyond the vector sets is
+  identified future hardening for the testbench; it is not required by this
+  contract.
 - The comparison is exact on the stored integer codes after sign extension to
   the packed 16-bit fields; floating-point conversion is not used.
 - A mismatch reports the absolute index, the expected code, and the captured
