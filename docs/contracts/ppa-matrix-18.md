@@ -26,8 +26,8 @@ The team accepted these decisions on 2026-09-22:
 - **D3 — Clock policy:** 100 MHz primary for every row; a failing row is kept
   and repeated unchanged at 10 MHz as a labelled fallback in a separate table.
 - **D4 — Workload:** the canonical #15 frame (1024 symbols, 2048 input
-  samples, 2055 full causal outputs); the frequency lane processes 256 blocks
-  of 8 output samples.
+  samples, 2055 full causal outputs); the frequency lane processes 257 blocks
+  (256 steady-state + 1 tail-flush, 2055 causal outputs).
 - **D5 — Measurement conditions:** one controlled experiment per row; only the
   DUT architecture changes; vector matching and physical signoff are gates.
 - **D6 — Activity and power:** one representative VCD/SAIF per candidate from
@@ -102,7 +102,8 @@ The team accepted these decisions on 2026-09-22:
   be a PPA winner.
 - **Why this was chosen:** it is the production controlled experiment: same
   flow, PDK, standard cells, constraints, floorplan, CTS, routing, extraction,
-  corners, PDN, IO, and utilization; only the DUT architecture changes, and
+  corners, PDN, IO, and utilization; only the DUT architecture, die size (per
+  sizing rule), and clock target change, and
   vector matching plus physical signoff gate the ranking.
 
 ### D6 — Activity and power
