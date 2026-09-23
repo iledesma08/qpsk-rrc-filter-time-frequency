@@ -36,7 +36,7 @@ flowchart LR
 | M4 optimized | fmax target + PPA report + vector matching | `v1.0-opt` |
 | M5 close | slides + actual Gantt + demo | `v1.1-close` |
 
-Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback when timing does not close.
+Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback when timing does not close. D3 interpretation: 10 MHz is recovery, never ranked with 100 MHz passes. If professor intended slow-power class, add low-power lane.
 
 ## Tasks (T) — issue granularity
 
@@ -85,6 +85,8 @@ Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback
 | T42 | Opt **frequency** RTL (unfolded / folded) | T33 | vector matching + ADR-0006 PPA evidence |
 | T43 | Constraints + timing closure **frequency** | T42 | 100 MHz pass or labelled 10 MHz fallback |
 | T44 | Compared PPA table time vs freq | T41, T43 | same-target table, activity status, and best-PPA conclusion |
+
+> D3 interpretation for T41/T43/T44: 10 MHz is recovery, never ranked with 100 MHz passes. T44 compares only rows closed at the same target.
 
 ### F5 — Slides + close
 

@@ -223,6 +223,8 @@ The team accepted these decisions on 2026-09-22:
 - Area, timing, and power are compared only within the same clock target and
   signoff corner. A 10 MHz result never appears in the same table as a 100 MHz
   pass.
+- D3 interpretation: 10 MHz is recovery, never ranked with 100 MHz passes. If
+  professor intended slow-power class, add low-power lane.
 
 ## Workload
 
