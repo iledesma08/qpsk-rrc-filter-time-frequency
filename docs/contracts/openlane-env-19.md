@@ -42,7 +42,9 @@ Observed on 2026-09-22:
 ## Reproduce: Minimal Design and Report Paths
 
 The smoke test deletes its run directory, so a minimal design was used to
-verify the report extraction path that F4 will use. Configuration:
+verify the report extraction path that F4 will use. Configuration below is
+the PDN-floor validation only; per-variant F4 sizing follows the
+same-utilization rule in the Small-Design PDN Lesson:
 
 ```json
 {
@@ -89,10 +91,12 @@ The first minimal attempt failed at `OpenROAD.GeneratePDN` with:
 ```
 
 The default sizing produced a core too small for the default PDN straps.
-Setting `FP_SIZING: absolute` with `DIE_AREA: [0, 0, 200, 200]` fixed it. The
-project's 8-tap filters are tiny, so every variant config must set an explicit
-die area large enough for the PDN from the start, or provide a reduced PDN
-configuration. This is a configuration detail, not a filter result.
+Setting `FP_SIZING: absolute` with `DIE_AREA: [0, 0, 200, 200]` fixed it,
+establishing `200x200 um` as the PDN-0185 floor. The project's 8-tap filters
+are tiny, so F4 sizing is: size each die for 50-60% core utilization (target
+~55%); final die is `max(sized-for-target, 200x200 um)`. Same PDN strategy,
+not same die. Record die area, core area, and utilization per row (from
+`final/metrics.json`). This is a configuration detail, not a filter result.
 
 ## Team Availability
 

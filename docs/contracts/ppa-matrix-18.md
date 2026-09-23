@@ -90,7 +90,8 @@ The team accepted these decisions on 2026-09-22:
   for no measurable benefit, and per-lane workloads destroy comparability.
 - **Why this was chosen:** the accepted #15 frame is already the single source
   of truth, 2048 samples are trivial to simulate, and the frequency lane
-  simply processes 256 blocks of 8 valid outputs.
+  simply processes 257 blocks (256 steady-state + 1 tail-flush, 2055 causal
+  outputs).
 
 ### D5 — Measurement conditions
 
@@ -245,33 +246,40 @@ The team accepted these decisions on 2026-09-22:
 
 ## Measurement Conditions
 
-- OpenLane 2 Classic, the same OpenLane revision, `sky130A`, and
+- OpenLane 2 Classic, the same OpenLane revision (v2.3.10, volare `0fe599`
+  per `docs/contracts/openlane-env-19.md`), `sky130A`, and
   `sky130_fd_sc_hd`.
 - Same synthesis, floorplan, placement, CTS, routing, extraction, signoff,
-  utilization, PDN, pin-order, IO-delay, drive, load, fanout, and
-  max-transition constraints. Only the DUT source list, top name, architecture
-  factors, and clock target change.
+  PDN strategy, pin-order, IO-delay, drive, load, fanout, and
+  max-transition constraints; same SDC template via `PNR_SDC_FILE` and
+  `SIGNOFF_SDC_FILE`, identical except the clock period (see
+  `docs/contracts/toolchain-gap-2.md`). Only the DUT source list, top name,
+  architecture factors, die size (per the sizing rule below), and clock
+  target change.
 - DUT and shared RTL only. Exclude testbenches, activity generators, golden
   vectors, and simulation-only code from `VERILOG_FILES`.
 - Include the domain-specific stream buffers, FFT storage, controllers, reset
   synchronizer, and `valid`/`ready` logic when they are part of the deployed
   DUT.
-- Small designs need an explicit die area large enough for the PDN (see
-  `docs/contracts/openlane-env-19.md`); the same sizing policy applies to all
-  rows.
+- Sizing rule: size each die for 50-60% core utilization (target ~55%);
+  final die is `max(sized-for-target, 200x200 um)` as the PDN-0185 floor
+  (see `docs/contracts/openlane-env-19.md`). Same PDN strategy, not same
+  die. Record die area, core area, and utilization per row.
 - Require 100% vector matching and physical signoff before a row enters the
   ranking. Failed matching or failed signoff is recorded but is not a winner.
 
 ## Activity and Power
 
-- Generate one representative VCD or SAIF per candidate from the canonical
-  workload, with the same reset and warm-up policy.
+- Generate one representative VCD or SAIF per candidate from the full
+  257-block canonical workload (256 steady-state + 1 tail-flush) after
+  warm-up, with the same reset and warm-up policy for every row.
 - **VCD** (`Value Change Dump`, IEEE 1364) records signal value changes over
   simulation time; Icarus/Verilator produce it with `$dumpfile`.
 - **SAIF** (`Switching Activity Interchange Format`) stores per-net toggle
   counts and static probabilities in a compact form.
 - OpenSTA/OpenROAD accept both for switching-power analysis.
-- Record the activity file name and the annotation coverage. If activity is
+- Record the activity file name and the annotation coverage. Report core +
+  clock-tree power; exclude any IO split. If activity is
   not annotated, label the power as an unannotated estimate and use it only
   as an auxiliary like-for-like comparison, never in the dynamic-power
   ranking.
@@ -301,9 +309,11 @@ Retain at least:
 
 ```text
 lane, architecture, S, P, U, F, fft_n, hop, clock_target, timing_status,
-vector_status, area_um2, utilization, setup_ws_ns, setup_tns_ns,
+vector_status, area_um2, die_area_um2, core_area_um2, utilization,
+setup_ws_ns, setup_tns_ns,
 hold_ws_ns, hold_tns_ns, fmax_mhz, ii_cycles, samples_per_cycle,
-power_total, power_status, drc, lvs, antenna, run_tag
+power_total, power_status, activity_file, annotation_coverage,
+drc, lvs, antenna, run_tag
 ```
 
 Plus the raw evidence from `docs/contracts/openlane-env-19.md`: `resolved.json`,
