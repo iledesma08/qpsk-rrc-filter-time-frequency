@@ -224,12 +224,14 @@ The team accepted these decisions on 2026-09-22:
   causal 2055-sample output window.
 - Use the same vector manifest, coefficient bits, reset sequence, and valid
   output window for every candidate.
-- The frequency lane processes 256 blocks of 8 valid outputs (2048 input
-  samples at hop 8), following the accepted #14 schedule: discard `z[0:8]`,
+- The frequency lane processes 257 blocks (256 steady-state + 1 tail-flush,
+  2055 causal outputs), input 2048 + zero-pad to cover S+M-2 per #14, trim to
+  valid_len=2055, following the accepted #14 schedule: discard `z[0:8]`,
   emit `z[8:16]`.
 - Report steady-state measurements after warm-up, and separately record
-  block-fill latency. Drive the time lane continuously after reset and the
-  frequency lane with contiguous frames after its initial fill.
+  block-fill latency. Report steady-state II on first 256, latency split
+  fill vs tail, VCD covers all 257. Drive the time lane continuously after
+  reset and the frequency lane with contiguous frames after its initial fill.
 - Record accepted input samples, valid outputs, latency cycles, and
   steady-state `II` from the handshake.
 
