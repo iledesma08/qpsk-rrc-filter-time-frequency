@@ -95,7 +95,7 @@ Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback
 
 | ID | Task | Depends on | DoD |
 | -- | ---- | ---------- | --- |
-| T50 | Slides: contrast + PPA + lessons learned | T44 | PDF in `docs/slides/` |
+| T50 | Slides: contrast + PPA + lessons learned | T44 | PDF in `docs/slides/`; presentation evidence per `ppa-matrix-18.md` (taps, SQNR, EVM vs float golden, constellation, eye/zero-ISI; BER vs theory only with an explicitly built chain, never DoD) |
 | T51 | Actual vs planned Gantt + final demo | T50 | this table updated + `v1.1-close` tag |
 
 The T-task taxonomy below is the high-level plan. Detailed execution issues,

@@ -69,6 +69,29 @@ The team accepted these decisions on 2026-09-22:
   requires all variants to be bit-exact with each other. That keeps every PPA
   difference attributable to the architecture under test.
 
+### Implementation guidance for F4 (non-normative)
+
+- Share Booth recoder multiples (`+/-A`, `+/-2A` computed once) across the
+  partial-product multiplexers of each multiplier instead of negating inside
+  every stage.
+- Provide the coefficient table in two forms: `$readmemh` for simulation and
+  a `case`-statement ROM for synthesis. Constant coefficients via
+  `case`/hardwiring permit or favor constant propagation and constant
+  folding, subject to the synthesis tool and its configuration; verify the
+  effect in the reports/netlist, never assume a physical implementation from
+  the source form. Test both ROM paths so neither rots.
+- Keep synthesis constant folding separate from the architectural folding
+  factor `F` (time-multiplexing of operators, defined above): they share a
+  word and nothing else.
+- Runtime-reloadable taps (coefficients from writable RAM/registers) stay
+  outside the main PPA comparison: the eight taps are fixed by contract, and
+  a variable coefficient operand would forfeit the constant optimization
+  above for flexibility this project does not need.
+- MAY (annex only, T44): one one-off area experiment with and without the
+  constant-optimizable coefficient path, reported as annex evidence and
+  excluded from the 12-row Pareto ranking. It MUST NOT become a 13th ranked
+  row nor contaminate the main comparison.
+
 ### D3 — Clock policy
 
 - **Alternatives:** compare each variant at its own maximum frequency; force
@@ -80,7 +103,9 @@ The team accepted these decisions on 2026-09-22:
 - **Why this was chosen:** a fixed signoff target is the production rule. The
   primary table contains only 100 MHz-closed rows, and failures are retained
   and repeated unchanged at a labelled 10 MHz fallback so the recovery result
-  cannot be confused with a primary pass.
+  cannot be confused with a primary pass. Synthesis and PnR inputs (SDC, TCL,
+  OpenLane JSON per top-level variant) are committed even when their numbers
+  arrive later; an unrun script is recorded as unrun, never as a result.
 
 ### D4 — Workload: the canonical stimulus frame
 
@@ -335,6 +360,22 @@ evidence, and the throughput normalization.
 - If every time row and every unfolded frequency row close comfortably with
   the same trend, stop and keep the finalists; add intermediate factors only
   for a genuine tie or outlier.
+
+## Presentation evidence (F5, non-normative)
+
+- Keep the three quantities separate: **SQNR** is fixed-point quantization
+  degradation versus the float reference (ADR-0005); **SNR / Es/N0** is
+  channel noise and applies only if an explicit channel/noise model is
+  defined (none exists: no AWGN is introduced in RTL or contractual
+  vectors); **EVM** is RMS vector error versus the float golden output, the
+  definition adopted here.
+- F5 evidence priority: taps/response, SQNR, EVM, constellation, eye/zero-ISI
+  on the canonical frame.
+- BER versus theory is conditional only: it requires an explicitly
+  implemented full chain (bits, mapper, TX shaping, AWGN, matched filter,
+  timing, slicer, bits) with documented statistical significance, and stays a
+  complementary analysis, never a contractual DoD. No AWGN model or
+  communications chain is introduced only to replicate an external project.
 
 ## Open Items
 
