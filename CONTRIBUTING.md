@@ -35,6 +35,7 @@ Format: `type/<issue>-short-description-lowercase`
 - `fix/34-low-sqnr-in-fxp` — bug fix
 - `docs/56-initial-gantt` — docs only
 - `sim/...`, `rtl/...` — valid shortcuts with the same format (`rtl/45-tb-vector-matching`)
+- `research/<issue>-...` is allowed for time-boxed investigation spikes; rename to `docs/<issue>-...` on hand-off to implementation, or keep `research/` if it stays docs-only.
 
 Rules:
 

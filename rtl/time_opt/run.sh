@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SMOKE ONLY — retired in F3.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)

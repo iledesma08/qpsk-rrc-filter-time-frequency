@@ -6,7 +6,8 @@ Generated only by `sim/python/gen_vectors.py` (T13), according to
 - Each complex sample is a packed 32-bit `{Q[15:0], I[15:0]}` record in the
   input or expected-output `.hex` file.
 - The generator also writes `vector_manifest.svh` with the vector count and
-  packing metadata.
+  packing metadata. Normative manifest schema:
+  `docs/contracts/vector-manifest-schema.md`.
 - RTL vector-matches against these files.
 - Every generated vector must have a matching `<vector>.sha256` sidecar; CI verifies it.
 - Generated SystemVerilog is metadata only; vectors are not compiled into the DUT.

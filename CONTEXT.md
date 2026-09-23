@@ -44,6 +44,10 @@ _Avoid_: ideal model, floating reference
 Quantization of coefficients and data to N bits with SQNR ≥ 40 dB.
 _Avoid_: generic fixed point without SQNR, intN
 
+**Common width**:
+The shared external word width selected for data and coefficients in both domains.
+_Avoid_: bit width, generic precision
+
 **SQNR**:
 Signal-to-quantization-noise ratio in dB between float and fxp outputs.
 _Avoid_: SNR, SNQR
@@ -64,8 +68,21 @@ _Avoid_: hand-written vector metadata
 The aligned output interval used to compare models without implementation-only padding.
 _Avoid_: arbitrary comparison slice
 
+**Stimulus frame**:
+The deterministic QPSK sample sequence shared by the golden, FXP, and RTL flows.
+_Avoid_: test vector, random input
+
+**Edge pattern**:
+A fixed symbol sequence prepended to the random part of the stimulus to stress extrema and I/Q imbalance.
+_Avoid_: corner case set, special vector
+
 **Serial version**:
-RTL processing one sample per cycle (or one shared MAC).
+RTL processing one sample per cycle (or one shared MAC). `SPC` is the
+interface width; `II` (initiation interval, from the handshake) depends on
+`S`: `S=1 => II=8` (`ready_o` deasserts 7/8 cycles). `ready_o = 1` always holds
+only for fully-parallel variants; the TB measures `II` from `valid && ready`
+with no loss under backpressure. See
+`docs/contracts/rtl-streaming-17.md`.
 _Avoid_: slow version, simple version
 
 **Optimized version**:
