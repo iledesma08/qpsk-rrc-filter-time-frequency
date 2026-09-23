@@ -22,7 +22,7 @@ Single-context repo: one `CONTEXT.md` at the root + ADRs in `docs/adr/`. See `do
 
 RRC filters (50% roll-off, 2x oversampling, 8 taps) for QPSK, in **two versions**: **time** domain and **frequency** domain. Flow: Python floating-point simulator (golden) → fixed point with SQNR ≥ 40 dB → serial RTL + vector matching → optimized RTL (unfolded / pipeline / systolic / folded) at 100 MHz (fast) or 10 MHz (slow) → best PPA trade-off → slides + Gantt.
 
-Canonical vocabulary in `CONTEXT.md`. Hard decisions in `docs/adr/`. Plan and work split in `docs/plan-gantt.md`.
+Canonical vocabulary in `CONTEXT.md`. Hard decisions in `docs/contracts/` (accepted), recorded as ADRs in `docs/adr/`. Plan and work split in `docs/plan-gantt.md`.
 
 ## How to work here
 

@@ -1,6 +1,6 @@
 # SystemVerilog and OpenLane PPA flow
 
-**Status: accepted**
+**Status:** accepted, extended by contracts. Normative: `docs/contracts/toolchain-gap-2.md` + `docs/contracts/openlane-env-19.md` + `docs/contracts/ppa-matrix-18.md` + `docs/contracts/rtl-streaming-17.md`. This ADR defines only SystemVerilog + Icarus/vvp (Verilator lint-only) and the OpenLane 2 Classic 100 MHz primary / 10 MHz labelled-fallback rule; environment pins and experiment matrix live in the contracts.
 
 RTL is SystemVerilog simulated with Icarus/vvp; GTKWave is a manual debug
 tool and Verilator is an optional DUT-lint complement. PPA uses OpenLane 2's
