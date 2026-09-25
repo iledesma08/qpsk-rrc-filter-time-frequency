@@ -1,8 +1,7 @@
 # Plan + Gantt — QPSK RRC time vs frequency (4-person team)
 
 > Planning Project: [QPSK RRC Filter - Plan](https://github.com/users/iledesma08/projects/3). It tracks repository setup and Wayfinder map #1 only.
-> The execution Project, created with Wayfinder map #2, will be the live scheduler for technical work, status, assignees, and dates.
-> This document is the setup milestone snapshot; the second map owns the detailed execution Gantt and issues.
+> Execution Project: [QPSK RRC Filter - Execution](https://github.com/users/iledesma08/projects/4). This document is the live execution plan: milestones, T-tasks with owners and dates, and the by-person Gantt.
 
 ## Phases and dependencies
 
@@ -49,7 +48,7 @@ Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback
 | -- | ---- | ---------- | -------------- |
 | T00 | Organized repo (this pack) + labels + `main` protection | this PR | all |
 | T01 | Fill in team table in README + create GitHub Project | T00 | all |
-| T02 | Toolchain/infra: `requirements.txt` pins (`toolchain-gap-2.md`), `run.sh` ×4 (time/freq serial/opt, `iverilog -g2012` + `vvp` nonzero-on-mismatch), Verilator lint-only CI (DUT only), SDC template (`PNR/SIGNOFF` identical except period) + OpenLane JSON skeleton per variant (DUT only, syn-commit rule), per-machine smoke re-verify per `openlane-env-19.md` | T00 | **A+D co-author before 2026-10-05** |
+| T02 | Toolchain/infra: `requirements.txt` pins (`toolchain-gap-2.md`), `run.sh` per variant (time/freq serial/opt) plus the top-level `rtl/run.sh`, `iverilog -g2012` + `vvp` nonzero-on-mismatch, Verilator lint-only CI (DUT only), SDC template (`PNR/SIGNOFF` identical except period) + OpenLane JSON skeleton per variant (DUT only, syn-commit rule), per-machine smoke re-verify per `openlane-env-19.md` | T00 | **A+D co-author before 2026-10-05** |
 | T03 | Streaming skeleton (no frozen coefs): `rtl/common/rrc_pkg.sv` (`FFT_LEN=16,HOP=8,DISCARD_PREFIX=8,EMIT_START=8,EMIT_LEN=8,DATA_WIDTH/SPC` params), handshake/reset shell (`valid/ready`, async-assert/sync-deassert + 2-flop sync), packed `{Q,I}` + signed casts, manifest-driven TB skeleton (`DATA_WIDTH/SPC/valid_start/valid_len/latency_samples` from manifest, exact int-code compare, bubble/stall scoreboard hooks) per `rtl-streaming-17.md` | T02 | **A before 2026-10-13**; B reviews freq params for professor-gate switch |
 
 > T02/T03 are the front-load: frozen base (infra + package + TB skeleton) that lets B/C/D build datapaths from 10-13 with no A needed.
@@ -82,7 +81,7 @@ Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback
 
 ### F4 — Optimized RTL (reduced 6-row matrix for 11-06; full 12-row on extension — C=time rows, B=freq rows, D=table)
 
-> Reduced matrix for 11-06: serials + `T-S4P1`/`T-S8P1` + `F-U4`/`F-U8`. Full 12-row matrix (with `P=2`, `U2`, folded) only on extension — needs checkpoint ratification as a contract #18 amendment.
+> Reduced matrix for 11-06: serials + `T-S4P1`/`T-S8P1` + `F-U4`/`F-U8`. Full 12-row matrix (with `P=2`, `U2`, folded) only on extension — per the contract #18 amendment (6-row baseline decided 2026-09-25).
 > All variants from one parameterized source, bit-exact (same rounding/sat/widths); `II=8/S` (time), `II` measured from handshake.
 
 | ID | Task | Depends on | DoD |
@@ -95,9 +94,9 @@ Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback
 
 > D3 interpretation for T41/T43/T44: 10 MHz is recovery, never ranked with 100 MHz passes. T44 compares only rows closed at the same target.
 
-### Fallback scope if the checkpoint denies extension (locked 10-16)
+### Delivered scope for 11-06 (decided 2026-09-25; checkpoint confirms progress)
 
-If no extension is granted, delivery 11-06 covers exactly these 6 rows — no more, no less:
+Delivery 11-06 covers exactly these 6 rows — no more, no less:
 
 | Keep | Why it stays |
 | ---- | ------------ |
@@ -115,7 +114,7 @@ If no extension is granted, delivery 11-06 covers exactly these 6 rows — no mo
 | F-U2 | Low replication trend readable from U4/U8 without it | yes |
 | F-F2 (folded) | Area/throughput contrast; the reuse argument is shown qualitatively in slides | yes |
 
-Rules: this fallback is team-proposed, not decided — checkpoint 10-16 either ratifies it (then: comment on #18 + contract amendment PR for `ppa-matrix-18.md`) or grants the extension (then: the full 12-row matrix resumes and this subsection is marked superseded). No matrix/RTL fork before ratification; every datapath stays parameterized so cut rows come back by configuration, not redesign.
+Rules: this 6-row scope is decided (contract #18 amendment, 6-row baseline), not pending. The 10-16 checkpoint confirms progress and is the venue to request the extension (then: the full 12-row matrix resumes); otherwise the 6-row delivery stands. No matrix/RTL fork for cut rows without the extension; every datapath stays parameterized so cut rows come back by configuration, not redesign.
 
 ### F5 — Slides + close
 
@@ -124,9 +123,7 @@ Rules: this fallback is team-proposed, not decided — checkpoint 10-16 either r
 | T50 | Slides: contrast + PPA + lessons learned | T44 | PDF in `docs/slides/` (D assembles; technical plots delivered by C by 11-04); evidence per `ppa-matrix-18.md` (taps/response, SQNR, EVM vs float golden, constellation, eye/zero-ISI on canonical frame) + dormant `link-awgn-annex-35.md` if built (dual-arm float vs FXP-at-`W_common`, ideal/long TX ±8 sym — never 8-tap, `Es=2`, seed 2035, labelled interp, ideal-sync list, ≥100 errors/point, `Q(sqrt(Es/N0))`, loss at ref BER; no `vectors/rtl/tb` touch, never DoD) |
 | T51 | Actual vs planned Gantt + final demo | T50 | this table updated + `v1.1-close` tag |
 
-The T-task taxonomy below is the high-level plan. Detailed execution issues,
-technical research, and their native dependencies belong to the second
-execution Wayfinder map; do not create all T00-T51 issues from this setup map.
+The T-task taxonomy above is the live execution plan. It is already instantiated as issues #38–#60 (sub-issues of map #12, owners, milestones M1–M5, native blocking); lazy sub-issues (per-row F4 splits, per-width sweep splits) are added only when their fog graduates.
 
 ## Initial 4-way split (delivery 11-06; travel 10-15→11-08; C takes the time lane)
 
@@ -205,7 +202,7 @@ gantt
 **A Ignacio** — pre-travel only; misses checkpoint and delivery by design.
 - `T00 kickoff all` (09-28, 2d): repo + project setup with everyone.
 - `T10 RRC coefficients` (09-29, 4d): `rrc8-v1` grid, values, unit-energy normalization, artifact, plots. Output unblocks `T11`/`T12`.
-- `T02 toolchain+infra` (09-29, 6d): pins, `run.sh` x4, lint CI, SDC template, OpenLane JSON skeletons, per-machine smoke. Output unblocks every lane.
+- `T02 toolchain+infra` (09-29, 6d): pins, per-variant `run.sh` + top-level, lint CI, SDC template, OpenLane JSON skeletons, per-machine smoke. Output unblocks every lane.
 - `T11 time float golden` (10-02, 8d): 1024-symbol frame, edge patterns, zero insertion, full 2055-sample golden + checks. Must finish 10-10 as handoff buffer.
 - `T03 pkg+TB skeleton` (10-06, 6d): package with block params, handshake/reset shell, manifest-driven TB skeleton without frozen coefs. Output lets B/C/D work during the absence.
 - `A async reviews` (10-14, 1d): review the T20a plan and C's time-datapath plan the day before travel.
@@ -269,7 +266,7 @@ Non-issues: machine contention (all four run Nix/OpenLane locally per #19 — no
 | Power ranked without activity | VCD/SAIF full-257 per candidate; unannotated = estimate, excluded from dynamic ranking |
 | A misses checkpoint + delivery (travel 10-15–11-08) | Handoff green by 10-13 + async reviews 10-14; checkpoint demo frozen 10-15 by B/C/D; delivery scope needs no A by construction |
 | Zero slack to 11-06 | Any >1d slip before 10-29 eats the freeze buffer; after 10-29 it hits the checkpoint-agreed fallback (scope cut or extension) |
-| Reduced matrix not yet ratified | Checkpoint 10-16 ratifies the 6-row scope (contract #18 amendment) or grants extension for 12 rows; no matrix/RTL fork until approved |
+| Reduced matrix scope | Decided 6-row base (contract #18 amendment); checkpoint is a progress gate + extension venue, not a scope decision |
 | C triple-stream 10-13→10-29 | 1d stall rule on the C lane; D absorbs plots/activity early as backup; datapath pre-verified vs float de-risks matching |
 | 3d serial match | Credible only because datapaths + TBs verify vs float for 16d first; the int coef swap is the only delta |
 | One lane races ahead | Weekly cross-reviews + actual Gantt in T51 |

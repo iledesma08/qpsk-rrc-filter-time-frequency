@@ -18,8 +18,12 @@ RTL, OpenLane configuration, or measurement script is included.
 
 The team accepted these decisions on 2026-09-22:
 
-- **D1 — Matrix:** 12 rows: the two serial baselines plus six time variants,
-  three frequency variants, and one folded contrast.
+- **D1 — Matrix:** 6-row base matrix for the 11-06 delivery: the two serial
+  baselines plus two time variants (`T-S4P1`, `T-S8P1`) and two frequency
+  variants (`F-U4`, `F-U8`). The remaining six rows of the original 12-row
+  matrix (`T-S2P1`, `T-S2P2`, `T-S4P2`, `T-S8P2`, `F-U2`, `F-F2`) return only
+  on extension. (Amended 2026-09-25 — see Amendment below; rescoped before
+  any implementation.)
 - **D2 — Factor definitions:** `S`, `P`, `U`, and `F` have the meanings below;
   `II = 8/S`; all variants come from one parameterized RTL source and must be
   bit-exact with each other.
@@ -179,19 +183,28 @@ The team accepted these decisions on 2026-09-22:
 
 ## Matrix
 
+Base matrix for the 11-06 delivery (6 rows):
+
 | ID | Lane | Factor | Role |
 | --- | --- | --- | --- |
 | T-serial | Time | Serial baseline (`S=1`, `P=1`) | Area, timing, and throughput reference |
-| T-S2P1 | Time | `S=2`, `P=1` | Low parallelism |
 | T-S4P1 | Time | `S=4`, `P=1` | Mid parallelism |
 | T-S8P1 | Time | `S=8`, `P=1` | Full tap array |
-| T-S2P2 | Time | `S=2`, `P=2` | Pipeline effect at low parallelism |
-| T-S4P2 | Time | `S=4`, `P=2` | Balanced point |
-| T-S8P2 | Time | `S=8`, `P=2` | Timing-oriented full array |
 | F-serial | Frequency | Serial baseline (`U=1`) | Area, timing, and throughput reference |
-| F-U2 | Frequency | `U=2` | Low replication |
 | F-U4 | Frequency | `U=4` | Mid replication |
 | F-U8 | Frequency | `U=8` | Full radix-2 butterfly parallelism for FFT16 |
+
+Extension rows (only if an extension is granted — same contracts, same
+conditions; the datapaths stay parameterized so these return by
+configuration, not redesign):
+
+| ID | Lane | Factor | Role |
+| --- | --- | --- | --- |
+| T-S2P1 | Time | `S=2`, `P=1` | Low parallelism |
+| T-S2P2 | Time | `S=2`, `P=2` | Pipeline effect at low parallelism |
+| T-S4P2 | Time | `S=4`, `P=2` | Balanced timing/area point |
+| T-S8P2 | Time | `S=8`, `P=2` | Timing-oriented full array |
+| F-U2 | Frequency | `U=2` | Low replication point |
 | F-F2 | Frequency | `F=2` reuse of the `U=8` schedule | Area/throughput contrast |
 
 ## Factor Definitions
@@ -352,9 +365,12 @@ evidence, and the throughput normalization.
 - The primary performance comparison is effective valid-output throughput, not
   raw clock frequency alone; a folded or low-`S` design may have a good fmax
   and a worse samples/second result.
-- Report pipeline effects at fixed `S` and systolic effects at fixed `P`.
-- Report frequency replication across `F-U2`, `F-U4`, and `F-U8`; compare
-  `F-F2` primarily against `F-U8` and secondarily against `F-U4`.
+- Report pipeline effects at fixed `S` and systolic effects at fixed `P`
+  (base matrix: systolic scaling `S4→S8` at fixed `P=1`; pipeline `P=2`
+  comparisons return on extension).
+- Report frequency replication across `F-U4` and `F-U8`; `F-U2` and the
+  `F-F2` folded contrast return on extension (then compare `F-F2`
+  primarily against `F-U8` and secondarily against `F-U4`).
 - Do not claim that the matrix predicts the PPA trend; registers can improve
   timing and increase area and clock power. The matrix reveals the trade-off.
 - If every time row and every unfolded frequency row close comfortably with
@@ -379,11 +395,24 @@ evidence, and the throughput normalization.
 
 ## Open Items
 
-- The implementation owner confirms during F3 that `P=1` and `P=2` are
+- The implementation owner confirms during F3 that the `P=1` cuts are
   realizable in the chosen signed complex datapath without changing rounding
-  or saturation.
+  or saturation; `P=2` cuts are verified only on extension.
 - Finalist reruns are conditional on a tie or outlier (D7).
 - Nothing else blocks the F4 optimization phase once this contract is merged.
+
+## Amendment — 6-row baseline (2026-09-25)
+
+Before any implementation started, the team rescoped the base matrix from 12
+rows to the 6-row base above: the 11-06 delivery cannot host the full
+factorial (two opt lanes × closure × VCD × table in 11-01→11-05), and the
+cheapest losses are the low-end points (`T-S2P1`, `F-U2`, readable as trends
+from `S4/S8` and `U4/U8`) plus the pipeline axis (`P=2`) and the folded
+contrast — the only sacrificed comparison axis. The 12-row matrix is not
+deleted: it is the defined extension scope, and every datapath stays
+parameterized so cut rows return by configuration. The 10-16 checkpoint no
+longer decides matrix scope; it confirms progress and is the venue to request
+the extension.
 
 ## References
 
