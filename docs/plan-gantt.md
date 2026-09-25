@@ -82,7 +82,7 @@ Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback
 
 ### F4 — Optimized RTL (reduced 6-row matrix for 11-06; full 12-row on extension — C=time rows, B=freq rows, D=table)
 
-> Reduced matrix for 11-06: serials + `T-S4P1`/`T-S8P1` + `F-U4`/`F-U8`. Full 12-row matrix (with `P=2`, `U2`, folded) only on extension — needs checkpoint ratification as a contract #18 amendment.
+> Reduced matrix for 11-06: serials + `T-S4P1`/`T-S8P1` + `F-U4`/`F-U8`. Full 12-row matrix (with `P=2`, `U2`, folded) only on extension — per the contract #18 amendment (6-row baseline decided 2026-09-25).
 > All variants from one parameterized source, bit-exact (same rounding/sat/widths); `II=8/S` (time), `II` measured from handshake.
 
 | ID | Task | Depends on | DoD |
@@ -95,9 +95,9 @@ Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback
 
 > D3 interpretation for T41/T43/T44: 10 MHz is recovery, never ranked with 100 MHz passes. T44 compares only rows closed at the same target.
 
-### Fallback scope if the checkpoint denies extension (locked 10-16)
+### Delivered scope for 11-06 (decided 2026-09-25; checkpoint confirms progress)
 
-If no extension is granted, delivery 11-06 covers exactly these 6 rows — no more, no less:
+Delivery 11-06 covers exactly these 6 rows — no more, no less:
 
 | Keep | Why it stays |
 | ---- | ------------ |
@@ -115,7 +115,7 @@ If no extension is granted, delivery 11-06 covers exactly these 6 rows — no mo
 | F-U2 | Low replication trend readable from U4/U8 without it | yes |
 | F-F2 (folded) | Area/throughput contrast; the reuse argument is shown qualitatively in slides | yes |
 
-Rules: this fallback is team-proposed, not decided — checkpoint 10-16 either ratifies it (then: comment on #18 + contract amendment PR for `ppa-matrix-18.md`) or grants the extension (then: the full 12-row matrix resumes and this subsection is marked superseded). No matrix/RTL fork before ratification; every datapath stays parameterized so cut rows come back by configuration, not redesign.
+Rules: this 6-row scope is decided (contract #18 amendment, 6-row baseline), not pending. The 10-16 checkpoint confirms progress and is the venue to request the extension (then: the full 12-row matrix resumes); otherwise the 6-row delivery stands. No matrix/RTL fork for cut rows without the extension; every datapath stays parameterized so cut rows come back by configuration, not redesign.
 
 ### F5 — Slides + close
 
@@ -269,7 +269,7 @@ Non-issues: machine contention (all four run Nix/OpenLane locally per #19 — no
 | Power ranked without activity | VCD/SAIF full-257 per candidate; unannotated = estimate, excluded from dynamic ranking |
 | A misses checkpoint + delivery (travel 10-15–11-08) | Handoff green by 10-13 + async reviews 10-14; checkpoint demo frozen 10-15 by B/C/D; delivery scope needs no A by construction |
 | Zero slack to 11-06 | Any >1d slip before 10-29 eats the freeze buffer; after 10-29 it hits the checkpoint-agreed fallback (scope cut or extension) |
-| Reduced matrix not yet ratified | Checkpoint 10-16 ratifies the 6-row scope (contract #18 amendment) or grants extension for 12 rows; no matrix/RTL fork until approved |
+| Reduced matrix scope | Decided 6-row base (contract #18 amendment); checkpoint is a progress gate + extension venue, not a scope decision |
 | C triple-stream 10-13→10-29 | 1d stall rule on the C lane; D absorbs plots/activity early as backup; datapath pre-verified vs float de-risks matching |
 | 3d serial match | Credible only because datapaths + TBs verify vs float for 16d first; the int coef swap is the only delta |
 | One lane races ahead | Weekly cross-reviews + actual Gantt in T51 |

@@ -18,7 +18,7 @@ checks.
 | [rtl-streaming-17.md](rtl-streaming-17.md) | #17 (closed) | Accepted D1-D9 | `valid`/`ready` handshake, reset synchronizer, packed `{Q,I}`, latency declaration, and frequency block parameters. |
 | [vector-manifest-schema.md](vector-manifest-schema.md) | #15/#16/#17 (via #12) | Normative | Single vector-manifest schema (stimulus + FXP + streaming + hashes); per-doc lists are non-normative examples. |
 | [ppa-experiment-matrix-18.md](ppa-experiment-matrix-18.md) | #18 (closed) | Research report — historical, superseded fields in Resolution Status; normative is ppa-matrix-18.md | Long-form PPA matrix study that backs `ppa-matrix-18.md`. |
-| [ppa-matrix-18.md](ppa-matrix-18.md) | #18 (closed) | Accepted D1-D9 | 12-row matrix, factor definitions, canonical workload, controlled conditions, VCD/SAIF power policy, and Pareto ranking. |
+| [ppa-matrix-18.md](ppa-matrix-18.md) | #18 (closed) | Accepted D1-D9, D1 amended 2026-09-25 to a 6-row base (12-row on extension) | 6-row base matrix (serials + S4/S8 + U4/U8), factor definitions, canonical workload, controlled conditions, VCD/SAIF power policy, and Pareto ranking. |
 | [openlane-env-19.md](openlane-env-19.md) | #19 (closed) | Task record | Verified Nix/OpenLane/PDK, smoke test, report paths, and the small-design PDN fix. |
 | [link-awgn-annex-35.md](link-awgn-annex-35.md) | #35 (open) | Accepted D1-D8; dormant until built | Optional Python-only AWGN link annex (F5): chain, noise model, timing, significance rule; no RTL/vector/TB/DoD changes. |
 
