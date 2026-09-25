@@ -144,6 +144,7 @@ Rules:
 - A/B lanes: each lane owner runs their own synthesis (C: time lane, B: freq lane); C operates the shared activity-run pipeline producing one VCD/SAIF per row for every candidate; D owns the compared 6-row PPA table (T44) and checks same-target/activity status.
 - D keeps this table and the slides up to date.
 - If a lane stalls for >2 days, ask for help and move an issue (leave a comment as record).
+- Crunch cadence 10-27→11-06: daily 15-min standup (A on Zoom until 10-15, then B/C/D); 1d stall rule for everyone in that window, replacing the 2d rule above (C keeps 1d throughout its triple stream).
 - A is unavailable 2026-10-15 – 2026-11-08 and misses both the 10-16 checkpoint and the 11-06 delivery. Handoff rule: A must leave `T10+T11+T02+T03` green on `main` (or PR ready) by 2026-10-13; A reviews the T20a plan and C's time-datapath plan async on 2026-10-14. No work may require A after 10-14.
 - B/C/D work only from frozen A outputs (`rrc8-v1` artifact, time golden, `rrc_pkg`/TB skeleton); C owns the time lane from 10-13 and B/C/D present the checkpoint. Any A question waits for a possible extension — otherwise it is decided without A and recorded.
 
@@ -240,6 +241,19 @@ gantt
 **Milestones + gate** — `Checkpoint demo+gate` (10-16, B/C/D): frozen set T10+T11+T12+T02/T03 + T13 progress + revised plan; ratifies the reduced matrix or triggers extension/scope-cut. `C1 retry` (10-27, 2d, conditional): consumes the freeze buffer; if triggered, emergency scope call with the professor. `Delivery` (11-06): slides + demo + tag.
 
 **Travel + zero-slack audit:** A misses checkpoint and delivery by design — everything after 10-14 runs without A. The plan has zero slack: any >1d slip before 10-29 consumes the freeze buffer; any slip after 10-29 goes straight to the checkpoint-agreed fallback (reduced scope or extension). C's 10-13→10-29 triple stream is the hottest spot (1d stall rule, D absorbs plots/activity as backup).
+
+### Couplings: where the Gantt is truly parallel vs gated
+
+Truly parallel (no shared gate): B vs C lanes from 10-13 (same T03 skeleton, separate lanes); D vs everyone (framework, trial synth, outline consume only frozen outputs); all three prep streams from day one.
+
+| # | Coupling | Window | Slack / shock absorber |
+|---|----------|--------|------------------------|
+| 1 | A→all: T03 + T11 frozen | until 10-13 | Handoff 10-13 + async reviews 10-14; single supplier, thin but sufficient buffer |
+| 2 | T22 (C) gates both match windows | 10-29→11-01 | Float-first RTL: datapaths + TBs verify vs float for 16d, so a T22 slip delays but invalidates nothing |
+| 3 | Opt rows → D assembly + C plots | 11-03→11-05 | Incremental intake from 10-29; serial/FXP plots advanceable, only opt-row EVM arrives last; zero slack regardless |
+| 4 | Checkpoint set frozen 10-15 | 10-15→10-16 | Set completes 10-12/10-13 by plan: 2–3d of air |
+
+Non-issues: machine contention (all four run Nix/OpenLane locally per #19 — no shared runner); C's triple stream is load, not a dependency, with priority T13 > freeze > datapath-finish and D absorbing plots/activity as backup.
 
 ## Risks
 
