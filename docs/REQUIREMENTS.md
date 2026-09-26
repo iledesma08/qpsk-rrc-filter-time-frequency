@@ -3,12 +3,10 @@
 > Onboarding pointer, not a contract. Normative pins live in
 > `docs/contracts/toolchain-gap-2.md`, `docs/contracts/openlane-env-19.md`,
 > and `docs/adr/0006-systemverilog-openlane-ppa-flow.md`.
-> This file only aggregates versions, install, and usage.
+> This file only aggregates required versions, install, and usage.
 > Clocks/sizing (`CLOCK_PERIOD`, `FP_SIZING`, PDN-0185) and PPA evidence
 > (`metrics.json`, STA reports, VCD/SAIF policy) are intentionally excluded
 > here — see the contracts above for those.
-
-Closes #38 (T02) partially — full DoD also needs CI/SDC/JSON/smoke below.
 
 ## 1. Project toolchain
 
@@ -20,41 +18,37 @@ Closes #38 (T02) partially — full DoD also needs CI/SDC/JSON/smoke below.
 | `matplotlib` | `==3.11.2` | sim plots |
 | `fxpmath` | `==0.4.10` | sim FXP model |
 | `pytest` | `==9.1.1` | sim tests |
-| Icarus Verilog `iverilog` + `vvp` | `>=11.0`, `-g2012` (verified `12.0` here) | required RTL simulator, `rtl/*/run.sh` |
-| Verilator | lint-only (verified `5.020` here) | optional CI lint, DUT only |
+| Icarus Verilog `iverilog` + `vvp` | `>=11.0` with `-g2012` | required RTL simulator, `rtl/*/run.sh` |
+| Verilator | any recent, lint-only | optional CI lint, DUT only |
 | GTKWave | any recent | manual/debug VCD only, never CI |
-| Nix | `Determinate Nix 3.21.8` | reproducible OpenLane env, never mixed with `.venv` |
-| OpenLane 2 | `v2.3.10` via `~/openlane2/shell.nix`, flow `Classic` | PPA runs (F4) |
+| Nix | Determinate Nix 3.x | reproducible OpenLane env, never mixed with `.venv` |
+| OpenLane 2 | `v2.3.10`, flow `Classic` | PPA runs (F4) |
 | volare PDK | `0fe599b2afb6708d281543108caf8310912f54af` | `sky130A` PDK download |
 | PDK / SCL | `sky130A` + `sky130_fd_sc_hd` | every comparable run |
 
 ## 2. Dev / repo environment (not project-specific)
 
-| Tool | Status here | Use |
-| ---- | ----------- | --- |
-| `act` | `0.2.89` in `~/.local/bin/act`, **not in `PATH`** in non-interactive shells | run `.github/workflows` locally |
-| `pnpm` | `11.23.0` in `~/.local/share/pnpm/bin/pnpm` (`PNPM_HOME`, see `.bashrc`, **not in `PATH`** in non-interactive shells) | node package manager, commitlint alternative |
-| `node` | system `v18.19.1` at `/usr/bin/node` + nix slim `v22.23.2` at `/nix/store/fkgvrx3jpj80hnrjvwd46cfjqk53dm9x-nodejs-slim-22.23.2/bin/node` (slim = `node` binary only, no `npm`) | runtime for node-based hooks |
-| `convco` | not installed (recommended) | `convco check` Conventional Commits, no node needed |
-| `pre-commit` | `3.6.2` in `/usr/bin/pre-commit` | repo hygiene hooks |
-| `svlint` | `0.9.5` in `/usr/local/bin/svlint` | SystemVerilog lint complement |
-| `gh` | `2.101.0` | issues/PRs (`gh issue view`, `gh pr create`) |
+| Tool | Version | Use |
+| ---- | ------- | --- |
+| `act` | any recent (`0.2.x` tested) | run `.github/workflows` locally |
+| `pnpm` | `11.x` | node package manager, commitlint alternative |
+| `node` | `22.x` LTS | runtime for node-based hooks |
+| `convco` | any recent (recommended) | `convco check` Conventional Commits, no node needed |
+| `pre-commit` | any recent 3.x | repo hygiene hooks |
+| `svlint` | any recent 0.9.x | SystemVerilog lint complement |
+| `gh` | any recent 2.x | issues/PRs (`gh issue view`, `gh pr create`) |
 | `git` | system | branches `type/<issue>-slug`, Conventional Commits |
-| `shellcheck` / `shfmt` | not installed (recommended) | `run.sh` + `scripts/*.sh` lint/fmt |
-| `yamllint` / `actionlint` | not installed (recommended) | CI YAML lint |
+| `shellcheck` / `shfmt` | any recent (recommended) | `run.sh` + `scripts/*.sh` lint/fmt |
+| `yamllint` / `actionlint` | any recent (recommended) | CI YAML lint |
 
-> Node layout on this machine: system `node v18.19.1` (`/usr/bin/node`) is the
-> default; nix provides slim `node v22.23.2` (binary only, no `npm`/`npx`
-> alongside — slim build). `pnpm 11.23.0` is installed via `PNPM_HOME`
-> (`~/.local/share/pnpm`, see `.bashrc`) but, like `act`, it is missing from
-> `PATH` in non-interactive shells. Prefer `cargo install convco` for commit
-> lint (no node needed); `pnpm add -D @commitlint/...` is viable now that
-> `pnpm` is confirmed (see §3).
+> Install each tool however suits your machine and make sure it is in your
+> `PATH`. Prefer `cargo install convco` for commit lint (no node needed);
+> `pnpm add -D @commitlint/...` is the node-based alternative.
 
 ## 3. Install
 
 ```bash
-# system sim tools (Ubuntu)
+# system sim tools (Ubuntu example)
 sudo apt-get update && sudo apt-get install --no-install-recommends -y \
   iverilog verilator gtkwave
 
@@ -70,35 +64,21 @@ git clone https://github.com/efabless/openlane2.git ~/openlane2
 nix-shell --pure ~/openlane2/shell.nix --run "openlane --smoke-test"
 # smoke also downloads the Sky130 PDK via volare; keep the log as evidence
 
-# act (already in ~/.local/bin on this machine, just missing from PATH in non-interactive shells)
-# upstream: https://github.com/nektos/act/releases (act 0.2.89 verified)
-export PATH="$HOME/.local/bin:$PATH"
+# act — https://github.com/nektos/act/releases — ensure in PATH
+act --version
 
-# pnpm (already in PNPM_HOME on this machine, same PATH caveat; see ~/.bashrc)
-export PNPM_HOME="$HOME/.local/share/pnpm"
-export PATH="$PNPM_HOME/bin:$PATH"
-pnpm --version  # verified 11.23.0 here
+# pnpm + node — https://pnpm.io/installation — ensure in PATH
+pnpm --version
+node --version
 
-# nix node slim 22.23.2 (binary only; prepend only if you want nix node ahead of system node)
-# export PATH="/nix/store/fkgvrx3jpj80hnrjvwd46cfjqk53dm9x-nodejs-slim-22.23.2/bin:$PATH"
-# node --version # -> v22.23.2 (nix) vs v18.19.1 (system /usr/bin/node)
-
-# Nix binaries (present under /nix but not in PATH in minimal shells)
-export PATH="/nix/var/nix/profiles/default/bin:$PATH"
-
-# persist both for interactive shells
-grep -q '.local/bin' ~/.bashrc || echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-grep -q '/nix/var/nix' ~/.bashrc || echo 'export PATH="/nix/var/nix/profiles/default/bin:$PATH"' >> ~/.bashrc
-
-# convco (recommended: single Rust binary, no node needed; you confirmed convco is fine though unused)
+# convco (recommended: single binary, no node needed)
 cargo install convco
-# alternative now that pnpm 11.23.0 is confirmed:
+# node-based alternative:
 # pnpm add -D @commitlint/cli @commitlint/config-conventional
 
 # repo hygiene (recommended)
 pip install pre-commit yamllint
-# shellcheck/shfmt/actionlint via apt or GitHub releases:
-sudo apt-get install -y shellcheck shfmt 2>/dev/null || true
+# shellcheck/shfmt/actionlint via apt or GitHub releases
 ```
 
 ## 4. Usage
@@ -146,21 +126,20 @@ Branch/PR reminder: `git checkout main && git pull && git checkout -b chore/38-.
 one branch per issue, no direct commits to `main`, PR `Closes #N` + 1 review +
 green checks + evidence (`pytest` + `vvp` + smoke logs).
 
-## 5. Verified on this machine (2026-09-26)
+## 5. Check your installation
 
-| Check | Result |
+| Check | Expect |
 | ----- | ------ |
-| `python3.12 --version` | `Python 3.12.3` |
-| `iverilog -V` | `Icarus Verilog version 12.0 (stable)` — satisfies `>=11.0` |
-| `verilator --version` | `Verilator 5.020 2024-01-01` |
-| `~/.local/bin/act --version` | `act version 0.2.89` (needs `PATH` export) |
-| `pre-commit --version` | `3.6.2` |
-| `svlint --version` | `0.9.5` |
-| `node --version` | system `v18.19.1` (`/usr/bin/node`); nix slim `v22.23.2` (`/nix/store/fkgvrx3jpj80hnrjvwd46cfjqk53dm9x-nodejs-slim-22.23.2/bin/node`, binary only) |
-| `pnpm --version` | `11.23.0` (`~/.local/share/pnpm/bin/pnpm` via `PNPM_HOME`, needs `PATH` export in non-interactive shells) |
-| `nix-shell` | `/nix/var/nix/profiles/default/bin/nix-shell` (needs `PATH` export) |
-| `~/openlane2` | clone present |
-| `gh --version` | `2.101.0` |
+| `python3.12 --version` | `3.12.x` |
+| `python -m pip freeze \| grep -E "numpy\|scipy\|matplotlib\|fxpmath\|pytest"` | pins from `sim/python/requirements.txt` |
+| `iverilog -V` | `>= 11.0` |
+| `verilator --version` | any recent |
+| `act --version` | any recent |
+| `pnpm --version` | `11.x` |
+| `node --version` | `22.x` |
+| `pre-commit --version` / `svlint --version` / `gh --version` | any recent |
+| `nix-shell --version` | Nix 3.x |
+| `openlane --smoke-test` (inside `nix-shell --pure ~/openlane2/shell.nix`) | `Smoke test passed` |
 
 ## References
 
