@@ -18,8 +18,8 @@
 | `matplotlib` | `==3.11.2` | sim plots |
 | `fxpmath` | `==0.4.10` | sim FXP model |
 | `pytest` | `==9.1.1` | sim tests |
-| Icarus Verilog `iverilog` + `vvp` | `>=11.0` with `-g2012` | required RTL simulator, `rtl/*/run.sh` |
-| Verilator | any recent, lint-only | optional CI lint, DUT only |
+| Icarus Verilog `iverilog` + `vvp` | `>=11.0` with `-g2012` (`12.0` tested) | required RTL simulator, `rtl/*/run.sh` |
+| Verilator | any recent, lint-only (`5.020` tested) | optional CI lint, DUT only |
 | GTKWave | any recent | manual/debug VCD only, never CI |
 | Nix | Determinate Nix 3.x | reproducible OpenLane env, never mixed with `.venv` |
 | OpenLane 2 | `v2.3.10`, flow `Classic` | PPA runs (F4) |
@@ -30,13 +30,13 @@
 
 | Tool | Version | Use |
 | ---- | ------- | --- |
-| `act` | any recent (`0.2.x` tested) | run `.github/workflows` locally |
-| `pnpm` | `11.x` | node package manager, commitlint alternative |
-| `node` | `22.x` LTS | runtime for node-based hooks |
+| `act` | any recent (`0.2.89` tested) | run `.github/workflows` locally |
+| `pnpm` | `11.x` (`11.23.0` tested) | node package manager, commitlint alternative |
+| `node` | `22.x` LTS (`22.23.2` tested) | runtime for node-based hooks |
 | `convco` | any recent (recommended) | `convco check` Conventional Commits, no node needed |
-| `pre-commit` | any recent 3.x | repo hygiene hooks |
-| `svlint` | any recent 0.9.x | SystemVerilog lint complement |
-| `gh` | any recent 2.x | issues/PRs (`gh issue view`, `gh pr create`) |
+| `pre-commit` | any recent 3.x (`3.6.2` tested) | repo hygiene hooks |
+| `svlint` | any recent 0.9.x (`0.9.5` tested) | SystemVerilog lint complement |
+| `gh` | any recent 2.x (`2.101.0` tested) | issues/PRs (`gh issue view`, `gh pr create`) |
 | `git` | system | branches `type/<issue>-slug`, Conventional Commits |
 | `shellcheck` / `shfmt` | any recent (recommended) | `run.sh` + `scripts/*.sh` lint/fmt |
 | `yamllint` / `actionlint` | any recent (recommended) | CI YAML lint |
