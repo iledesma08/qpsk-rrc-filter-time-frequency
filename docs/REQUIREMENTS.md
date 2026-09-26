@@ -32,7 +32,9 @@ Closes #38 (T02) partially — full DoD also needs CI/SDC/JSON/smoke below.
 
 | Tool | Status here | Use |
 | ---- | ----------- | --- |
-| `act` | `0.2.89` in `~/.local/bin/act`, **not in `PATH`** by default | run `.github/workflows` locally |
+| `act` | `0.2.89` in `~/.local/bin/act`, **not in `PATH`** in non-interactive shells | run `.github/workflows` locally |
+| `pnpm` | `11.23.0` in `~/.local/share/pnpm/bin/pnpm` (`PNPM_HOME`, see `.bashrc`, **not in `PATH`** in non-interactive shells) | node package manager, commitlint alternative |
+| `node` | system `v18.19.1` at `/usr/bin/node` + nix slim `v22.23.2` at `/nix/store/fkgvrx3jpj80hnrjvwd46cfjqk53dm9x-nodejs-slim-22.23.2/bin/node` (slim = `node` binary only, no `npm`) | runtime for node-based hooks |
 | `convco` | not installed (recommended) | `convco check` Conventional Commits, no node needed |
 | `pre-commit` | `3.6.2` in `/usr/bin/pre-commit` | repo hygiene hooks |
 | `svlint` | `0.9.5` in `/usr/local/bin/svlint` | SystemVerilog lint complement |
@@ -41,9 +43,13 @@ Closes #38 (T02) partially — full DoD also needs CI/SDC/JSON/smoke below.
 | `shellcheck` / `shfmt` | not installed (recommended) | `run.sh` + `scripts/*.sh` lint/fmt |
 | `yamllint` / `actionlint` | not installed (recommended) | CI YAML lint |
 
-> `node v18.19.1` exists at `/usr/bin/node` on this machine **without**
-> `npm`/`npx`/`pnpm`/`corepack`. Prefer `cargo install convco` over a
-> node-based commitlint here until node toolchain is fixed (see §3).
+> Node layout on this machine: system `node v18.19.1` (`/usr/bin/node`) is the
+> default; nix provides slim `node v22.23.2` (binary only, no `npm`/`npx`
+> alongside — slim build). `pnpm 11.23.0` is installed via `PNPM_HOME`
+> (`~/.local/share/pnpm`, see `.bashrc`) but, like `act`, it is missing from
+> `PATH` in non-interactive shells. Prefer `cargo install convco` for commit
+> lint (no node needed); `pnpm add -D @commitlint/...` is viable now that
+> `pnpm` is confirmed (see §3).
 
 ## 3. Install
 
@@ -64,9 +70,18 @@ git clone https://github.com/efabless/openlane2.git ~/openlane2
 nix-shell --pure ~/openlane2/shell.nix --run "openlane --smoke-test"
 # smoke also downloads the Sky130 PDK via volare; keep the log as evidence
 
-# act (already in ~/.local/bin on this machine, just missing from PATH)
+# act (already in ~/.local/bin on this machine, just missing from PATH in non-interactive shells)
 # upstream: https://github.com/nektos/act/releases (act 0.2.89 verified)
 export PATH="$HOME/.local/bin:$PATH"
+
+# pnpm (already in PNPM_HOME on this machine, same PATH caveat; see ~/.bashrc)
+export PNPM_HOME="$HOME/.local/share/pnpm"
+export PATH="$PNPM_HOME/bin:$PATH"
+pnpm --version  # verified 11.23.0 here
+
+# nix node slim 22.23.2 (binary only; prepend only if you want nix node ahead of system node)
+# export PATH="/nix/store/fkgvrx3jpj80hnrjvwd46cfjqk53dm9x-nodejs-slim-22.23.2/bin:$PATH"
+# node --version # -> v22.23.2 (nix) vs v18.19.1 (system /usr/bin/node)
 
 # Nix binaries (present under /nix but not in PATH in minimal shells)
 export PATH="/nix/var/nix/profiles/default/bin:$PATH"
@@ -75,9 +90,9 @@ export PATH="/nix/var/nix/profiles/default/bin:$PATH"
 grep -q '.local/bin' ~/.bashrc || echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 grep -q '/nix/var/nix' ~/.bashrc || echo 'export PATH="/nix/var/nix/profiles/default/bin:$PATH"' >> ~/.bashrc
 
-# convco (recommended over commitlint here: single Rust binary, no node needed)
+# convco (recommended: single Rust binary, no node needed; you confirmed convco is fine though unused)
 cargo install convco
-# alternative if you prefer the node stack (needs npm/pnpm first):
+# alternative now that pnpm 11.23.0 is confirmed:
 # pnpm add -D @commitlint/cli @commitlint/config-conventional
 
 # repo hygiene (recommended)
@@ -141,7 +156,8 @@ green checks + evidence (`pytest` + `vvp` + smoke logs).
 | `~/.local/bin/act --version` | `act version 0.2.89` (needs `PATH` export) |
 | `pre-commit --version` | `3.6.2` |
 | `svlint --version` | `0.9.5` |
-| `node --version` | `v18.19.1` (no `npm`/`npx`/`pnpm` alongside) |
+| `node --version` | system `v18.19.1` (`/usr/bin/node`); nix slim `v22.23.2` (`/nix/store/fkgvrx3jpj80hnrjvwd46cfjqk53dm9x-nodejs-slim-22.23.2/bin/node`, binary only) |
+| `pnpm --version` | `11.23.0` (`~/.local/share/pnpm/bin/pnpm` via `PNPM_HOME`, needs `PATH` export in non-interactive shells) |
 | `nix-shell` | `/nix/var/nix/profiles/default/bin/nix-shell` (needs `PATH` export) |
 | `~/openlane2` | clone present |
 | `gh --version` | `2.101.0` |
