@@ -41,6 +41,54 @@
 > `PATH`. Prefer `cargo install convco` for commit lint (no node needed);
 > `pnpm add -D @commitlint/...` is the node-based alternative.
 
+## 3. Tools usage
+
+### Project tools
+
+- **Python 3.12.x** — runtime for everything under `sim/python/`. Create the
+  venv with `python3.12 -m venv .venv`, activate it, and install
+  `sim/python/requirements.txt`. Never install OpenLane tooling into `.venv`.
+- **numpy** — number crunching of the filter: time-domain convolution and the
+  FFT → multiply → IFFT chain of the frequency-domain golden.
+- **scipy** — RRC tap generation and spectral analysis supporting the
+  coefficient contract.
+- **matplotlib** — evidence plots (tap stems, `freqz` response, eye/spectrum).
+- **fxpmath** — fixed-point quantization model (RNE rounding, saturation) used
+  to measure SQNR ≥ 40 dB before any RTL is trusted.
+- **pytest** — runs the sim test suite: `python -m pytest sim/python -v`.
+- **iverilog + vvp** — the normative RTL simulator. Each `rtl/*/run.sh`
+  compiles DUT + testbench with `iverilog -g2012` and executes with `vvp`;
+  a nonzero exit means vector mismatch. `bash rtl/run.sh` runs all variants.
+- **Verilator** — lint complement only (`--lint-only -sv -Wall -Wno-fatal`
+  over DUT sources, never testbenches). Optional CI job; it never simulates.
+- **GTKWave** — manual waveform debug of `.vcd` files. Debug aid only, never
+  part of CI or DoD.
+- **Nix** — reproducible OpenLane environment via
+  `nix-shell --pure ~/openlane2/shell.nix`. Keeps EDA tools isolated from the
+  Python venv.
+- **OpenLane 2 (Classic)** — RTL-to-GDS flow producing the PPA numbers:
+  `openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic
+  openlane/<variant>/config.json`, one run per RTL variant.
+- **volare** — downloads and pins the exact PDK revision used for every run.
+- **sky130A + sky130_fd_sc_hd** — the PDK and standard-cell library every
+  comparable PPA row must share; mixing technologies invalidates comparison.
+
+### Dev / repo tools
+
+- **act** — runs `.github/workflows` locally (e.g. `act -l`, `act -j sim`)
+  so CI failures are caught before pushing.
+- **pnpm / node** — only needed for node-based hooks (e.g. commitlint). The
+  project itself requires no JavaScript.
+- **convco (recommended)** — validates Conventional Commits
+  (`convco check --from origin/main --to HEAD`) with no node dependency.
+- **pre-commit** — repo hygiene hooks run via `pre-commit run --all-files`.
+- **svlint** — extra SystemVerilog style lint on top of Verilator.
+- **gh** — issue/PR workflow (`gh issue view`, `gh pr create`, `Closes #N`).
+- **git** — branches named `type/<issue>-slug`, one branch per issue, no
+  direct commits to `main`.
+- **shellcheck / shfmt** — lint and format for `run.sh` and `scripts/*.sh`.
+- **yamllint / actionlint** — lint for CI YAML before it breaks remotely.
+
 ## References
 
 - `docs/contracts/toolchain-gap-2.md` — pins, `iverilog/vvp` contract, Verilator lint, OpenLane JSON/SDC/evidence.
