@@ -61,3 +61,6 @@ docs/slides/*.pdf
 .env
 *.pem
 *.key
+
+# Teaching workspace (local only, per-issue lessons)
+teach/
