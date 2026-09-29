@@ -1,0 +1,13 @@
+{
+  "DESIGN_NAME": "freq_serial_filter",
+  "VERILOG_FILES": [
+    "dir::../../rtl/common/*.sv",
+    "dir::../../rtl/freq_serial/*.sv"
+  ],
+  "CLOCK_PORT": "clk",
+  "CLOCK_PERIOD": 10.0,
+  "FP_SIZING": "absolute",
+  "DIE_AREA": [0, 0, 200, 200],
+  "PNR_SDC_FILE": "dir::../sdc/sky130_100MHz.sdc",
+  "SIGNOFF_SDC_FILE": "dir::../sdc/sky130_100MHz.sdc"
+}

@@ -53,3 +53,12 @@ jobs:
           verilator --lint-only -sv -Wall -Wno-fatal \
             --top-module time_serial_filter \
             rtl/common/rrc_stream_placeholder.sv rtl/time_serial/time_serial_filter.sv
+          verilator --lint-only -sv -Wall -Wno-fatal \
+            --top-module freq_serial_filter \
+            rtl/common/rrc_stream_placeholder.sv rtl/freq_serial/freq_serial_filter.sv
+          verilator --lint-only -sv -Wall -Wno-fatal \
+            --top-module time_opt_filter \
+            rtl/common/rrc_stream_placeholder.sv rtl/time_opt/time_opt_filter.sv
+          verilator --lint-only -sv -Wall -Wno-fatal \
+            --top-module freq_opt_filter \
+            rtl/common/rrc_stream_placeholder.sv rtl/freq_opt/freq_opt_filter.sv

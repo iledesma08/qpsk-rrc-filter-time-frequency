@@ -24,6 +24,12 @@ Closes #<!-- issue number -->
 
 ```
 
+## Glossary
+
+<!-- Rare/new terms used above, in your own words. Ideal flow: look up the
+weird words > write your own definition > have the AI refine it > paste it
+here. Example: DUT (device under test), TB (testbench), PNR, SIGNOFF, SDC. -->
+
 ## Checklist
 
 - [ ] I read `CONTEXT.md` and use its terms
