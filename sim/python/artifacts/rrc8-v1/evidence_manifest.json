@@ -1,0 +1,32 @@
+{
+  "artifact_version": "rrc8-v1",
+  "crop_symbol_start": 64,
+  "crop_symbol_stop": 960,
+  "delay_samples": 3.5,
+  "eye_window_count": 896,
+  "generator_sha256": "5128ee400782bd990cfc474893928ec22694a2225539a7c7e96a1c386868742b",
+  "input_constellation": "+/-1 +/- j",
+  "interpolation": "none",
+  "plot_seed": 2026,
+  "plot_sha256": {
+    "coefs_stem.png": "f7aa2d10edb6aa70ba62c0bef1a3e9f416e23f448bac098856aac4e60d8c50e7",
+    "freqz_4096.png": "9cfdc1a596adffdd988e0a17bf82fa293006d8125dd9a1019a0e49bbe48491f7",
+    "qpsk_filter_views.png": "cd9ec350bf71af03765fd8940e5303ddceb0ed2f3214e4f4e0ef867161cf7405"
+  },
+  "plot_stimulus": "visualization_only_not_T11",
+  "plot_symbol_count": 1024,
+  "plots": [
+    "coefs_stem.png",
+    "freqz_4096.png",
+    "qpsk_filter_views.png"
+  ],
+  "response_points": 4096,
+  "samples_per_symbol": 2,
+  "spectrum_reference": "normalized_rrc8_magnitude_on_signal_fft_bins",
+  "symbol_map": "0=+1+j, 1=+1-j, 2=-1+j, 3=-1-j",
+  "versions": {
+    "matplotlib": "3.11.2",
+    "numpy": "2.5.3",
+    "scipy": "1.18.1"
+  }
+}

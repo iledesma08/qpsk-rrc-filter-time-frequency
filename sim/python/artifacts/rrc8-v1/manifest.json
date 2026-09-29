@@ -1,0 +1,65 @@
+{
+  "alpha": 0.5,
+  "artifact_version": "rrc8-v1",
+  "coefficient_scale_16bit": "Q2.14",
+  "coefficient_scale_sensitivity": "Q1.15 (optional phase E)",
+  "coefficients_float64": [
+    0.010942691568693055,
+    -0.11095557645481882,
+    0.11095557645481889,
+    0.6893895688276623,
+    0.6893895688276623,
+    0.11095557645481889,
+    -0.11095557645481882,
+    0.010942691568693055
+  ],
+  "coefficients_raw_float64": [
+    0.015468180292133855,
+    -0.1568426607153074,
+    0.15684266071530747,
+    0.9744953584044327,
+    0.9744953584044327,
+    0.15684266071530747,
+    -0.1568426607153074,
+    0.015468180292133855
+  ],
+  "delay_samples": 3.5,
+  "family": "root-raised-cosine",
+  "grid_formula": "t[n] = (n-(N-1)/2)/sps",
+  "grid_t_over_T": [
+    -1.75,
+    -1.25,
+    -0.75,
+    -0.25,
+    0.25,
+    0.75,
+    1.25,
+    1.75
+  ],
+  "input_constellation_components": [
+    -1.0,
+    1.0
+  ],
+  "input_scale_16bit": "Q2.14",
+  "normalization": "discrete_l2_unit_energy",
+  "num_coefficients": 8,
+  "ordering": "ascending_time",
+  "quantized_example": {
+    "fractional_bits": 14,
+    "rounding_mode": "round_nearest_even",
+    "status": "illustrative_not_frozen",
+    "values": [
+      179,
+      -1818,
+      1818,
+      11295,
+      11295,
+      1818,
+      -1818,
+      179
+    ],
+    "width_bits": 16
+  },
+  "samples_per_symbol": 2,
+  "symbol_period": 1.0
+}
