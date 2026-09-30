@@ -17,12 +17,23 @@ flowchart LR
   T44 --> F5[F5 slides + close]
 ```
 
+```mermaid
+flowchart LR
+  T10[T10 #39: frozen RRC coefficients] --> T11[T11 #40: time golden]
+  T10 --> T12[T12 #41: frequency golden]
+  T11s[T11s #67: shared canonical stimulus] --> T11
+  T11s --> T12
+  T11 --> T13[T13 #43: golden vectors]
+  T12 --> T13
+```
+
 > T13 (`sim/vectors/` generator) is the F1 exit criterion and unblocks F2/F3. F4 time and F4 freq run in parallel and rejoin at T44.
+> T11s (#67) is the shared input prerequisite for T11/T12; T10 remains their separate coefficient prerequisite. T11 and T12 can proceed in parallel once both prerequisites are met.
 > Critical dependency chain: `T13 -> T20 -> T22 -> T30/T32` (vectors → fxp model → frozen coefs → serial RTL).
 > `SQNR-retry` (7d, only if no width hits 40 dB) extends F2; `signoff-respin` (5d) follows T44;
 > `professor-gate` is a zero-duration wait before F5 sign-off.
 
-- **F1** produces RRC `rrc8-v1` (α=0.5, 8 taps, OS 2x, `D=3.5`) + float golden in time and frequency + `canonical` + 3 `sys_corners` vectors with normative manifest (257 blocks). Contracts: #13, #14, #15, schema.
+- **F1** produces RRC `rrc8-v1` (α=0.5, 8 taps, OS 2x, `D=3.5`) + one shared canonical stimulus + float golden in time and frequency + `canonical` + 3 `sys_corners` vectors with normative manifest (257 blocks). Contracts: #13, #14, #15, schema.
 - **F2** locks `W_common` with SQNR ≥ 40 dB **both** domains (phases A–D, RNE/sat, `2W+3`, FFT A/B, split-half, zero overflow/sat). Contract: #16.
 - **F3** requires 100% exact int-code vector matching in both versions (incl. `sys_corners`, latency/`II`, bubble/stall robustness) before optimizing. Contracts: #17, #14.
 - **F4** runs the reduced 6-row matrix (serials + S4/S8 + U4/U8) from one parameterized source, same-SDC/sizing/signoff, VCD/SAIF power, Pareto ranking. Contracts: #18, #19, #2.
@@ -58,8 +69,9 @@ Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback
 | ID | Task | Depends on | DoD |
 | -- | ---- | ---------- | --- |
 | T10 | RRC coefficients α=0.5, 8 taps, OS 2x + generator script per `rrc-coefficient-contract-13.md` D1-D7 | T00 | centered grid `t[n]=(n-3.5)/2`, raw + L2-normalized vector (`sum(h²)=1`), `D=3.5` documented, artifact `rrc8-v1` fields, symmetry/energy/singular-branch checks, stem + `freqz`-4096 + eye plots on natural grid |
-| T11 | QPSK gen + 2x upsampling + **time** float filter per `qpsk-stimulus-15.md` D1-D8 | T10 | `S=1024, default_rng(2026)`, 5×8 edge patterns, zero-insertion `L=2048`, full causal `2055`, center `2k+3.5`, Gray map, `Es=2`; pytest (regen-identical, even=symbol/odd=zero, `len=2055`, impulse→taps, time/freq `rtol=1e-10,atol=1e-12`) + eye/spectrum on natural grid; **A must finish by 2026-10-10 (buffer before absence)** |
-| T12 | **Frequency** float filter (forced-50% OLS `N=16,H=8`, discard `z[0:8]`, emit `z[8:16]`) per `frequency-block-contract-14.md` D1 | T10 | frame `x[8b-8+r]`, 8-zero pre-frame, NumPy `1/N`-once, `I=real,Q=imag`, block cadence 8, 7-check suite (`S=32` OLS/OLA/canonical-H9, impulse, packing round-trip, ~1e-15), no unexplained shift; professor-gate: hop-9 needs approval |
+| T11s | Shared deterministic canonical stimulus for T11/T12 per `qpsk-stimulus-15.md` D1-D5 | Contract #15 (no issue blocker) | `S=1024`, `default_rng(2026)`, five 8-symbol edge patterns + Gray-mapped tail, `Es=2`, zero-insertion `L=2048`; one reproducible source consumed by both goldens; focused pytest coverage; no coefficients, filtering, or vectors |
+| T11 | **Time** float filter consuming the shared stimulus per `qpsk-stimulus-15.md` D1-D8 | T10, T11s | zero initial history, full causal output `2055`, center `2k+3.5`; pytest (length, impulse→taps, time/freq `rtol=1e-10,atol=1e-12`) + folded sample/spectrum plots on natural grid; **A must finish by 2026-10-10 (buffer before absence)** |
+| T12 | **Frequency** float filter (forced-50% OLS `N=16,H=8`, discard `z[0:8]`, emit `z[8:16]`) per `frequency-block-contract-14.md` D1 | T10, T11s | consume shared samples `x[8b-8+r]`, 8-zero pre-frame, NumPy `1/N`-once, `I=real,Q=imag`, block cadence 8, 7-check suite (`S=32` OLS/OLA/canonical-H9, impulse, packing round-trip, ~1e-15), no unexplained shift; professor-gate: hop-9 needs approval |
 | T13 | `sim/vectors/` generator + checksum (F1 exit, C guards) per `qpsk-stimulus-15.md` + `vector-manifest-schema.md` + ADR-0004 | T11, T12 | `canonical` + 3 full-length `sys_corners` (`corner_repeat,max_alternation,single_symbol_perturbation`), packed `{Q[15:0],I[15:0]}` `.hex` via `$readmemh`, normative §1-§4 manifest, invariants (`2048/2055/0/2055`, `FFT16/H8/D8/E8`, `DATA_WIDTH==W_common`), per-file `.sha256` + CI hash gate, `vector_manifest.svh` metadata-only, 257-block accounting, never by hand |
 
 ### F2 — Fixed point + SQNR (C owns; phases A–D only for 11-06; A reviews plan before 2026-10-14)
@@ -123,14 +135,14 @@ Rules: this 6-row scope is decided (contract #18 amendment, 6-row baseline), not
 | T50 | Slides: contrast + PPA + lessons learned | T44 | PDF in `docs/slides/` (D assembles; technical plots delivered by C by 11-04); evidence per `ppa-matrix-18.md` (taps/response, SQNR, EVM vs float golden, constellation, eye/zero-ISI on canonical frame) + dormant `link-awgn-annex-35.md` if built (dual-arm float vs FXP-at-`W_common`, ideal/long TX ±8 sym — never 8-tap, `Es=2`, seed 2035, labelled interp, ideal-sync list, ≥100 errors/point, `Q(sqrt(Es/N0))`, loss at ref BER; no `vectors/rtl/tb` touch, never DoD) |
 | T51 | Actual vs planned Gantt + final demo | T50 | this table updated + `v1.1-close` tag |
 
-The T-task taxonomy above is the live execution plan. It is already instantiated as issues #38–#60 (sub-issues of map #12, owners, milestones M1–M5, native blocking); lazy sub-issues (per-row F4 splits, per-width sweep splits) are added only when their fog graduates.
+The T-task taxonomy above is the live execution plan. It is instantiated as issues #38–#60 plus shared prerequisite #67 (sub-issues of map #12, owners, milestones M1–M5, native blocking); lazy sub-issues (per-row F4 splits, per-width sweep splits) are added only when their fog graduates.
 
 ## Initial 4-way split (delivery 11-06; travel 10-15→11-08; C takes the time lane)
 
 | Person | Member | Main lane | Responsibility |
 | ------ | ------ | --------- | -------------- |
-| A | Ignacio (`iledesma08`) | Pre-travel only (no delivery tasks) | **09-28→10-14:** T10 (09-29→10-02) + T02 (09-29→10-04) + T11 (10-02→10-10) + T03 (10-06→10-12) + async reviews (T20a plan + C time-datapath plan, 10-14); **travel 10-15→11-08** — delivery happens without A; back only if extension is granted |
-| B | Juan (`JRondon23`) | Frequency lane + checkpoint co-presenter | **09-28→10-13:** T12 prep + T12 golden (needs only frozen T10); **10-13→10-29:** freq datapath + TB vs float (parameterized W) + hop-9 draft; **10-29→11-01:** coef integration + 100% match; **11-01→11-04:** reduced opt (U4/U8) + closure; **11-03→11-05:** freq synth support for T44 |
+| A | Ignacio (`iledesma08`) | Pre-travel only (no delivery tasks) | **09-28→10-14:** T10 (09-29→10-02) + T02 (09-29→10-04) + T11s (#67 shared stimulus, prerequisite to T11/T12) + T11 (10-02→10-10) + T03 (10-06→10-12) + async reviews (T20a plan + C time-datapath plan, 10-14); **travel 10-15→11-08** — delivery happens without A; back only if extension is granted |
+| B | Juan (`JRondon23`) | Frequency lane + checkpoint co-presenter | **09-28→10-13:** T12 prep + T12 golden (needs frozen T10 and shared T11s); **10-13→10-29:** freq datapath + TB vs float (parameterized W) + hop-9 draft; **10-29→11-01:** coef integration + 100% match; **11-01→11-04:** reduced opt (U4/U8) + closure; **11-03→11-05:** freq synth support for T44 |
 | C | Matias (`matiascostamagna`) | Transversal + TIME lane (hottest lane — 1d stall rule) | **09-28→10-13:** T13 prep + review of T10/T11; **10-13→10-19:** T13 vectors; **10-13→10-29:** time datapath + TB vs float (parallel with vectors/F2); **10-19→10-29:** T20→T21→T22 (phases A–D only); **10-29→11-01:** coef integration + 100% match; **11-01→11-04:** reduced opt (S4P1/S8P1) + closure; **11-01→11-05:** activity runs + evidence plots (by 11-04) + vector guard |
 | D | Andres (`AndresCesana`) | PPA + close + checkpoint organizer | **09-28→10-05:** T02 co-author (JSON/SDC skeletons, A reviews) + smoke all machines; **10-05→10-19:** T44 framework + intake pipeline + slides outline; **10-19→10-29:** trial synth of both datapaths (de-risks closure); **10-29→11-05:** per-row reviews + incremental intake; **11-03→11-06:** T44 assembly + T50/T51 slides + demo + rehearsal |
 
@@ -210,7 +222,7 @@ gantt
 
 **B Juan** — steady frequency lane; checkpoint co-presenter.
 - `T12 prep contract study` (09-28, 4d): study #13/#14/#17, set up the freq sim harness. Input: draft `T10`. Output: ready harness.
-- `T12 freq float golden` (10-02, 11d): forced-50% OLS float model + 7-check suite. Input: frozen `T10` only.
+- `T12 freq float golden` (10-02, 11d): forced-50% OLS float model + 7-check suite. Input: frozen `T10` and shared `T11s`.
 - `T32 datapath float` (10-13, 16d): full serial freq datapath + TB vs float golden with placeholder coefs, parameterized `W`; hop-9 draft included. Input: frozen `T03+T12` only.
 - `T32-33 match` (10-29, 3d): coef-table integration + 100% match + robustness — pre-verified vs float, hence 3d.
 - `T42-43 reduced opt` (11-01, 3d): `F-U4`/`F-U8` + closure (U2/folded on extension).
@@ -249,6 +261,7 @@ Truly parallel (no shared gate): B vs C lanes from 10-13 (same T03 skeleton, sep
 | 2 | T22 (C) gates both match windows | 10-29→11-01 | Float-first RTL: datapaths + TBs verify vs float for 16d, so a T22 slip delays but invalidates nothing |
 | 3 | Opt rows → D assembly + C plots | 11-03→11-05 | Incremental intake from 10-29; serial/FXP plots advanceable, only opt-row EVM arrives last; zero slack regardless |
 | 4 | Checkpoint set frozen 10-15 | 10-15→10-16 | Set completes 10-12/10-13 by plan: 2–3d of air |
+| 5 | T11s (#67) → T11/T12 shared input | Before T11/T12 integration | One deterministic source unblocks both lanes; T10 remains an independent coefficient dependency |
 
 Non-issues: machine contention (all four run Nix/OpenLane locally per #19 — no shared runner); C's triple stream is load, not a dependency, with priority T13 > freeze > datapath-finish and D absorbing plots/activity as backup.
 
