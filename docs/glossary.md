@@ -50,6 +50,29 @@
   - **Causal FIR** — An FIR implemented without depending on future input:
     `y[m] = sum(h[k] * x[m-k])`. With coefficients stored in ascending
     physical time, index `k` identifies the input delay used by the sum.
+- **FFT (fast Fourier transform)** — An efficient algorithm for computing the
+  discrete Fourier transform. T12 uses a complex 16-point FFT for each input
+  frame, then multiplies its bins by the spectrum of the zero-padded RRC
+  coefficients before applying the IFFT.
+- **IFFT (inverse fast Fourier transform)** — The inverse transform that
+  converts frequency-domain bins back into time-domain samples. T12 applies a
+  16-point IFFT after the pointwise multiplication and keeps only the valid
+  OLS region for the output block. NumPy applies the inverse `1/N` normalization
+  exactly once under the project's FFT convention.
+- **OLS (overlap-save)** — A block frequency-domain filtering method that
+  reuses input history between adjacent frames and discards the circular-
+  convolution-corrupted prefix of each IFFT result. T12 uses the forced-50%
+  schedule: 16-sample frames contain 8 history samples and 8 new samples,
+  `H=8`, and the emitted region is `z[8:16]`.
+- **OLA (overlap-add)** — A block frequency-domain filtering method that uses
+  adjacent non-overlapping input blocks, zero-pads each block before the FFT,
+  and adds the overlapping tails of the IFFT results. T12 uses OLA as an
+  independent reference check; it is not the primary forced-50% implementation.
+- **50% overlap** — A frame schedule where adjacent frames share half of their
+  samples. For T12, a 16-sample frame reuses 8 history samples and advances by
+  `H=8` new samples. This forced schedule differs from canonical OLS, which
+  reuses 7 samples and emits 9 valid samples for an 8-tap filter and a
+  16-point FFT.
 - **Delay** — The time shift between a signal entering a filter and the
   corresponding filtered signal. A symmetric linear-phase FIR of length `N`
   has group delay `(N-1)/2` samples.
