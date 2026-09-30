@@ -9,6 +9,71 @@
 
 ## Signal processing
 
+- **Complex number** - A value with real and imaginary components, written
+  `z = I + jQ`, where `j^2 = -1`. Here I is the in-phase component and Q is
+  the quadrature component; `1+j` means I=1 and Q=1, not two consecutive
+  values. Python uses `1j` for the imaginary unit. Both symbols and samples
+  can be complex: the number format does not determine their role.
+- **Symbol** - A value representing a group of information bits at the symbol
+  rate, before oversampling and filtering. The index `k` in `s[k]` counts
+  symbols; in this project each QPSK symbol represents two bits.
+  - **QPSK (quadrature phase-shift keying)** - A modulation with four possible
+    symbol phases, carrying two bits per symbol. This project's constellation
+    is the four unnormalized corners `+1+j, +1-j, -1+j, -1-j`. Each has
+    `|s[k]|^2 = I^2 + Q^2 = 2`, so the symbol energy is `Es=2`; scaling by
+    `1/sqrt(2)` would change the agreed stimulus to `Es=1`.
+  - **Gray mapping** - Assigning bit labels so neighboring constellation
+    points differ in exactly one bit. The contract maps `00 -> +1+j`,
+    `01 -> +1-j`, `10 -> -1+j`, and `11 -> -1-j` (integer indices 0 through
+    3). Neighbors differ only in I or only in Q. This is a property of the
+    labels, not a requirement that consecutive generated symbols visit
+    neighboring corners or follow a Gray-code sequence.
+- **Sample** - A signal value at one instant of the discrete time grid. The
+  index `n` in `x[n]` or `y[n]` counts samples, not symbols. At 2x oversampling
+  there are two sample instants per symbol period, separated by `T/2`.
+  Before filtering, even input indices contain QPSK symbols and odd indices
+  contain inserted zeros; after filtering, samples need not be zeros or
+  constellation corners. The canonical frame has 1024 symbols and 2048
+  input samples.
+- **Zero-insertion** - Placing symbols on a finer sample grid and filling the
+  additional positions with zeros. For this project's 2x oversampling,
+  `x[2k] = s[k]` and `x[2k+1] = 0`, starting with the first symbol at `x[0]`.
+  The inserted zero is not a QPSK symbol or missing data. Zero insertion
+  alone does not create the shaped pulse; the following RRC filter generates
+  the intermediate waveform values.
+- **RRC filter (root-raised-cosine)** - A pulse-shaping filter whose ideal
+  frequency-response magnitude is the square root of a raised-cosine
+  response. A matched pair of ideal RRC filters produces the raised-cosine
+  Nyquist response, with zero intersymbol interference at symbol instants
+  under ideal timing. This project fixes the roll-off at `alpha=0.5`; RRC is
+  not interchangeable with plain raised cosine.
+  - **FIR RRC** - A finite impulse response implementation that approximates
+    the ideal RRC pulse with a finite coefficient vector. This project uses
+    eight real coefficients at two samples per symbol, applied as
+    `y[n] = sum(h[m] * x[n-m])` for `m=0..7`. They shape I and Q separately
+    through the same filter. Truncation means the eight-coefficient filter
+    does not inherit every ideal RRC property exactly.
+  - **Pulse shaping** - Turning the symbol impulses into overlapping,
+    scaled copies of a chosen pulse to control the transmitted waveform and
+    spectrum. Here zero insertion supplies the impulses and the RRC filter
+    supplies the pulse shape. It creates waveform samples between symbol
+    instants, not new information symbols.
+- **Sample-and-hold** - Keeping a value constant until the next update. As an
+  alternative 2x symbol-to-sample representation, it would repeat each symbol:
+  `x[2k] = x[2k+1] = s[k]`. Unlike zero insertion, this introduces a
+  rectangular hold pulse and changes the spectrum, so it is not the input
+  representation selected for this project.
+- **OLS (overlap-save)** - Computing linear FIR convolution in blocks using
+  `FFT -> response multiply -> IFFT`. Consecutive input frames reuse history
+  samples; the IFFT prefix corrupted by circular convolution is discarded,
+  and the remaining outputs are concatenated, not added. For an `M`-coefficient
+  FIR and an `N`-point FFT, the minimal overlap and discard are `M-1`, leaving
+  `N-M+1` valid outputs. This project instead uses `M=8`, `N=16` and a forced
+  50% overlap: eight history samples plus eight new samples per frame,
+  discard `z[0:8]`, and emit `z[8:16]`. Seven discarded outputs are corrupted;
+  the eighth is valid but belongs to the preceding output position (or the
+  pre-input position in the first frame), so it is omitted to preserve the
+  eight-sample cadence without duplication.
 - **One-sided occupied bandwidth** — The highest positive frequency occupied
   by a baseband signal, measured from zero to one side of its spectrum. For the
   ideal RRC pulse it is `(1 + alpha) / (2T)`; with `alpha=0.5` and `T=1`, this
@@ -69,6 +134,22 @@
 
 ## Verification
 
+- **rtol (relative tolerance)** - The magnitude-dependent part of a numerical
+  comparison's allowed error. NumPy's `assert_allclose(actual, expected, ...)`
+  checks each element using
+  `abs(actual - expected) <= atol + rtol * abs(expected)`.
+  Thus `rtol=1e-10` contributes an allowed error of `1e-10` when the expected
+  magnitude is 1, but contributes nothing when the expected value is zero.
+  Time/frequency floating-point output comparisons use `rtol=1e-10` together
+  with `atol=1e-12` to allow small rounding differences, not timing shifts.
+- **atol (absolute tolerance)** - The fixed part of the same error bound,
+  expressed in the units of the compared values. It remains effective near
+  zero, where the relative contribution becomes tiny. With the project's
+  `atol=1e-12`, an expected zero permits an absolute error up to `1e-12`;
+  an expected magnitude of 1 permits `1.01e-10` when combined with
+  `rtol=1e-10`. These tolerances apply to approximate floating-point checks;
+  exact stimulus regeneration and RTL integer-code vector matching still
+  require equality.
 - **DUT (device under test)** — The RTL being verified or synthesized: the
   four filter variants plus `rtl/common`. It is what vector matching checks,
   what Verilator lints, and what OpenLane synthesizes. Never the testbench,
@@ -161,6 +242,10 @@
   matching, …).
 - `docs/contracts/rrc-coefficient-contract-13.md` — RRC grid, normalization,
   delay, and T10 canonical coefficient artifact.
+- `docs/contracts/qpsk-stimulus-15.md` - Symbol mapping, energy, edge patterns,
+  and the shared zero-inserted sample frame.
+- `docs/contracts/frequency-block-contract-14.md` - OLS frames, overlap,
+  discard policy, and output alignment.
 - `docs/contracts/fxp-policy-16.md` — FXP/SQNR policy and common coefficient
   width decisions owned by later phases.
 - `docs/contracts/toolchain-gap-2.md` — pins, `iverilog/vvp` contract,
@@ -169,5 +254,7 @@
   repro, PDN-0185 floor, syn-commit rule.
 - `docs/adr/0001-python-float-golden-simulator.md` — Python float64 as the
   project's correctness reference; individual issues implement its stages.
+- `docs/adr/0005-common-sqnr-contract.md` - Shared comparison window and
+  time/frequency floating-point tolerances.
 - `docs/adr/0006-systemverilog-openlane-ppa-flow.md` — SystemVerilog +
   Icarus/vvp + Verilator lint-only + Classic 100MHz/10MHz-fallback.
