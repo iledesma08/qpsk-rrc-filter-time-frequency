@@ -9,11 +9,13 @@ python -m pip install -r sim/python/requirements.txt
 python -m pytest sim/python -v
 ```
 
-- `golden_time.py` (to create, T11): QPSK → 2x upsampling → float time-domain RRC.
-- `golden_freq.py` (to create, T12): same via FFT→×→IFFT.
-- `rrc_coefs.py` (to create, T10): generates the 8 RRC coefs with α=0.5.
-- `fxp.py` + `sqnr.py` (T20): quantization and SQNR ≥ 40 dB measurement.
-- `gen_vectors.py` (T13): dumps into `../vectors/` with `.sha256`. Only authorized generator.
-- `tests/`: one test per T11/T12/T20 DoD.
-
-Requires NumPy/SciPy/pytest (create `requirements.txt` in T10).
+- `rrc_coefs.py` (T10): implemented coefficient generation/loading and the frozen
+  `rrc8-v1` artifact under `artifacts/`.
+- `stimulus.py` (#67): implemented shared canonical QPSK samples with 2x zero
+  insertion; both goldens consume this source.
+- `golden_time.py` (T11) and `golden_freq.py` (T12): currently entry-point stubs
+  on this branch; full time/frequency filtering arrives in their own issues.
+- `fxp.py` + `sqnr.py` (T20): stubs for fixed-point and common SQNR measurement.
+- `gen_vectors.py` (T13): currently a stub; the completed generator is the only
+  writer authorized to produce RRC goldens in `sim/vectors/`.
+- `tests/`: coefficient/stimulus checks.

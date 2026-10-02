@@ -1,7 +1,8 @@
 # rtl/time_opt — time-domain filter, optimized version
 
-Initial proposal: pipeline + systolic (T40–T41, changeable via ADR).
-Must pass vector matching + timing closure (100 or 10 MHz) + PPA report.
+The accepted reduced matrix is T-S4P1/T-S8P1 (T40-T41), built after the working
+serial baseline. Each row needs RRC vector matching, 100 MHz timing closure
+(10 MHz explicitly labelled fallback), and PPA evidence.
 
 Run the placeholder smoke test from the repository root:
 
