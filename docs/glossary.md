@@ -257,4 +257,5 @@
 - `docs/adr/0005-common-sqnr-contract.md` - Shared comparison window and
   time/frequency floating-point tolerances.
 - `docs/adr/0006-systemverilog-openlane-ppa-flow.md` — SystemVerilog +
-  Icarus/vvp + Verilator lint-only + Classic 100MHz/10MHz-fallback.
+  Icarus/vvp + Verilator lint-only + Classic; serial SLOW 10 MHz and optimized
+  FAST 100 MHz main targets, with matched-target secondary comparisons.
