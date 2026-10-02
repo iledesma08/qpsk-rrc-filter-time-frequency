@@ -44,9 +44,9 @@ sets.
 
 - The generator MUST emit the fields required for the declared artifact stage
   above; every `rtl_matching` set includes every field in sections 1-4.
-- The testbench MUST read `DATA_WIDTH`, `SPC`, `valid_start`, `valid_len`, and
-  `latency_samples` from the manifest, never from hardcoded values (per
-  `rtl-streaming-17.md` Testbench Contract).
+- For `rtl_matching`, the testbench MUST read `DATA_WIDTH`, `SPC`, `valid_start`,
+  `valid_len`, and `latency_samples` from the manifest, never from hardcoded
+  values (per `rtl-streaming-17.md` Testbench Contract).
 - The hash check MUST pass before any vector comparison counts: every vector
   file has a matching `<vector>.sha256` sidecar (per ADR-0004 and
   `sim/vectors/README.md`); CI verifies it.
@@ -55,16 +55,22 @@ sets.
   into the DUT; generated SystemVerilog (`vector_manifest.svh`) is metadata
   only; CSV is optional for Python analysis and is not consumed by RTL (per
   ADR-0004 and `sim/vectors/README.md`).
-- Production F2/F3 invariants (MUST hold; testbench may assert):
-  - `W_common == 16`, `F_data == F_coeff == 14` (`Q2.14`)
-  - `DATA_WIDTH == W_common`
-  - `SPC == SAMPLES_PER_CLOCK` (interface width, not throughput)
-  - `F_data == F_coeff == W_common - 2` (see §5)
-  - `input_samples == 2048`, `output_samples == 2055`,
-    `valid_start == 0`, `valid_len == 2055`
-  - `FFT_LEN == 16`, `HOP == 8`, `DISCARD_PREFIX == 8`, `EMIT_START == 8`,
-    `EMIT_LEN == 8 == FFT_LEN - DISCARD_PREFIX`
-  - `block_cadence == HOP`
+- Frame/window invariants (all artifact stages, MUST hold):
+  `input_samples == 2048`, `output_samples == 2055`,
+  `valid_start == 0`, `valid_len == 2055`.
+- Production numeric invariants (`fxp_expected` and `rtl_matching`, MUST hold):
+  `W_common == 16`, `F_data == F_coeff == 14` (`Q2.14`), and
+  `F_data == F_coeff == W_common - 2` (see section 5).
+- RTL interface/block invariants (`rtl_matching` only, MUST hold):
+  `DATA_WIDTH == W_common`, `SPC == SAMPLES_PER_CLOCK` (interface width, not
+  throughput), `FFT_LEN == 16`, `HOP == 8`, `DISCARD_PREFIX == 8`,
+  `EMIT_START == 8`, `EMIT_LEN == 8 == FFT_LEN - DISCARD_PREFIX`, and
+  `block_cadence == HOP`.
+
+F2 exports satisfy the numeric and frame/window invariants without declaring
+an RTL variant's `SPC`, latency, or physical transfer counts. Those section 3
+fields are bound and checked in F3; their absence in `fxp_expected` is not a
+conformance failure and MUST NOT be replaced by guessed values.
 
 Legacy aliases (MUST NOT be emitted as canonical fields; listed only so old
 text stays readable): `input_scale_16bit` / `coefficient_scale_16bit` /
