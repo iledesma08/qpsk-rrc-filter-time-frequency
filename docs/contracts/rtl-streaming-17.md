@@ -317,12 +317,17 @@ window. The TB uses the existing handshake to append zero input samples:
   DUT-side `ready_o` deassertion is declared accept cadence (`II`), not a
   stall; testbench-induced stalls are excluded from this measurement.
 - Randomized stall/gap runs keep a scoreboard: expected outputs queued in
-  emission order, and for every captured output the testbench checks no loss,
-  no duplication, preserved order, and a bit-exact code match against the
-  queue head. Count physical samples, including declared flush/beat padding,
-  separately from original records and compared expected codes. The physical
-  count invariant is additional evidence, never the sole check; do not assert
-  that source file length equals the causal expected-output file length.
+  emission order for the valid output window. Every captured physical output
+  contributes to raw-count and ordering checks for no loss, duplication, or
+  undeclared emission. Only outputs with an absolute index in
+  `[valid_start, valid_start + valid_len)` are matched bit-exactly against the
+  queue head and consume one expected code. Declared block/beat padding outside
+  that window contributes to the raw count but MUST NOT consume an expected
+  code; it is not a mismatch merely because no expected code exists for it.
+  Count physical samples, including declared flush/beat padding, separately
+  from original records and compared expected codes. The physical count
+  invariant is additional evidence, never the sole check; do not assert that
+  source file length equals the causal expected-output file length.
 - The `sys_corners` sets (`corner_repeat`, `max_alternation`,
   `single_symbol_perturbation` per `qpsk-stimulus-15.md` Corner Sets) are
   matched exactly like the canonical set. Saturated expected codes match by
