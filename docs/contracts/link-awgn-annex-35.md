@@ -16,6 +16,11 @@ implemented; the project closes without it.
 The decisions below are accepted; the annex implementation itself remains
 optional and dormant until built.
 
+Base-scope clarification accepted 2026-10-02: the annex is outside the 11-06
+delivery, not an automatic end-of-project activity. It requires an explicit
+team decision and available extension scope to activate. No phase or milestone
+waits for it; acceptance of this contract does not mean the annex must be built.
+
 ## Accepted Decisions
 
 The team accepted these decisions on 2026-09-23 (PR #36):

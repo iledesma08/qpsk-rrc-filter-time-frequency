@@ -12,6 +12,12 @@ Branch: `research/rrc-coefficient-contract`
 
 Scope: research only. This note does not add simulator, RTL, vectors, or other project implementation code.
 
+Current format amendment (2026-10-02): the production instance of the shared
+format is `Q2.14` (`W_common=16`), per `fxp-policy-16.md`. The diagnostic width
+sweep remains required; its smallest passing width does not automatically
+replace production. T10's integer example is not complete FXP/SQNR evidence;
+T22 exports validated production artifacts after numerical acceptance.
+
 ## Executive Recommendation
 
 Use the following contract unless the human team explicitly chooses a different normalization or latency convention:

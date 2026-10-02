@@ -6,12 +6,16 @@ Map: [#12](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/issues/1
 
 Date: 2026-09-22
 
-Updated: 2026-09-22
+Updated: 2026-10-02
 
 Branch: `docs/19-openlane-env`
 
 Scope: environment verification record and report-path check. No filter RTL
 or PPA result is included.
+
+Clock/evidence policy amended by the user on 2026-10-02 for recommendations
+1 and 5 per `docs/contracts/ppa-matrix-18.md`; no professor approval is
+claimed. The environment observations below remain dated 2026-09-22.
 
 ## Verified Environment
 
@@ -95,7 +99,8 @@ Setting `FP_SIZING: absolute` with `DIE_AREA: [0, 0, 200, 200]` fixed it,
 establishing `200x200 um` as the PDN-0185 floor. The project's 8-tap filters
 are tiny, so F4 sizing is: size each die for 50-60% core utilization (target
 ~55%); final die is `max(sized-for-target, 200x200 um)`. Same PDN strategy,
-not same die. Record die area, core area, and utilization per row (from
+not same die. Apply the same sizing rule to every target run and record die
+area, core area, and utilization per run (from
 `final/metrics.json`). This is a configuration detail, not a filter result.
 
 ## Team Availability
@@ -107,16 +112,53 @@ is reinstalled or updated; that test is the acceptance check for the toolchain.
 ## Commands for F4
 
 - Run: `openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic <config.json>`.
-- Timing targets: `CLOCK_PERIOD: 10.0` for 100 MHz, `100.0` for the labelled
-  10 MHz fallback.
+- Timing targets: `CLOCK_PERIOD: 100.0` for SLOW 10 MHz (main for
+  `T-serial`/`F-serial`); `10.0` for FAST 100 MHz (main for
+  `T-S4P1`/`T-S8P1`/`F-U4`/`F-U8`). The other target is secondary for each.
+- Prepare six architectures x two targets = 12 runs, not 12 architectures;
+  prioritize the six main targets, then comparative secondary runs as
+  time/resources measured by the first real filter pilot permit. Record
+  pilot runtime/resource use; smoke/minimal-design timings are not filter
+  schedule estimates. All 12 runs before 2026-11-06 are not promised and no
+  new assumed duration is introduced. Extra architectures remain extension-only.
+- Re-synthesize, optimize, and run PnR independently at each target using the
+  same RTL revision, parameters, and numerics, with the same conditions except
+  the declared clock and the same sizing rule. Generate VCD/SAIF activity at
+  the actual period; record period and annotation coverage rather than reuse
+  another target's timing or merely scale its reported power.
+- Record architecture, target/period, FAST/SLOW class, main/secondary role,
+  corner, workload, and failed/unrun status with reasons. A SLOW pass does not
+  erase a FAST failure or fulfill an optimized candidate's FAST main goal.
 - Evidence: `final/metrics.json` plus the STA reports, DRC/LVS/antenna status,
   and the activity-annotation status for any power ranking.
+
+Secondary runs furnish same-clock serial baselines. Pareto ranking and
+architecture-only improvement claims require the same target, corner,
+workload, and activity conditions. Cross-target values may be displayed with
+explicit labels, but are not a controlled architecture-only comparison.
+
+Each optimized candidate reports effective throughput, area, and power per
+valid output deltas versus its same-domain serial using actual matched-target
+results. Power per valid output (energy/output) requires valid actual-period
+activity for both runs. Record comparator run tags and `not-comparable` with
+the reason if the serial fails same-target gates, is unrun, or conditions do
+not match; missing valid activity makes the power delta `not-comparable`.
+Never invent a delta. Delivery requires demonstrated improvement in at least
+one PPA axis from at least one optimized candidate per domain, not every
+variant or every axis. Retain failed/non-improving candidates; a run failing
+vector, physical-signoff, or target-timing gates cannot be a winner. SLOW
+comparison evidence does not substitute for an optimized FAST main goal.
+
+Historical wording (superseded 2026-10-02): 10 MHz was a labelled fallback
+when the all-100-MHz primary target failed. This is no longer the active rule.
 
 ## Committed-but-unrun artifacts
 
 - Commit the synthesis and PnR inputs for every top-level variant even when
   their numbers arrive later: SDC files, TCL build/timing scripts, and one
   OpenLane JSON config per top-level variant (DUT only, never testbenches).
+  The setup must resolve both declared target runs; retain target-specific
+  resolved configuration and evidence separately when each is executed.
 - The committed evidence paths for each run are exactly: `resolved.json`;
   `final/metrics.json` and `metrics.csv`; `*-openroad-stapostpnr/summary.rpt`;
   per-corner `max.rpt`, `min.rpt`, `checks.rpt`, and `power.rpt` (see
@@ -125,7 +167,8 @@ is reinstalled or updated; that test is the acceptance check for the toolchain.
   `1000 / critical_path_delay_ns` from `max.rpt` (or `CLOCK_PERIOD` minus
   signed setup slack), never from a dedicated estimate file.
 - An unrun script is recorded as unrun. Estimates MUST NOT be published as
-  measured results.
+  measured results. Failed runs retain available logs/reports and the failure
+  reason; do not fabricate missing signoff or power evidence.
 
 ## Status
 
