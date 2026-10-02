@@ -19,21 +19,44 @@ implementation code is included.
 (`docs/adr/0004-packed-external-vectors.md:3`), which was dangling until this
 task landed (see Task 4 report, Concerns §1).
 
+## Artifact Lifecycle (Amended 2026-10-02)
+
+T13 builds the generator in F1; it does not claim completed F2 numerics or F3
+latency. Every artifact manifest declares `artifact_stage` and `model_domain`
+(`time` or `frequency`). The three stages have distinct acceptance criteria:
+
+| `artifact_stage` | Owner / gate | Required metadata | Payload and use |
+| --- | --- | --- | --- |
+| `float_reference` | T13 / F1 | Stimulus fields in section 1, domain, provenance and file hashes | Deterministic samples and full causal float64 references, including corner sets; consumed by F2, not used as integer RTL expectations. |
+| `fxp_expected` | T22 / F2 | Sections 1, 2 and 4, domain, frozen numeric policy and passing SQNR/overflow/saturation evidence | Production Q2.14 input and per-domain expected integer codes; generated from the accepted FXP model, never from a cast of the float output. |
+| `rtl_matching` | T31/T33 / F3 | Sections 1-4, domain, variant identity, measured latency and transport counts below | Numeric payloads from F2 plus per-variant streaming metadata; consumed by the real vector-matching TB. |
+
+Unresolved widths/policies or RTL latencies MUST NOT be represented as guessed
+values. F1 has no required FXP or RTL-latency fields; F2 has no required
+per-variant RTL-latency fields. F3 declares the actual variant and verifies its
+latency in an unstalled run. Input/expected code files need not be rewritten
+when only variant latency changes; metadata binds the same verified hashes.
+Changing the numeric policy does require regeneration and renewed matching.
+Diagnostic width-sweep results are model-side evidence, not production vector
+sets.
+
 ## Conformance
 
-- The generator MUST emit every field in §1-§4 for every vector set.
+- The generator MUST emit the fields required for the declared artifact stage
+  above; every `rtl_matching` set includes every field in sections 1-4.
 - The testbench MUST read `DATA_WIDTH`, `SPC`, `valid_start`, `valid_len`, and
   `latency_samples` from the manifest, never from hardcoded values (per
   `rtl-streaming-17.md` Testbench Contract).
 - The hash check MUST pass before any vector comparison counts: every vector
   file has a matching `<vector>.sha256` sidecar (per ADR-0004 and
   `sim/vectors/README.md`); CI verifies it.
-- Physical encoding: packed `.hex` records are one 32-bit `{Q[15:0], I[15:0]}`
+- Production physical encoding: packed `.hex` records are one 32-bit `{Q[15:0], I[15:0]}`
   per complex sample, consumed with `$readmemh`; vectors are never compiled
   into the DUT; generated SystemVerilog (`vector_manifest.svh`) is metadata
   only; CSV is optional for Python analysis and is not consumed by RTL (per
   ADR-0004 and `sim/vectors/README.md`).
-- Invariants (MUST hold; testbench may assert):
+- Production F2/F3 invariants (MUST hold; testbench may assert):
+  - `W_common == 16`, `F_data == F_coeff == 14` (`Q2.14`)
   - `DATA_WIDTH == W_common`
   - `SPC == SAMPLES_PER_CLOCK` (interface width, not throughput)
   - `F_data == F_coeff == W_common - 2` (see §5)
@@ -56,6 +79,8 @@ superseded by `W_common`/`F_data`/`F_coeff` + `rounding_mode`/`overflow_mode`);
 
 | Field | Type / allowed values | Meaning / source |
 | --- | --- | --- |
+| `artifact_stage` | enum: `float_reference` \| `fxp_expected` \| `rtl_matching` | Lifecycle gate; required fields follow the table above. |
+| `model_domain` | enum: `time` \| `frequency` | Identifies the reference/FXP expected sequence; each RTL matches its own domain. |
 | `stimulus_version` | string, `qpsk-stim-15-v1` | Stimulus contract version (`qpsk-stimulus-15.md` Vector Manifest Fields). |
 | `symbol_count` | integer, `1024` | Frame length `S` (D1). |
 | `edge_pattern_symbols` | integer, `40` | Five fixed 8-symbol patterns prepended (D3). |
@@ -78,17 +103,17 @@ superseded by `W_common`/`F_data`/`F_coeff` + `rounding_mode`/`overflow_mode`);
 
 | Field | Type / allowed values | Meaning / source |
 | --- | --- | --- |
-| `W_common` | integer, `8, 10, 12, 14, 16, 18` (extend to `20` if nothing reaches 40 dB) | Shared external word width for data and coefficients (D1, D2). |
+| `W_common` | integer, production `16` | Shared Q2.14 external width; diagnostic sweep widths remain model-side results, not production vector formats. |
 | `F_data` | integer, `W_common - 2` | Fractional bits of QPSK I/Q input (Numeric Policy; see §5). |
 | `F_coeff` | integer, `W_common - 2` | Fractional bits of RRC coefficient; `Q1.(W-1)` stays a labelled phase-E sensitivity only (D2). |
 | `rounding_mode` | enum: `RNE` (canonical) \| `truncation_toward_zero` (comparison row only) | RNE at every intentional narrowing; Python model and RTL use the same named op (Rounding). |
-| `overflow_mode` | enum: `saturating_narrowing` (explicit boundaries only) \| `fail_on_internal_overflow` (accumulators) \| `wrap_diagnostic_only` (one negative control) | Saturation only at explicit narrowing/output; accumulators expose a flag and fail the candidate; wrap appears once as diagnostic (Saturation and overflow). |
+| `overflow_mode` | enum: `saturating_narrowing_with_fail_on_internal_overflow` (production) \| `saturating_narrowing` \| `fail_on_internal_overflow` \| `wrap_diagnostic_only` (diagnostics) | Production combines saturating explicit casts with rejection of internal overflow; diagnostics never redefine the accepted expected codes. |
 | `W_product` | integer, `2*W_common` | Product width `W_d + W_c`; products added at full precision, single cast after the 8-term sum (Products). |
 | `W_acc_time` | integer, baseline `2*W_common + 3`; experiment `2*W_common + 1`, `2*W_common + 2` with overflow assertion | Time accumulator width; `F_acc = 2*F` (D4, Products). |
-| `fft_mode` | enum: `baseline_A_grow_by_stage` \| `baseline_B_one_bit_per_stage` | Frequency scaling under comparison at the same `W` (D5). |
+| `fft_mode` | enum: `baseline_A_grow_by_stage` (production) \| `baseline_B_one_bit_per_stage` (optional experiment) | Production uses A; unfinished B experiments do not block base export. Adopting B in production requires a recorded policy change and regenerated evidence. |
 | `fft_stage_widths` | int list, baseline A: `W, W+1, W+2, W+3, W+4` | Per-stage forward-FFT widths for unscaled 16-point radix-2 (Frequency-domain internal widths). Baseline B records its per-stage shift instead. |
 | `W_acc_freq` | integer (example §7 derives `41`-bit pointwise product, `+4` unscaled-IFFT guard at `W=16`) | Frequency accumulator / datapath width at the declared `fft_mode`; both baselines use the same RNE rule (D5). |
-| `ifft_scale` | string, `divide_by_16_then_cast_to_Q2.(W-2)` | Final normalization: divide by 16, then cast to `Q2.(W-2)`; the NumPy-default `1/N` is compensated exactly once (Frequency-domain internal widths, #14 D3). |
+| `ifft_scale` | string, exact schedule frozen by T20 | Records the actual shifts/compensation and final Q2.14 cast; baseline A includes inverse divide-by-16 exactly once, baseline B also records its total stage-scale compensation. |
 
 ## 3. RTL streaming fields (source: #17)
 
@@ -106,6 +131,12 @@ superseded by `W_common`/`F_data`/`F_coeff` + `rounding_mode`/`overflow_mode`);
 | `block_cadence` | integer, `== HOP` | Accepted input samples per frequency block; `8` for forced-50% (Latency declaration, #14 Block latency). |
 | `fft_pipeline_cycles` | integer, per frequency variant | FFT + multiply + IFFT pipeline depth, recorded separately from block cadence (Latency declaration). |
 
+For `rtl_matching`, additionally record `variant_id` (string), `flush_samples`
+(integer), `transport_padding_samples` (integer), `accepted_input_samples`
+(integer), and `raw_output_samples` (integer). `input_samples` continues to
+describe the original 2048 records, and `output_samples`/`valid_len` the 2055
+expected codes, not all physical transfers. Counts follow section 7.
+
 `II` (initiation interval) is measured from the handshake (`valid && ready`),
 never inferred from `SPC` alone; for the serial time lane `S=1`, `II=8`
 (`ready_o` deasserts 7 of every 8 cycles under `valid_i = 1`); `ready_o = 1`
@@ -116,7 +147,7 @@ every cycle holds only for fully-parallel variants (D4, D5, Transfer rules).
 | Field | Type / allowed values | Meaning / source |
 | --- | --- | --- |
 | `component_sign_extension` | enum: `sign_extend_to_16` | When `W < 16`, each signed component is sign-extended into the existing 16-bit I/Q field of the packed `{Q[15:0], I[15:0]}` record; when `W = 16` the field is direct (see §6). A candidate above 16 bits requires revisiting the record format instead of silent truncation (#16 Manifest Fields). |
-| `hashes` | map: `stimulus_manifest_sha256`, `vector_manifest_sha256`, plus one `<vector>.sha256` sidecar per `.hex` file | Provenance: the hashes prove RTL and simulator consumed the same contract (#16 Sweep Matrix / Relationship; ADR-0004; `sim/vectors/README.md`). |
+| `hashes` | map: upstream reference/manifest hashes and payload file hashes; one `<file>.sha256` sidecar per generated file | Provenance binds the input, numeric policy and expected codes. A manifest's own `vector_manifest_sha256` is stored in its sidecar or consuming run/sweep record, never inside the same document whose bytes it hashes. |
 
 ## 5. Common format `Q2.(W-2)`
 
@@ -124,8 +155,9 @@ every cycle holds only for fully-parallel variants (D4, D5, Transfer rules).
 `m + n` bits total; the stored integer represents the real value times `2^n`
 (per `rrc-coefficient-contract-13.md` Q7/Q15 and `fxp-policy-16.md` D2).
 
-- Data and coefficients share one signed format `Q2.(W-2)`: `F = W - 2`
-  fractional bits, range approximately `[-2, +2)`.
+- Production input/output components and stored RRC coefficients share signed
+  `Q2.14`: `W=16`, `F=14`, range `[-2, 2-2^-14]`. The diagnostic sweep uses
+  `Q2.(W-2)` without changing production. Internal guard widths remain wider.
 - Quantization for a real value `x`:
   `q_unbounded = round_even(x * 2^F)`,
   `q = min(max(q_unbounded, -2^(W-1)), 2^(W-1)-1)` (per #16 Numeric Policy).
@@ -149,6 +181,7 @@ Per #16 D7 and Manifest Fields, and the #17 Testbench Contract:
    before packing; the manifest records `component_sign_extension:
    sign_extend_to_16` and the active `W_common` stays explicit.
 3. When `W = 16`, packing is direct.
+   This is the production case; sub-16 sign extension is diagnostic only.
 4. A future candidate with `W > 16` MUST revisit the record format instead of
    truncating silently.
 5. The testbench compares stored integer bit patterns after sign extension
@@ -174,6 +207,33 @@ causal window (`valid_len = 2055 = 2048 + 7`):
   hop-8 and hop-9 schedules produce the same sequence; only the framing
   differs (per #14 Switching cost).
 
+### Finite Frame Transport Counts (F3)
+
+The TB resets to zero history, drives the 2048 original records, then explicit
+zero samples on the normal handshake to flush the tail. No EOF/TLAST signal is
+added. For `SPC=1`:
+
+| Domain | Source records | `flush_samples` | `transport_padding_samples` | `accepted_input_samples` | `raw_output_samples` | Compared expected codes |
+| --- | --- | --- | --- | --- | --- | --- |
+| Time | 2048 | 7 | 0 | 2055 | 2055 | 2055 (`y[0:2055]`) |
+| Frequency | 2048 | 8 | 0 | 2056 | 2056 (257 blocks) | 2055 (`y[0:2055]`) |
+
+The last frequency output is the declared extra block-padding output at index
+2055, not a 2056th expected code. For wider interfaces, round the final physical
+beat up with zero-filled lanes and record those extra lanes separately as
+`transport_padding_samples`; declare the resulting accepted/emitted counts
+instead of assuming the `SPC=1` counts. Padding is never an additional QPSK
+symbol and never changes the numerical comparison window.
+
+Scoreboard checks cover the full declared emission count, ordering and the
+exact 2055 valid codes. One-to-one counts compare physical accepted samples
+(including flush/padding) to physical emitted samples, not source file length
+to expected file length. After the last input, stop driving valid and drain the
+pending pipeline/block outputs with a bounded timeout; missing or undeclared
+extra emissions fail the test. Output index starts at `y[0]` (`latency_samples=0`)
+for both causal filters; frequency block fill is cycle latency, not an index
+shift of eight samples.
+
 ## 8. Example manifest (`W = 16`, baseline A, serial time lane)
 
 Non-normative illustration of a complete manifest. Normative allowed values
@@ -181,6 +241,9 @@ are in §1-§4; this example fixes one consistent point.
 
 ```text
 stimulus_version: qpsk-stim-15-v1
+artifact_stage: rtl_matching
+model_domain: time
+variant_id: T-serial
 symbol_count: 1024
 edge_pattern_symbols: 40
 random_seed: 2026
@@ -218,12 +281,20 @@ EMIT_LEN: 8
 latency_samples: 0
 latency_cycles: 8
 block_cadence: 8
-fft_pipeline_cycles: 12
+fft_pipeline_cycles: 0
+flush_samples: 7
+transport_padding_samples: 0
+accepted_input_samples: 2055
+raw_output_samples: 2055
 component_sign_extension: sign_extend_to_16
 hashes:
   stimulus_manifest_sha256: <hex>
-  vector_manifest_sha256: <hex>
+  fxp_expected_manifest_sha256: <hex>
 ```
+
+The example's own manifest digest is external, for example its `.sha256`
+sidecar. The upstream FXP manifest digest is safe to embed because it hashes a
+different artifact. No self-referential hash is required.
 
 Notes on the example: `W_product = 2*16 = 32`; `W_acc_time = 2*16+3 = 35`;
 `fft_stage_widths` is baseline A at `W=16`; `W_acc_freq = 45` derives from the
@@ -235,8 +306,8 @@ testbench stalls or gaps (per `rtl-streaming-17.md` Testbench Contract); for
 this serial example it numerically coincides with the 8-cycle accept cadence,
 but `latency_cycles` and `II` are different quantities and diverge in
 pipelined or block variants. `latency_samples = 0` keeps absolute-index
-comparison; `fft_pipeline_cycles`
-is per-variant (12 shown as a placeholder depth); `W=16` packs directly so
+comparison; `fft_pipeline_cycles` is zero for this time-domain variant (actual
+frequency values are measured separately); `W=16` packs directly so
 `component_sign_extension` records the rule that sub-16 widths use.
 
 ## 9. Source pointers
@@ -244,10 +315,10 @@ is per-variant (12 shown as a placeholder depth); `W=16` packs directly so
 | Manifest group | Normative contract | What that contract owns |
 | --- | --- | --- |
 | Stimulus (§1) | `docs/contracts/qpsk-stimulus-15.md` (D1-D8, Signal Model, Edge Patterns, Valid Output Window, Corner Sets) | Frame, PRNG/seed, edge patterns, upsampling, causal window, symbol centers, `Es = 2`, Gray mapping, `canonical` + `sys_corners` sets. |
-| FXP policy (§2, §5, §6) | `docs/contracts/fxp-policy-16.md` (D1-D9, Numeric Policy, Sweep Matrix, Manifest Fields) | Common `Q2.(W-2)`, sweep widths, RNE/saturation, accumulator widths, FFT baselines, sign extension. Backed by `docs/contracts/fxp-common-width-16.md` (historical research report). |
+| FXP policy (§2, §5, §6) | `docs/contracts/fxp-policy-16.md` (D1-D9, Numeric Policy, Sweep Matrix, Manifest Fields) | Production Q2.14, diagnostic width sweep, RNE/saturation, internal widths, integer FFT freeze and staged expectations. Backed by `docs/contracts/fxp-common-width-16.md` (historical research report). |
 | Streaming (§3) | `docs/contracts/rtl-streaming-17.md` (D1-D9, Interface Specification, Latency declaration, Testbench Contract) | Handshake, reset, packed `{Q, I}` bus, `SPC` vs `II`, latency declaration, frequency block parameters, vector-matching rules. |
 | Block schedule (§7) | `docs/contracts/frequency-block-contract-14.md` (forced-50% OLS, Padding/Ending, Block latency) + `docs/contracts/ppa-matrix-18.md` (Workload) | `N=16`, `H=8`, discard `z[0:8]`, emit `z[8:16]`; 257-block tail-flush accounting. |
-| Coefficients | `docs/contracts/rrc-coefficient-contract-13.md` (D1-D7, as refined by #16 D2) | 8-tap grid, raw values, unit-energy normalization, `D = 3.5`; coefficient format refined to common `Q2.(W-2)` by #16. |
+| Coefficients | `docs/contracts/rrc-coefficient-contract-13.md` (D1-D7, as refined by #16 D2) | 8-tap grid, raw values, unit-energy normalization, `D = 3.5`; production coefficient format Q2.14 under the #16 amendment. |
 | Packing / hash | `docs/adr/0004-packed-external-vectors.md` + `sim/vectors/README.md` | `{Q[15:0], I[15:0]}` records, `$readmemh`, `<vector>.sha256` sidecars, `vector_manifest.svh` metadata-only rule. |
 | Correctness bars | `docs/adr/0005-common-sqnr-contract.md` + `docs/adr/0001-python-float-golden-simulator.md` | SQNR formula with `>= 40 dB` in both domains; float equality `rtol=1e-10`, `atol=1e-12`. |
 

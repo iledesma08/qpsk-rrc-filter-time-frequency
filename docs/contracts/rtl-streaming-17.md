@@ -6,7 +6,7 @@ Map: [#12](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/issues/1
 
 Date: 2026-09-22
 
-Updated: 2026-09-22
+Updated: 2026-10-02
 
 Branch: `docs/17-rtl-streaming`
 
@@ -251,16 +251,21 @@ fft_pipeline_cycles # FFT + multiply + IFFT pipeline depth
 ```
 
 The comparison never uses arrival time; the testbench places each captured
-sample at its absolute index using `latency_samples`. The testbench measures
+sample at its absolute index using `latency_samples`. Both causal filters start
+with `y[0]`, so their `latency_samples` is zero; the frequency block-fill wait
+belongs to cycle latency/block cadence, never an eight-sample output-index shift.
+The testbench measures
 `II` from accepted transfers (`valid && ready`) and asserts no sample is
 lost, duplicated, or invented under `ready_o` deassertion.
 
 ### Frequency block boundary
 
-- The DUT resets its frame history to zero; the testbench sends only the
-  stimulus samples from `x[0]`.
-- `valid_o` is high for `EMIT_LEN` contiguous cycles per block, emitting
-  `z[EMIT_START + i]` for `0 <= i < EMIT_LEN`.
+- The DUT resets its frame history to zero; the testbench starts with stimulus
+  samples from `x[0]`, not testbench-supplied pre-frame history, then appends
+  explicit flush zeros according to the finite-frame protocol below.
+- Each block emits `EMIT_LEN` samples in order, `z[EMIT_START + i]` for
+  `0 <= i < EMIT_LEN`. With `SPC=1` and an unstalled sink these occupy contiguous
+  cycles; backpressure holds the pending output and stretches wall-clock time.
 - `ready_o` may stay high when the engine accepts one sample per clock; a
   variant that cannot accept a sample in some cycle must deassert it.
 
@@ -272,6 +277,30 @@ configuration stays in module parameters. No duplicated constants between the
 time and frequency variants.
 
 ## Testbench Contract
+
+### Finite-frame flush and drain (accepted 2026-10-02)
+
+The 2048 records in the input file are the source frame, not the total physical
+input count. The 2055 records in the expected file cover the common causal
+window. The TB uses the existing handshake to append zero input samples:
+
+- Time, `SPC=1`: accept the 2048 source records plus 7 flush zeros, then capture
+  2055 raw outputs and compare all 2055 expected codes.
+- Frequency, `SPC=1`: accept the 2048 source records plus 8 flush zeros, process
+  257 blocks, and capture 2056 raw outputs. Compare indices 0-2054; index 2055
+  is the single declared block-padding output, not an invented expected code.
+- Wider-interface beat padding is recorded separately from logical flush
+  samples and source records, with per-variant physical counts; use the
+  transport fields in the normative manifest rather than assuming SPC=1.
+- Stop driving `valid_i` after the declared accepted count. Drain the remaining
+  output pipeline/blocks under `ready_i=1` with a bounded timeout, and assert
+  raw count, output ordering, and exact valid-window matching. Missing or
+  undeclared additional emissions fail; a successful window comparison alone
+  cannot excuse a bad drain count.
+- No EOF/TLAST port or new QPSK symbols are added. Invalid source bubbles do
+  not flush filter history; flush zeros are actual accepted samples.
+
+### Matching and robustness
 
 - One parameterized testbench family reads the input and expected vectors,
   drives `valid_i` and `sample_i`, and captures `sample_o` on
@@ -290,8 +319,10 @@ time and frequency variants.
 - Randomized stall/gap runs keep a scoreboard: expected outputs queued in
   emission order, and for every captured output the testbench checks no loss,
   no duplication, preserved order, and a bit-exact code match against the
-  queue head. The accepted-transfers-equals-emitted-outputs count is an
-  additional invariant, never the sole check.
+  queue head. Count physical samples, including declared flush/beat padding,
+  separately from original records and compared expected codes. The physical
+  count invariant is additional evidence, never the sole check; do not assert
+  that source file length equals the causal expected-output file length.
 - The `sys_corners` sets (`corner_repeat`, `max_alternation`,
   `single_symbol_perturbation` per `qpsk-stimulus-15.md` Corner Sets) are
   matched exactly like the canonical set. Saturated expected codes match by
