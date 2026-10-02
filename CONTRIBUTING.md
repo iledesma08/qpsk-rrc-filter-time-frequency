@@ -84,10 +84,16 @@ Rules: one commit = one logical change, messages in English, no secrets or hand-
 | Phase | Done |
 | ----- | ---- |
 | Float sim | Green `pytest` + eye/spectrum plots + RRC coefficients (α=0.5, 8 taps, OS 2x) documented |
-| FXP | Bit-width sweep + SQNR ≥ 40 dB measured and recorded + N-bit choice justified |
-| Serial RTL | 100% vector matching vs `sim/vectors/` in time and frequency |
-| Opt RTL | Meets fmax target (100 MHz fast / 10 MHz slow) + PPA report + vector matching |
+| FXP | Diagnostic bit-width sweep + production Q2.14 measured at SQNR ≥ 40 dB in both domains + overflow/saturation evidence + frozen integer policy and per-domain expected codes |
+| Serial RTL | 100% vector matching vs `sim/vectors/` in time and frequency; main timing target SLOW 10 MHz |
+| Opt RTL | Meets declared FAST 100 MHz main target + PPA report + vector matching; a SLOW 10 MHz secondary pass does not fulfill a failed FAST goal |
 | Slides | Time vs frequency contrast + PPA + lessons learned + actual vs planned Gantt |
+
+Clock policy: prepare both targets for the six base architectures (12 runs,
+not 12 architectures), prioritize the six main targets, then secondary
+matched-clock comparisons as time/resources measured by the first real pilot
+permit. All 12 completed runs before 2026-11-06 are not promised. See the
+user-approved 2026-10-02 amendment in `docs/contracts/ppa-matrix-18.md`.
 
 ## 7. Structure — where everything goes
 
