@@ -10,6 +10,17 @@ SQNR = 10 log10(sum(|y_float|^2) / sum(|y_float - y_fxp|^2))
 ```
 
 The comparison uses the common emitted output frame, aligned for model
-latency, and excludes samples produced only by implementation padding. The
-smallest common FXP width that reaches at least 40 dB in both domains is
-selected. Float time/frequency equality uses `rtol=1e-10` and `atol=1e-12`.
+latency, and excludes samples produced only by implementation padding.
+Float time/frequency equality uses `rtol=1e-10` and `atol=1e-12`.
+
+Amendment accepted 2026-10-02: production uses signed `Q2.14` (`W_common=16`)
+for input/output components and stored RRC coefficients. The width sweep
+remains required evidence of the precision frontier, but does not automatically
+replace this declared production format with the smallest passing width.
+The `Q2.14` candidate must still meet 40 dB in both domains and the overflow/
+saturation gates; changing the production format requires a recorded decision.
+The earlier smallest-width selection rule is superseded by this amendment.
+
+Each RTL matches its own integer FXP model exactly. Optimized variants remain
+bit-exact with their same-domain serial baseline under the frozen numeric
+policy; time and frequency FXP codes need not be bit-identical to each other.

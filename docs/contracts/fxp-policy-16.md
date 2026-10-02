@@ -6,7 +6,7 @@ Map: [#12](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/issues/1
 
 Date: 2026-09-22
 
-Updated: 2026-09-22
+Updated: 2026-10-02 (production Q2.14, numeric freeze and base-scope amendments)
 
 Branch: `docs/16-fxp-policy`
 
@@ -18,19 +18,26 @@ included.
 
 The team accepted these decisions on 2026-09-22:
 
-- **D1 — Sweep matrix:** widths `W = 8, 10, 12, 14, 16, 18` (extend to 20 if
-  nothing reaches 40 dB), with phases A-E as defined below.
-- **D2 — Common format:** one signed `Q2.(W-2)` format for data and
-  coefficients; `Q1.(W-1)` coefficients remain a labelled sensitivity
-  experiment. This refines RRC D4.
+- **D1 — Sweep matrix:** the base requires the RNE width sweep at
+  `W = 8, 10, 12, 14, 16, 18` and production W=16 validation, with conservative
+  accumulators and frequency baseline A. Extra truncation/wrap, narrow-guard
+  and frequency-B experiments are optional; Q1 sensitivity is outside base.
+- **D2 — Common format:** production input/output components and stored RRC
+  coefficients use signed `Q2.14` (`W_common=16`, `F_data=F_coeff=14`). The
+  diagnostic sweep uses `Q2.(W-2)` at its tested widths. `Q1.(W-1)` remains
+  a labelled sensitivity experiment, not a production alternative. This
+  refines RRC D4 and supersedes automatic smallest-width selection.
 - **D3 — Numeric policy:** RNE at every intentional narrowing; saturation only
   at an explicit narrowing/output boundary; internal accumulator overflow
   fails the candidate; wrap-around is a diagnostic only.
-- **D4 — Time accumulator:** conservative `2W+3` baseline; `2W+1` and `2W+2`
-  are a separate experiment with an overflow assertion.
-- **D5 — Frequency scaling:** run baseline A (grow-by-stage, full-precision
-  products) and baseline B (one-bit-per-stage scaling) at the same `W`, and
-  keep the one that meets the SQNR contract with the better measured PPA.
+- **D4 — Time accumulator:** conservative `2W+3` base (35 bits at W=16).
+  `2W+1` and `2W+2` are optional experiments, never F2 blockers; no-overflow
+  assertions remain mandatory for the base as well.
+- **D5 — Frequency scaling:** baseline A (grow-by-stage, full-precision
+  products) is the production base. Baseline B (one-bit-per-stage scaling) is
+  an optional separate experiment after base evidence is available, not a
+  required selection contest. Adopting it requires an explicit policy change,
+  regeneration, SQNR verification and repeat matching.
 - **D6 — SQNR frame:** keep the accepted 1024-symbol frame from #15 and add a
   split-half stability check; extend to 4096 symbols only if the halves
   disagree by more than 0.5 dB.
@@ -44,7 +51,11 @@ The team accepted these decisions on 2026-09-22:
 
 ## Decision Rationale
 
-### D1 — Sweep matrix: `W = 8..18` in five phases
+### D1 — Original sweep rationale: `W = 8..18` in five phases
+
+Historical rationale below. The base-scope amendment on 2026-10-02 keeps the
+RNE width sweep mandatory while removing optional comparison experiments from
+phase exit criteria. The assignment still receives a measured bits/SQNR table.
 
 - **Alternatives:** select a width analytically; run a two-point sweep (for
   example 12 and 16); guess a single width.
@@ -58,6 +69,10 @@ The team accepted these decisions on 2026-09-22:
   configurations per domain).
 
 ### D2 — Common format: signed `Q2.(W-2)` for data and coefficients
+
+The rationale below records the shared binary-point convention. The
+2026-10-02 amendment fixes its production instance to `Q2.14`; lower or higher
+width sweep results are evidence, not automatic production selections.
 
 - **Alternatives:** keep the split format from RRC D4 (data `Q2.(W-2)`,
   coefficients `Q1.(W-1)`); use a different binary point per signal.
@@ -96,7 +111,10 @@ The team accepted these decisions on 2026-09-22:
   with an overflow assertion and adopted only after a no-overflow check and a
   PPA comparison.
 
-### D5 — Frequency scaling: compare two baselines at the same `W`
+### D5 — Original frequency-scaling rationale (superseded for base scope)
+
+The rationale below records the original mandatory A/B comparison. Production
+now uses A; B is optional and has no prerequisite edge into base delivery.
 
 - **Alternatives:** fix baseline A (unscaled, grow-by-stage) only; fix
   baseline B (one-bit-per-stage scaling) only; use another schedule.
@@ -160,9 +178,9 @@ The team accepted these decisions on 2026-09-22:
 
 | Quantity | Format | Reason |
 | --- | --- | --- |
-| QPSK I/Q input | `Q2.(W-2)` | `+1` and `-1` are exactly representable; range is approximately `[-2, +2)`. |
-| RRC coefficient | `Q2.(W-2)` | One binary point and one quantization rule for both domains. |
-| Width sweep | `W = 8, 10, 12, 14, 16, 18` | Coarse enough to expose the 40 dB threshold; extend to 20 if needed. |
+| Production I/Q input and output | `Q2.14`, `W=16` | Declared format; `+1` and `-1` inputs are exactly representable. |
+| Production RRC coefficient | `Q2.14`, `W=16` | One binary point and one quantization rule for both domains. |
+| Diagnostic width sweep | `Q2.(W-2)`, `W = 8, 10, 12, 14, 16, 18` | Report the precision frontier; extend to 20 if needed, without silently changing production. |
 
 Quantization for a real value `x`:
 
@@ -182,9 +200,13 @@ integers:
 Q2.14: [179, -1818, 1818, 11295, 11295, 1818, -1818, 179]
 ```
 
+The existing T10 artifact labels these integers `illustrative_not_frozen`.
+T20/T21 must validate the complete numeric path and T22 exports the production
+table and evidence. Declaring the format now is not a measured SQNR result.
+
 The `Q1.(W-1)` coefficient variant (`Q1.15` at `W=16`, integers
 `[359, -3636, 3636, 22590, 22590, 3636, -3636, 359]`) stays as a labelled
-sensitivity experiment in phase E.
+sensitivity experiment in phase E, outside the current delivery base.
 
 ### Products and the time-domain accumulator
 
@@ -201,6 +223,11 @@ Products are added at full precision with no rounding between taps; the single
 cast to the output format happens after the eight-term sum, using RNE and
 saturation.
 
+At production `W=16`: products are 32 bits with 28 fractional bits; the
+conservative accumulator is 35 bits with 28 fractional bits. Only the final
+output is narrowed to signed 16-bit `Q2.14`. The format decision does not
+force FFT intermediates or accumulators to 16 bits.
+
 ### Frequency-domain internal widths
 
 The common width `W` is the width of the input samples and stored
@@ -214,9 +241,35 @@ unscaled IFFT growth:      four additional add/subtract guard bits
 final normalization:        divide by 16, then cast to Q2.(W-2)
 ```
 
-Baseline A grows one guard bit per radix-2 stage and retains full-precision
-products; baseline B shifts by one bit per stage and records the total scale.
-Both use the same RNE rule and are compared at the same common `W`.
+Production baseline A grows guard bits per radix-2 stage and retains
+full-precision products as specified by the numeric freeze. Optional baseline B
+shifts by one bit per stage and must record its total scale. If evaluated, use
+the same RNE rule and common W; neither policy can silently replace the other.
+
+### Frequency arithmetic freeze (T20 before T21)
+
+Juan defines the FFT/IFFT operation schedule with Matias, who implements the
+same integer operations in the FXP model. Baseline A is the mandatory production
+reference; baseline B is a separate optional experiment, not a freeze blocker.
+Before a sweep result is accepted, the numeric policy must record:
+
+- transform direction, radix/stage ordering, bin ordering, and inverse scaling;
+- twiddle integers, their width/fractional bits, generation and RNE rules;
+- generation of `H[k]` from the quantized eight coefficients, plus its stored
+  width/fractional bits and every rounding step;
+- product/add widths, sign extension, and every intentional narrowing point;
+- all shifts and total compensation of the active policy (including baseline B
+  only if that experiment is explicitly activated), so the
+  forward/filter/inverse path restores the declared `Q2.14` output scale;
+- deterministic arithmetic checks or intermediate traces showing that the
+  intended RTL and model execute the same integer operations.
+
+Using NumPy FFTs and quantizing only the final result is not the frequency FXP
+model. The fixed-point model must include the actual internal quantization.
+Both clock targets and every architecture within a domain use the same frozen
+production-A policy and expected codes. Optional A/B experiments are identified separately;
+switching policy requires regeneration and repeat matching, never mixing
+different policies in an architecture-only PPA comparison.
 
 ### Rounding
 
@@ -236,7 +289,8 @@ explicitly named operation.
 4. Canonical acceptance frame: zero internal overflow and zero output
    saturation. If either occurs, increase the width or change the declared
    scaling instead of hiding it behind aggregate SQNR.
-5. Wrap-around appears once as a diagnostic negative control only.
+5. Wrap-around, if the optional diagnostic is activated, appears only as a
+   negative control. It is never an acceptable production overflow behavior.
 6. Directed arithmetic checks, owned by T20 as `pytest` on the FXP model
    (arbitrary stimulus values are natural at model level; no RTL stimulus
    changes): positive/negative quantizer saturation, representable extremes,
@@ -277,11 +331,12 @@ extension, never a simulator-specific conversion.
 
 | Phase | Values | Purpose |
 | --- | --- | --- |
-| A. Common format | `W = 8,10,12,14,16,18`; RNE and truncation-toward-zero | Find the width/rounding frontier. |
-| B. Overflow behavior | Saturating narrowing and wrap diagnostic on the best two A candidates | Show that wrap is unacceptable and quantify clipping. |
-| C. Accumulator guard | `2W+1`, `2W+2`, `2W+3` for the best common `W` | Measure overflow risk versus PPA. |
-| D. Frequency schedule | Baseline A and baseline B at the selected `W` | Separate common precision from FFT scaling cost. |
-| E. Format sensitivity | Optional `Q1.(W-1)` coefficients at the selected `W` | Quantify the separate coefficient binary point; never fold it into the common-width claim. |
+| A. Common format (required) | `W = 8,10,12,14,16,18`; RNE, conservative guards, frequency A | Report precision frontier and validate production Q2.14. |
+| Rounding comparison (optional) | Truncation-toward-zero at selected diagnostic widths | Explain rounding effects; never redefine production RNE. |
+| B. Wrap comparison (optional) | Wrap negative control at selected candidates | Explain overflow effects; production no-overflow/saturation checks remain required. |
+| C. Accumulator guard (optional) | 33/34 bits versus the 35-bit base at W=16 | Separate no-overflow proof and measured PPA experiment; does not block the base. |
+| D. Frequency schedule (optional) | Frequency B versus production A at W=16 | Separate scale/precision experiment; does not block the base or silently change expected codes. |
+| E. Format sensitivity (outside base) | `Q1.(W-1)` coefficients | Requires explicit scope activation; never fold it into production Q2.14 claims. |
 
 ### Required result row
 
@@ -305,6 +360,13 @@ PPA fields are populated only after the corresponding RTL candidate has 100%
 vector matching; `power_status` distinguishes annotated workload power from an
 unannotated estimate.
 
+This is a lifecycle result record, not a requirement to invent future evidence
+during the numerical sweep. F1 source hashes identify the float references;
+the final expected-vector manifest hash is added after T22 export. Unknown
+RTL latencies are omitted until measured in F3, and matching/PPA statuses are
+explicitly not-run until their gates execute. A manifest's own digest remains
+external to that manifest to avoid a self-referential hash.
+
 ### Acceptance rule
 
 A candidate is numerically acceptable only when:
@@ -313,14 +375,23 @@ A candidate is numerically acceptable only when:
 - zero internal overflow on the canonical frame and the edge-case checks
   (the `sys_corners` sets of #15 plus the directed arithmetic checks above);
 - zero canonical output saturation events;
-- float-to-FXP alignment follows the manifest;
-- serial RTL matches the generated fixed-point expected vectors exactly in
-  both domains.
+- float-to-FXP alignment follows the manifest.
 
-Select the lowest `W_common` accepted by both domains. On a tie, prefer the
-policy with fewer narrowing points and simpler shared RTL. If no width passes,
-extend the sweep or revisit the frequency scaling contract; do not lower the
-SQNR threshold.
+After numerical acceptance, F3 additionally requires serial RTL to match the
+generated fixed-point expected vectors exactly in each domain before any
+optimization is accepted.
+
+Production is fixed to `W_common=16`, `Q2.14`. Report the smallest width that
+passes the numerical sweep in both domains as a measured frontier, not as an
+automatic replacement for production. Serial matching is the subsequent F3
+gate, not a prerequisite for completing the F2 numerical sweep.
+
+If the production candidate fails SQNR or overflow/saturation gates, diagnose
+and correct the internal arithmetic/scaling, then repeat the evidence. If a
+format change is necessary, record and approve that change before regenerating
+production artifacts. Never silently widen the external format or lower the
+SQNR threshold. Optional experiments cannot delay acceptance of a passing
+production-A Q2.14 candidate merely because their results are unfinished.
 
 ## SQNR Frame and Stability Check
 
@@ -351,17 +422,18 @@ component_sign_extension: sign_extend_to_16
 (`latency_time, latency_freq` in earlier wording are aliases of
 `latency_samples, latency_cycles`; the schema names are canonical.)
 
-When `W < 16`, each component is sign-extended into the existing 16-bit I/Q
-field of the packed vector; when `W = 16`, the field is direct. A future
-candidate above 16 bits requires revisiting the record format instead of
-truncating silently. Normative rule: `docs/contracts/vector-manifest-schema.md`
-§6.
+Production packs signed 16-bit `Q2.14` components directly. Diagnostic
+sub-16-bit exports use sign extension; above-16-bit sweep candidates remain
+model-side results unless an explicitly separate record format is approved.
+They must never be truncated into production records. See the normative
+vector lifecycle and schema for F1 references, F2 expected codes, and F3
+variant metadata; unknown latencies are never invented at F1/F2.
 
 ## Relationship to SQNR, Area, Timing, and Vector Matching
 
 - **SQNR:** the 40 dB threshold is a measured criterion; report time and
-  frequency separately and select on the worse domain, with overflow and
-  saturation counters visible.
+  frequency separately and require the production `Q2.14` candidate to pass
+  in both, with overflow and saturation counters visible.
 - **Area and timing:** wider words widen multipliers, adders, registers, and
   coefficient storage; RNE and saturation add low-order logic. Measure them in
   the synthesized candidate with identical OpenLane settings, not from bit
@@ -370,12 +442,25 @@ truncating silently. Normative rule: `docs/contracts/vector-manifest-schema.md`
   contract; its manifest carries every policy field, and the hash proves that
   the RTL and the simulator consumed the same contract.
 
+## Base-scope amendment (accepted 2026-10-02)
+
+The base is production Q2.14, RNE, explicit saturation, a 35-bit conservative
+time accumulator, frequency baseline A and the diagnostic RNE width sweep.
+Truncation/wrap comparisons, 33/34-bit guard experiments and frequency B are
+optional follow-ups, undertaken only with capacity after base evidence.
+Their absence does not block F2, F3 or F4. Q1 sensitivity and the communications
+annex are outside the base; runtime-reloadable coefficients are not requested.
+Activating an experiment does not automatically authorize adopting its numeric
+policy in production or mixing it into the architecture-only PPA ranking.
+
 ## Open Items
 
 - The PPA ranking rule is deferred to #18 (D8).
-- Phase E and the narrower accumulator widths are optional experiments, not
-  blockers.
-- Nothing else blocks the F2 implementation once this contract is merged.
+- Optional experiments have no blocking edges into the base phases. Any
+  production adoption requires its own evidence and recorded policy decision.
+- T20 must complete the frequency arithmetic freeze before T21 accepts sweep
+  rows. The declared production format is not evidence that the still-future
+  frequency FXP model meets SQNR.
 
 ## References
 

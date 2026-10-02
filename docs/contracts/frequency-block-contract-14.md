@@ -501,11 +501,17 @@ D2 and D3 are resolved naturally by later tickets.
 
 ### D3. FFT/IFFT scaling convention
 
-- **Status:** deferred to the FXP/RTL phases.
+- **Status:** float convention accepted; the exact integer convention must be
+  frozen by T20 before T21 accepts sweep rows (2026-10-02 amendment). T32 must
+  implement that convention, not introduce a new scaling schedule after SQNR.
 - **What is being chosen:** the numeric scaling of the forward and inverse transforms, both in the Python golden and in the RTL FFT core.
 - **Alternatives:** NumPy default (forward unscaled, inverse `1/N`) — recommended for the float golden; a per-stage scaled RTL core; any documented equivalent.
 - **Why it matters here:** a duplicated or missing `1/N` changes the output scale and breaks vector matching; it must be recorded once and compensated exactly once.
-- **Recommendation:** use the NumPy default in the float golden and freeze the RTL core convention when the FFT core is selected in the FXP/RTL phases.
+- **Recommendation:** use the NumPy default in the float golden; start the
+  integer model with baseline A and record twiddles, H[k], ordering, widths,
+  narrowing and total compensation under `fxp-policy-16.md`. Production has
+  Q2.14 external words with wider FFT intermediates. Choosing a different
+  integer core/policy later requires new numeric evidence and expected codes.
 - **Why:** it keeps the golden simple and makes the compensation point explicit.
 
 ## Baseline Alternatives and Professor Proposal
@@ -709,10 +715,11 @@ Thank you,
 ### D3 — FFT/IFFT scaling: NumPy default for the golden
 
 - **Alternatives:** a per-stage scaled RTL core, or any documented equivalent.
-- **Why they were rejected or deferred:** a per-stage scaled core cannot be
-  fixed until the core is selected, and mixing conventions risks a duplicated
-  or missing `1/N`.
+- **Why they were rejected or deferred:** the original research deferred the
+  per-stage core convention; the 2026-10-02 amendment now requires the integer
+  schedule/scaling freeze before accepting FXP evidence. Mixing conventions
+  still risks a duplicated or missing `1/N`.
 - **Why this was chosen:** the NumPy default (forward unscaled, inverse `1/N`)
   keeps the float golden simple and matches the reference used in the research
-  checks; the RTL convention is recorded and compensated exactly once when the
-  core is chosen.
+  checks; the integer convention is frozen in T20 and implemented by T32,
+  including the declared total scale compensation exactly once.
