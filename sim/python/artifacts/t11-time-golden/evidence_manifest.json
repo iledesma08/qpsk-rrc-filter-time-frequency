@@ -1,0 +1,63 @@
+{
+  "coefficient_artifact": "rrc8-v1",
+  "crop_symbol_start": 64,
+  "crop_symbol_stop": 960,
+  "folded_sample_index_offsets": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "folded_sample_offsets": [
+    -2.5,
+    -1.5,
+    -0.5,
+    0.5,
+    1.5,
+    2.5
+  ],
+  "folded_series": {
+    "I": {
+      "alpha": 0.75,
+      "color": "#0057B8",
+      "marker": "o",
+      "markersize": 3.5
+    },
+    "Q": {
+      "alpha": 0.75,
+      "color": "#E65100",
+      "marker": "x",
+      "markeredgewidth": 0.9,
+      "markersize": 3.5
+    }
+  },
+  "folded_window_count": 896,
+  "frequency_units": "cycles/symbol",
+  "input_coefficients_sha256": "7747ce687f02603cb7aefe2192e796b7ae9acea6a5861fc1b76bfd2f8c3301ba",
+  "input_samples": 2048,
+  "input_samples_sha256": "d805588396a3eefd3b2895601856f929a99bfeaa32dd1f05879b477dc774c132",
+  "interpolation": "none",
+  "model_source_sha256": "a9d32a70f90bfbff02153a530d2307dc8befcca77db776d9f571ef76b6e0b5bc",
+  "output_samples": 2055,
+  "plot_sha256": {
+    "folded_samples_natural_grid.png": "96172190eb7dbf6cfb96074f1c2a11f1b7af89a3aca16f11e73679385eb49ebc",
+    "spectrum.png": "a987104d47ea58882bc0fbe0cda08c8512405b9425a1fbd717cd0a48c801ec0f"
+  },
+  "plots": [
+    "folded_samples_natural_grid.png",
+    "spectrum.png"
+  ],
+  "random_seed": 2026,
+  "stimulus_version": "qpsk-stim-15-v1",
+  "symbol_center_offset_samples": 3.5,
+  "symbol_count": 1024,
+  "valid_len": 2055,
+  "valid_start": 0,
+  "versions": {
+    "matplotlib": "3.11.2",
+    "numpy": "2.5.3",
+    "scipy": "1.18.1"
+  }
+}
