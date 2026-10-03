@@ -1,0 +1,89 @@
+{
+  "comparison": {
+    "atol": 1e-12,
+    "max_absolute_error": 5.978733960281817e-16,
+    "rtol": 1e-10,
+    "time_frequency_allclose": true
+  },
+  "evidence_version": "t12-freq-golden-v1",
+  "input": {
+    "coefficient_artifact": "rrc8-v1",
+    "coefficients_sha256": "db2dd3ecbb7be99272e81632280e2223705552833de6d392fc09b98dd87a00bb",
+    "input_samples": 2048,
+    "input_samples_sha256": "d805588396a3eefd3b2895601856f929a99bfeaa32dd1f05879b477dc774c132",
+    "random_seed": 2026,
+    "stimulus_version": "qpsk-stim-15-v1",
+    "symbol_count": 1024
+  },
+  "plot_sha256": {
+    "golden_comparison": "b66549cf32d2835ebe9d0c0c12e47b64ba1296f667d78cbb69eb4a9ade92f75e",
+    "impulse_response": "306a1d548d589fef541ab7876cff77a6a2634a442f569b278f9a3491b3473bc8",
+    "ols_boundaries": "46b2d10fb3a808c8c510ddb4ae48cd9acba1788d5a7187205fb1cb17daeeb4f3"
+  },
+  "plots": {
+    "golden_comparison": "golden_comparison/canonical_time_frequency_comparison.png",
+    "impulse_response": "t12-freq-golden/impulse_response.png",
+    "ols_boundaries": "t12-freq-golden/ols_boundaries.png"
+  },
+  "presentation": {
+    "axes": {
+      "boundary_x": "sample index",
+      "boundary_y": "amplitude",
+      "comparison_x": "sample index",
+      "comparison_y": "I/Q amplitude and absolute error",
+      "impulse_x": "sample index",
+      "impulse_y": "amplitude"
+    },
+    "boundary_windows_sample_indices": [
+      [
+        0,
+        23
+      ],
+      [
+        1016,
+        1039
+      ],
+      [
+        2032,
+        2054
+      ]
+    ],
+    "interpolation": "none"
+  },
+  "provenance": {
+    "evidence_generator": {
+      "sha256": "abe74030c28e58a538be1c54922c0e978586b933151177dca1fb4888ef1dc9e8",
+      "source": "golden_freq.py:generate_frequency_evidence"
+    },
+    "golden_frequency_source_sha256": "abe74030c28e58a538be1c54922c0e978586b933151177dca1fb4888ef1dc9e8",
+    "golden_time_source_sha256": "a9d32a70f90bfbff02153a530d2307dc8befcca77db776d9f571ef76b6e0b5bc",
+    "versions": {
+      "matplotlib": "3.11.2",
+      "numpy": "2.5.3",
+      "python": "3.12.14",
+      "scipy": "1.18.1"
+    }
+  },
+  "schedule": {
+    "discard_initial": 8,
+    "fft_convention": {
+      "forward": "unscaled",
+      "inverse": "1/N normalization applied once by numpy.fft.ifft"
+    },
+    "fft_length": 16,
+    "filter_length": 8,
+    "hop_length": 8,
+    "overlap_length": 8,
+    "scheduled_blocks": 257,
+    "scheduled_output_positions": 2056,
+    "selected_samples_count": 8,
+    "selected_samples_start": 8
+  },
+  "stage": "floating_point_reference",
+  "window": {
+    "group_delay_samples": 3.5,
+    "output_samples": 2055,
+    "valid_len": 2055,
+    "valid_start": 0
+  }
+}

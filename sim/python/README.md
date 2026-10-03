@@ -27,4 +27,18 @@ python sim/python/golden_time.py --output-dir sim/python/artifacts/t11-time-gold
 
 The output directory contains `folded_samples_natural_grid.png`, `spectrum.png`, and `evidence_manifest.json`. The canonical input has 2048 complex samples; the full causal time-golden output has 2055 samples, including the filter tail.
 
-The frequency golden uses 16-sample frames with an 8-sample hop: each frame contains eight history samples and eight new samples, and emits `z[8:16]`. The complete canonical output has 2055 samples. `test_golden_freq.py` verifies its agreement with the time golden over the full output using `rtol=1e-10` and `atol=1e-12` per ADR-0005.
+The frequency golden uses 16-sample frames with an 8-sample hop: each frame contains eight history samples and eight new samples, and emits `z[8:16]`. The complete canonical output has 2055 samples. `test_golden_equivalence.py` verifies its agreement with the time golden over the full output using `rtol=1e-10` and `atol=1e-12` per ADR-0005.
+
+## Frequency-Golden Evidence
+
+Generate the T12 plots and their evidence manifest with:
+
+```bash
+python sim/python/golden_freq.py \
+	--output-dir sim/python/artifacts/t12-freq-golden \
+	--comparison-output-dir sim/python/artifacts/golden_comparison
+```
+
+The T12 directory contains `ols_boundaries.png`, `impulse_response.png`, and `evidence_manifest.json`. The comparison directory contains `canonical_time_frequency_comparison.png`. The manifest records the canonical input and coefficient hashes, forced-50% OLS schedule, valid output window, time/frequency error, source and plot hashes, and tool versions. This is floating-point reference evidence only; it is not FXP or RTL evidence.
+
+The shared time/frequency integration check lives in `tests/test_golden_equivalence.py`; the frequency-specific tests continue to exercise the public filter and its OLS block selector.

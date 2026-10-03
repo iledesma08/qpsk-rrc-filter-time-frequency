@@ -1,9 +1,17 @@
 """Contract checks for the forced-50% frequency-domain golden model."""
 
+import json
+
 import numpy as np
 
-from golden_freq import FILTER_LENGTH, HOP_LENGTH, filter_frequency_domain
-from golden_time import generate_time_golden
+from golden_freq import (
+    FILTER_LENGTH,
+    HOP_LENGTH,
+    _iter_ols_blocks,
+    filter_frequency_domain,
+    generate_frequency_evidence,
+    generate_frequency_golden,
+)
 from rrc_coefs import load_rrc8_coefficients
 from stimulus import generate_canonical_samples
 
@@ -56,10 +64,15 @@ def _unpack_iq(words):
     return i_values, q_values
 
 
-def test_forced_50_percent_ols_matches_direct_convolution():
+def _complex_contract_vectors():
     rng = np.random.default_rng(32)
     samples = rng.normal(size=32) + 1j * rng.normal(size=32)
-    coefficients = rng.normal(size=8)
+    coefficients = rng.normal(size=8) + 1j * rng.normal(size=8)
+    return samples, coefficients
+
+
+def test_forced_50_percent_ols_matches_direct_convolution():
+    samples, coefficients = _complex_contract_vectors()
 
     np.testing.assert_allclose(
         filter_frequency_domain(samples, coefficients),
@@ -70,34 +83,27 @@ def test_forced_50_percent_ols_matches_direct_convolution():
 
 
 def test_forced_ols_selects_each_output_index_once():
-    output_length = 32 + FILTER_LENGTH - 1
-    block_count = (output_length + HOP_LENGTH - 1) // HOP_LENGTH
+    samples, coefficients = _complex_contract_vectors()
+    output_length = samples.size + FILTER_LENGTH - 1
+    blocks = list(_iter_ols_blocks(samples, coefficients))
     selected_indices = np.concatenate(
-        [
-            np.arange(block * HOP_LENGTH, (block + 1) * HOP_LENGTH)
-            for block in range(block_count)
-        ]
+        [output_start + np.arange(output_block.size) for output_start, output_block in blocks]
     )
-    selected_indices = selected_indices[selected_indices < output_length]
-
-    selection_counts = np.bincount(selected_indices, minlength=output_length)
+    assert selected_indices.size == 40
+    selection_counts = np.bincount(selected_indices[selected_indices < output_length], minlength=output_length)
 
     np.testing.assert_array_equal(selection_counts, np.ones(output_length, dtype=int))
 
 
 def test_ola_reference_matches_direct_convolution():
-    rng = np.random.default_rng(32)
-    samples = rng.normal(size=32) + 1j * rng.normal(size=32)
-    coefficients = rng.normal(size=8)
+    samples, coefficients = _complex_contract_vectors()
     expected = np.convolve(samples, coefficients, mode="full")
 
     np.testing.assert_allclose(_overlap_add(samples, coefficients), expected, rtol=1e-10, atol=1e-12)
 
 
 def test_canonical_ols_reference_matches_direct_convolution():
-    rng = np.random.default_rng(32)
-    samples = rng.normal(size=32) + 1j * rng.normal(size=32)
-    coefficients = rng.normal(size=8)
+    samples, coefficients = _complex_contract_vectors()
     expected = np.convolve(samples, coefficients, mode="full")
 
     np.testing.assert_allclose(
@@ -133,6 +139,7 @@ def test_canonical_frame_has_full_causal_frequency_output():
     assert samples.shape == (2048,)
     assert output.shape == (2055,)
     assert output.dtype == np.complex128
+    np.testing.assert_array_equal(generate_frequency_golden(), output)
 
 
 def test_canonical_frame_matches_direct_rrc_convolution():
@@ -147,11 +154,27 @@ def test_canonical_frame_matches_direct_rrc_convolution():
     )
 
 
-def test_canonical_time_and_frequency_goldens_match():
-    samples = generate_canonical_samples()
+def test_frequency_evidence_writes_plots_and_manifest(tmp_path):
+    output_dir = tmp_path / "t12-freq-golden"
+    comparison_dir = tmp_path / "golden_comparison"
+    manifest_path = generate_frequency_evidence(output_dir, comparison_dir)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
-    frequency_output = filter_frequency_domain(samples)
-    time_output = generate_time_golden()
-
-    assert frequency_output.shape == time_output.shape == (2055,)
-    np.testing.assert_allclose(frequency_output, time_output, rtol=1e-10, atol=1e-12)
+    assert manifest_path == output_dir / "evidence_manifest.json"
+    assert manifest["stage"] == "floating_point_reference"
+    assert manifest["input"]["stimulus_version"] == "qpsk-stim-15-v1"
+    assert manifest["input"]["coefficient_artifact"] == "rrc8-v1"
+    assert manifest["schedule"]["scheduled_output_positions"] == 2056
+    assert manifest["window"] == {
+        "output_samples": 2055,
+        "valid_start": 0,
+        "valid_len": 2055,
+        "group_delay_samples": 3.5,
+    }
+    assert manifest["comparison"]["time_frequency_allclose"] is True
+    assert manifest["comparison"]["max_absolute_error"] < 1e-12
+    assert set(manifest["plots"]) == {"golden_comparison", "ols_boundaries", "impulse_response"}
+    assert (comparison_dir / "canonical_time_frequency_comparison.png").is_file()
+    assert (output_dir / "ols_boundaries.png").is_file()
+    assert (output_dir / "impulse_response.png").is_file()
+    assert all(len(digest) == 64 for digest in manifest["plot_sha256"].values())
