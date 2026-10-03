@@ -4,6 +4,9 @@ Research ticket: [#2](https://github.com/iledesma08/qpsk-rrc-filter-time-frequen
 
 Date: 2026-09-21
 
+Updated: 2026-10-02 (user-approved recommendations 1 and 5; no professor
+approval claimed)
+
 Scope: unblock F1 now, and define the exact simulator and PPA contract for F3-F5. This note does not add infrastructure.
 
 ## Decision Summary
@@ -14,6 +17,10 @@ Scope: unblock F1 now, and define the exact simulator and PPA contract for F3-F5
 - Add Verilator as a separate, optional lint-only CI job. It complements Icarus and does not replace it.
 - Use the OpenLane 2 `Classic` flow with `sky130A` and `sky130_fd_sc_hd` for the F4 PPA runs. OpenLane 2 should be installed through its Nix shell, not mixed with the simulator virtualenv.
 - Treat area, timing, and power as separate reported measurements. Do not claim dynamic power from an unannotated power report.
+- Apply the amended clock/evidence policy in `docs/contracts/ppa-matrix-18.md`:
+  serial main targets are SLOW 10 MHz; optimized main targets are FAST 100 MHz.
+  Retain six architectures, prepare 12 target runs, and require comparable
+  same-domain serial deltas rather than cross-target improvement claims.
 
 ## Course Baseline
 
@@ -104,7 +111,7 @@ Create one OpenLane design directory/configuration per top-level RTL variant. Th
 }
 ```
 
-The actual source list must include only the DUT and shared RTL, never the testbench or generated simulation vectors. The documented config uses JSON and `dir::` paths; the four variables above are the minimum required variables.
+The actual source list must include only the DUT and shared RTL, never the testbench or generated simulation vectors. The documented config uses JSON and `dir::` paths; the four variables above are the minimum required variables. The example is a FAST run; use `CLOCK_PERIOD: 100.0` for a SLOW run.
 
 Run explicitly against the same technology for every comparison:
 
@@ -115,7 +122,25 @@ openlane --flow Classic \
   openlane/<variant>/config.json
 ```
 
-Use `CLOCK_PERIOD: 10.0` ns for the 100 MHz target and `CLOCK_PERIOD: 100.0` ns for the 10 MHz target. Do not compare a 100 MHz candidate against a 10 MHz candidate without recording the target as part of the result. OpenLane documents `sky130A` as the fully qualified PDK name and `sky130_fd_sc_hd` as the Sky130 default SCL; the SkyWater documentation identifies `sky130_fd_sc_hd` as the high-density digital standard-cell library. Sources: [OpenLane design configuration](https://openlane2.readthedocs.io/en/stable/reference/configuration.html), [OpenLane PDK/SCL selection](https://openlane2.readthedocs.io/en/stable/usage/about_pdks.html), and [SkyWater standard-cell libraries](https://skywater-pdk.readthedocs.io/en/main/contents/libraries/foundry-provided.html).
+Use `CLOCK_PERIOD: 10.0` ns for FAST 100 MHz and `CLOCK_PERIOD: 100.0` ns for
+SLOW 10 MHz. Main targets are SLOW for `T-serial`/`F-serial` and FAST for
+`T-S4P1`/`T-S8P1`/`F-U4`/`F-U8`; the other target is secondary for each.
+Prepare six architectures x two targets = 12 runs, not 12 architectures.
+Prioritize the six main-target runs, then secondary matched-clock comparisons
+as runtime/resources measured by the first real filter pilot permit. There
+is no promise that all 12 runs complete before 2026-11-06 and no new assumed
+run duration. Additional architectures remain extension-only.
+
+Re-synthesize, optimize, and run PnR at each target using the same RTL revision,
+parameters, and numerics, with the same conditions except the declared clock
+and the same sizing rule. Record target, class, main-or-secondary role, and
+failed/unrun status. A FAST failure remains a failed FAST goal even if SLOW
+passes. Pareto ranking and architecture-only deltas require the same target,
+corner, workload, and activity conditions. Cross-target results may be
+displayed with explicit labels, but cannot establish a controlled
+architecture-only improvement.
+
+OpenLane documents `sky130A` as the fully qualified PDK name and `sky130_fd_sc_hd` as the Sky130 default SCL; the SkyWater documentation identifies `sky130_fd_sc_hd` as the high-density digital standard-cell library. Sources: [OpenLane design configuration](https://openlane2.readthedocs.io/en/stable/reference/configuration.html), [OpenLane PDK/SCL selection](https://openlane2.readthedocs.io/en/stable/usage/about_pdks.html), and [SkyWater standard-cell libraries](https://skywater-pdk.readthedocs.io/en/main/contents/libraries/foundry-provided.html).
 
 Pin the toolchain for every F4 run: `iverilog --version` must report 11.0 or
 newer, compiled with `-g2012`; DUT sources use the synthesizable SV subset
@@ -130,7 +155,7 @@ Provide the same SDC template to all variants via `PNR_SDC_FILE` and
 
 ```tcl
 create_clock -name clk -period 10.000 [get_ports clk]
-# 10 MHz fallback: create_clock -name clk -period 100.000 [get_ports clk]
+# SLOW 10 MHz: create_clock -name clk -period 100.000 [get_ports clk]
 set_input_delay 2.0 -clock clk [all_inputs]
 set_output_delay 2.0 -clock clk [all_outputs]
 set_false_path -from [get_ports rst_n]
@@ -138,11 +163,12 @@ set_max_transition 1.5 [current_design]
 set_max_fanout 16 [current_design]
 ```
 
-`PNR_SDC_FILE` and `SIGNOFF_SDC_FILE` point to copies identical except the
-`create_clock` period (10.0 ns for 100 MHz, 100.0 ns for the labelled 10 MHz
-fallback). Size each die per `docs/contracts/ppa-matrix-18.md`: 50-60% core
+`PNR_SDC_FILE` and `SIGNOFF_SDC_FILE` use the same constraints at a given
+target; between targets only the `create_clock` period changes (10.0 ns for
+FAST 100 MHz, 100.0 ns for SLOW 10 MHz). Size each die per
+`docs/contracts/ppa-matrix-18.md`: 50-60% core
 utilization (target ~55%), floor `max(sized-for-target, 200x200 um)` for
-PDN-0185; record die area, core area, and utilization per row. OpenLane
+PDN-0185; record die area, core area, and utilization per target run. OpenLane
 explicitly places responsibility for custom input/output constraints on the
 designer. Source: [OpenLane timing closure](https://openlane2.readthedocs.io/en/stable/usage/timing_closure/index.html).
 
@@ -156,6 +182,10 @@ For each completed run, archive or link these outputs from the run directory. St
 - The per-corner `checks.rpt`: max-capacitance, max-slew, fanout, unconstrained-path, and related timing checks.
 - The per-corner `power.rpt`: report the power value and corner, but also record the VCD/SAIF file name and annotation coverage; report core + clock-tree power and exclude any IO split.
 - DRC, LVS, antenna, and flow status: a PPA number is not an implementation pass if signoff checks failed.
+- Run identity and status: architecture, target/period, FAST/SLOW class,
+  main/secondary role, corner, workload, and failed/unrun reason. Retain
+  available logs/evidence for failed runs; do not fabricate metrics for
+  incomplete or unrun steps.
 
 OpenLane documents `summary.rpt`, `max.rpt`, `min.rpt`, `checks.rpt`, and `power.rpt` under the post-PnR STA step. OpenROAD documents `report_design_area` for area and accepts VCD or SAIF activity as inputs to STA power analysis. Sources: [OpenLane signoff reports](https://openlane2.readthedocs.io/en/stable/getting_started/newcomers/index.html), [OpenLane timing reports](https://openlane2.readthedocs.io/en/stable/usage/timing_closure/index.html), [OpenROAD area reporting](https://openroad.readthedocs.io/en/latest/main/src/rsz/README.html), and [OpenSTA inputs](https://openroad.readthedocs.io/en/latest/main/src/sta/README.html).
 
@@ -167,7 +197,28 @@ fmax_MHz = 1000 / critical_path_delay_ns
 
 Take `critical_path_delay_ns` from the signoff critical path in `max.rpt`, or from `CLOCK_PERIOD_ns - signed_setup_slack_ns` when the report provides signed slack. Also retain the raw period and slack; the derived value must not hide a negative slack or a corner mismatch.
 
-Power is the main caveat. A `power.rpt` generated without VCD/SAIF activity is not a measured workload-dependent dynamic-power result. Annotate with a VCD/SAIF from the full 257-block canonical workload (256 steady-state + 1 tail-flush) after warm-up; until that representative activity from the RTL testbench is annotated, label the number as an unannotated/static estimate and use it only for like-for-like comparison. Do not rank variants by power using different activity assumptions.
+Power is the main caveat. A `power.rpt` generated without VCD/SAIF activity is
+not a measured workload-dependent dynamic-power result. Annotate each target
+run with a VCD/SAIF from the full 257-block canonical workload (256 steady-state
+plus 1 tail-flush) after warm-up, timed at its actual clock period; record that
+period and annotation coverage. Do not reuse another target's timing or just
+scale its reported power. Without valid activity, label the number as an
+unannotated/static estimate for auxiliary like-for-like display only, never
+for dynamic-power ranking or a demonstrated power improvement. Do not rank
+variants by power using different activity assumptions.
+
+Every optimized candidate reports effective valid-output throughput, area,
+and power per valid output deltas versus its same-domain serial using actual
+matched-target results under the same conditions. Record the serial run tag
+and comparability status. Power per valid output is annotated core + clock-tree
+power divided by effective throughput (energy/output), requiring valid activity
+for both runs. If the serial fails same-target gates or is unrun, record
+`not-comparable` and the reason, not an invented delta; invalid activity makes
+the power delta `not-comparable`. Delivery requires improvement in at least
+one PPA axis from at least one optimized candidate per domain, not every
+variant or every axis. Retain failed/non-improving candidates; no winner may
+fail vector, physical-signoff, or target-timing gates. A secondary SLOW
+comparison does not fulfill an optimized candidate's FAST main goal.
 
 ## Exact Implementation Checklist
 
@@ -182,7 +233,10 @@ This is the recommended checklist for the follow-up implementation work; it is i
 - Keep required CI to Python tests, Icarus compile/run, and vector matching; do not make Verilator replace Icarus.
 - Before F4, install OpenLane 2 through Nix and pass its Sky130 smoke test.
 - Add one OpenLane JSON config per top-level variant, excluding testbenches, and run with `sky130A` plus `sky130_fd_sc_hd`.
-- Choose `CLOCK_PERIOD=10.0` ns for 100 MHz or `100.0` ns for 10 MHz per lane, and record that choice with every PPA result.
+- Prepare both target runs for each of the six base architectures; prioritize
+  serial SLOW main runs (`100.0` ns) and optimized FAST main runs (`10.0` ns),
+  then secondary comparisons subject to measured pilot capacity. Record
+  target/class/role and failed/unrun status with every entry.
 - For every PPA run, retain final metrics, post-PnR STA summary and critical reports, power report plus activity status, and DRC/LVS/antenna status.
 - Add representative VCD/SAIF activity before using power as a ranking axis.
 - Commit one OpenLane JSON config per top-level variant (DUT only) before
@@ -192,6 +246,12 @@ This is the recommended checklist for the follow-up implementation work; it is i
   activity status attached; an unrun flow step is recorded as unrun, never as
   a result.
 - Put the final area/fmax/power rows in the PPA table only after vector matching is already 100 percent, as required by [ADR 0002](../adr/0002-serial-rtl-before-optimization.md).
+
+Historical clock wording (superseded by the user-approved 2026-10-02
+amendment): 10 MHz was described as a labelled fallback to an all-100-MHz
+primary policy. It is now the declared serial main target, with secondary
+matched-target runs for comparison; the old fallback-only wording is not
+an active implementation rule.
 
 ## Sources
 

@@ -93,6 +93,6 @@
 
 - `docs/contracts/toolchain-gap-2.md` — pins, `iverilog/vvp` contract, Verilator lint, OpenLane JSON/SDC/evidence.
 - `docs/contracts/openlane-env-19.md` — verified Nix/OpenLane/PDK, smoke repro, PDN-0185 floor, syn-commit rule.
-- `docs/adr/0006-systemverilog-openlane-ppa-flow.md` — SystemVerilog + Icarus/vvp + Verilator lint-only + Classic 100MHz/10MHz-fallback.
+- `docs/adr/0006-systemverilog-openlane-ppa-flow.md` — SystemVerilog + Icarus/vvp + Verilator lint-only + Classic; serial SLOW 10 MHz / optimized FAST 100 MHz main targets and matched-target secondary comparisons.
 - `CONTRIBUTING.md` — branches, Conventional Commits, PR evidence.
 - `docs/plan-gantt.md` T02 — owner A+D, blocks T03.

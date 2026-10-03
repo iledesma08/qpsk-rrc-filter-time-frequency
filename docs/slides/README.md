@@ -6,8 +6,13 @@ Upload the final PDF + source (pptx/keynote/latex) before the `v1.1-close` tag.
 
 ## Outline (T50)
 
-1. Architecture: time-domain (pipeline + systolic) vs frequency-domain (unfolded / folded contrast).
-2. SQNR vs bit-width (W): sweep table + chosen N for SQNR ≥ 40 dB.
-3. 12-row PPA Pareto (same-target, activity-annotated): fmax / area / power per row + best-PPA conclusion.
-4. Lessons learned: OLS H8 vs H9, Q2 vs Q1, II vs fmax trade-offs.
+1. Architecture: time-domain (`S4P1/S8P1`) vs frequency-domain (`U4/U8`), each contrasted with its serial baseline. Additional pipeline-depth and folded experiments are extension-only.
+2. SQNR vs diagnostic width (W): sweep frontier + measured production Q2.14 SQNR in both domains, with overflow/saturation evidence.
+3. Six-architecture PPA comparison: declared SLOW serial / FAST optimized main goals, prepared paired clock runs and explicit statuses, matched-target Pareto and serial deltas. More architecture variants are extension-only; additional target runs are not additional architectures.
+4. Lessons learned from completed work, including the accepted OLS H8 schedule, Q2 precision choice, and II vs fmax trade-offs. Label unmeasured H9/Q1/folded alternatives as discussion only.
 5. Actual vs planned Gantt + demo.
+
+Do not wait for optional Booth/ROM, narrow-guard or FFT-B experiments to finish
+the base presentation. Include them only when explicitly activated and backed
+by evidence, clearly separate from the six-architecture base. Q1.15 and the
+AWGN/BER annex are outside base scope, not mandatory slide material.
