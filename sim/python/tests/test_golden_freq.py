@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from golden_freq import filter_frequency_domain
+from golden_freq import FILTER_LENGTH, HOP_LENGTH, filter_frequency_domain
 from golden_time import generate_time_golden
 from rrc_coefs import load_rrc8_coefficients
 from stimulus import generate_canonical_samples
@@ -67,6 +67,22 @@ def test_forced_50_percent_ols_matches_direct_convolution():
         rtol=1e-10,
         atol=1e-12,
     )
+
+
+def test_forced_ols_selects_each_output_index_once():
+    output_length = 32 + FILTER_LENGTH - 1
+    block_count = (output_length + HOP_LENGTH - 1) // HOP_LENGTH
+    selected_indices = np.concatenate(
+        [
+            np.arange(block * HOP_LENGTH, (block + 1) * HOP_LENGTH)
+            for block in range(block_count)
+        ]
+    )
+    selected_indices = selected_indices[selected_indices < output_length]
+
+    selection_counts = np.bincount(selected_indices, minlength=output_length)
+
+    np.testing.assert_array_equal(selection_counts, np.ones(output_length, dtype=int))
 
 
 def test_ola_reference_matches_direct_convolution():
