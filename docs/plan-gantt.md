@@ -17,13 +17,24 @@ flowchart LR
   T44 --> F5[F5 slides + close]
 ```
 
-> T13 (`sim/vectors/` generator) is the F1 exit criterion and unblocks F2/F3. F4 time and F4 freq run in parallel and rejoin at T44.
-> Critical dependency chain: `T13 -> T20 -> T22 -> T30/T32` (vectors → fxp model → frozen coefs → serial RTL).
+```mermaid
+flowchart LR
+  T10[T10 #39: frozen RRC coefficients] --> T11[T11 #40: time golden]
+  T10 --> T12[T12 #41: frequency golden]
+  T11s[T11s #67: shared canonical stimulus] --> T11
+  T11s --> T12
+  T11 --> T13[T13 #43: golden vectors]
+  T12 --> T13
+```
+
+> T13 is the F1 reference/generator gate, not the completed FXP/RTL vector set. T22 regenerates per-domain integer expectations after numerical acceptance; T31/T33 bind per-variant latency and flush counts. F4 time and F4 freq run in parallel and rejoin at T44.
+> T11s (#67) is the shared input prerequisite for T11/T12; T10 remains their separate coefficient prerequisite. T11 and T12 can proceed in parallel once both prerequisites are met.
+> Numeric completion chain: `T13 -> T20 -> T21 -> T22 -> T30/T32 completion -> T31/T33`. Structural RTL work can start after T03; integer matching cannot start from a cast of float references or guessed future latency.
 > `SQNR-retry` (7d, only if no width hits 40 dB) extends F2; `signoff-respin` (5d) follows T44;
 > `professor-gate` is a zero-duration wait before F5 sign-off.
 
-- **F1** produces RRC `rrc8-v1` (α=0.5, 8 taps, OS 2x, `D=3.5`) + float golden in time and frequency + `canonical` + 3 `sys_corners` vectors with normative manifest (257 blocks). Contracts: #13, #14, #15, schema.
-- **F2** locks `W_common` with SQNR ≥ 40 dB **both** domains (phases A–D, RNE/sat, `2W+3`, FFT A/B, split-half, zero overflow/sat). Contract: #16.
+- **F1** produces RRC `rrc8-v1` (α=0.5, 8 taps, OS 2x, `D=3.5`), shared stimulus, and float references for `canonical` + 3 `sys_corners` cases. Metadata declares the float-reference stage; no final integer expectations or RTL latencies are claimed. Contracts: #13, #14, #15, schema.
+- **F2** validates production `Q2.14` (`W_common=16`) at SQNR ≥ 40 dB in both domains, reports the required RNE width frontier, and exports per-domain integer expectations. T20 freezes production FFT-A arithmetic before accepting sweep results. Narrow-guard, FFT-B and truncation/wrap comparisons are optional, not phase gates. Contract: #16.
 - **F3** requires 100% exact int-code vector matching in both versions (incl. `sys_corners`, latency/`II`, bubble/stall robustness) before optimizing. Contracts: #17, #14.
 - **F4** runs the reduced 6-row matrix (serials + S4/S8 + U4/U8) from one parameterized source, same-SDC/sizing/signoff, VCD/SAIF power, Pareto ranking. Contracts: #18, #19, #2.
 - **F5** contrasts PPA + lessons learned + actual vs planned Gantt. AWGN annex #35 stays dormant Python-only, never DoD.
@@ -32,13 +43,13 @@ flowchart LR
 
 | Milestone | Criterion | Due | Tag |
 | --------- | --------- | --- | --- |
-| M1 float golden | green pytest + eye/spectrum plots + documented coefs + vectors | 10-19 | `v0.1-float` |
-| M2 fixed point | `W_common` chosen + SQNR ≥ 40 dB both domains recorded | 10-29 | `v0.2-fxp` |
+| M1 float golden | green pytest + plots + documented coefs + deterministic float-reference artifacts | 10-19 | `v0.1-float` |
+| M2 fixed point | production Q2.14 passes SQNR/overflow/saturation gates + diagnostic sweep + per-domain integer expectations | 10-29 | `v0.2-fxp` |
 | M3 serial | 100% time and freq vector matching | 11-01 | `v0.3-serial` |
-| M4 optimized | reduced 6-row PPA (serials + S4/S8 + U4/U8) + report + matching; full 12 rows only on extension | 11-05 | `v1.0-opt` |
+| M4 optimized | six architectures at declared main targets + matched-target improvement evidence per domain; comparative runs prioritized by pilot capacity, extra architectures extension-only | 11-05 | `v1.0-opt` |
 | M5 close | slides + actual Gantt + demo | 11-06 | `v1.1-close` |
 
-Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback when timing does not close. D3 interpretation: 10 MHz is recovery, never ranked with 100 MHz passes. If professor intended slow-power class, add low-power lane.
+Clocks: serial main targets are SLOW 10 MHz; optimized main targets are FAST 100 MHz. Prepare six architectures x two targets (12 runs, not 12 architectures), execute the six main runs first, and use pilot-measured capacity for comparative runs. A FAST failure is not fulfilled by passing SLOW. Architecture-only deltas and Pareto ranking require matched target/corner/workload/activity.
 
 ## Tasks (T) — issue granularity
 
@@ -58,26 +69,27 @@ Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback
 | ID | Task | Depends on | DoD |
 | -- | ---- | ---------- | --- |
 | T10 | RRC coefficients α=0.5, 8 taps, OS 2x + generator script per `rrc-coefficient-contract-13.md` D1-D7 | T00 | centered grid `t[n]=(n-3.5)/2`, raw + L2-normalized vector (`sum(h²)=1`), `D=3.5` documented, artifact `rrc8-v1` fields, symmetry/energy/singular-branch checks, stem + `freqz`-4096 + eye plots on natural grid |
-| T11 | QPSK gen + 2x upsampling + **time** float filter per `qpsk-stimulus-15.md` D1-D8 | T10 | `S=1024, default_rng(2026)`, 5×8 edge patterns, zero-insertion `L=2048`, full causal `2055`, center `2k+3.5`, Gray map, `Es=2`; pytest (regen-identical, even=symbol/odd=zero, `len=2055`, impulse→taps, time/freq `rtol=1e-10,atol=1e-12`) + eye/spectrum on natural grid; **A must finish by 2026-10-10 (buffer before absence)** |
-| T12 | **Frequency** float filter (forced-50% OLS `N=16,H=8`, discard `z[0:8]`, emit `z[8:16]`) per `frequency-block-contract-14.md` D1 | T10 | frame `x[8b-8+r]`, 8-zero pre-frame, NumPy `1/N`-once, `I=real,Q=imag`, block cadence 8, 7-check suite (`S=32` OLS/OLA/canonical-H9, impulse, packing round-trip, ~1e-15), no unexplained shift; professor-gate: hop-9 needs approval |
-| T13 | `sim/vectors/` generator + checksum (F1 exit, C guards) per `qpsk-stimulus-15.md` + `vector-manifest-schema.md` + ADR-0004 | T11, T12 | `canonical` + 3 full-length `sys_corners` (`corner_repeat,max_alternation,single_symbol_perturbation`), packed `{Q[15:0],I[15:0]}` `.hex` via `$readmemh`, normative §1-§4 manifest, invariants (`2048/2055/0/2055`, `FFT16/H8/D8/E8`, `DATA_WIDTH==W_common`), per-file `.sha256` + CI hash gate, `vector_manifest.svh` metadata-only, 257-block accounting, never by hand |
+| T11s | Shared deterministic canonical stimulus for T11/T12 per `qpsk-stimulus-15.md` D1-D5 | Contract #15 (no issue blocker) | `S=1024`, `default_rng(2026)`, five 8-symbol edge patterns + Gray-mapped tail, `Es=2`, zero-insertion `L=2048`; one reproducible source consumed by both goldens; focused pytest coverage; no coefficients, filtering, or vectors |
+| T11 | **Time** float filter consuming the shared stimulus per `qpsk-stimulus-15.md` D1-D8 | T10, T11s | zero initial history, full causal output `2055`, center `2k+3.5`; pytest (length, impulse→taps, time/freq `rtol=1e-10,atol=1e-12`) + folded sample/spectrum plots on natural grid; **A must finish by 2026-10-10 (buffer before absence)** |
+| T12 | **Frequency** float filter (forced-50% OLS `N=16,H=8`, discard `z[0:8]`, emit `z[8:16]`) per `frequency-block-contract-14.md` D1 | T10, T11s | consume shared samples `x[8b-8+r]`, 8-zero pre-frame, NumPy `1/N`-once, `I=real,Q=imag`, block cadence 8, 7-check suite (`S=32` OLS/OLA/canonical-H9, impulse, packing round-trip, ~1e-15), no unexplained shift; professor-gate: hop-9 needs approval |
+| T13 | F1 reference artifacts + staged vector generator (C guards) per `qpsk-stimulus-15.md` + `vector-manifest-schema.md` + ADR-0004 | T11, T12 | deterministic full-length canonical/corner stimulus and float references, stage/domain/provenance and hashes; no invented FXP expected codes or RTL latency; final integer export is T22 and matching metadata is T31/T33 |
 
-### F2 — Fixed point + SQNR (C owns; phases A–D only for 11-06; A reviews plan before 2026-10-14)
-
-| ID | Task | Depends on | DoD |
-| -- | ---- | ---------- | --- |
-| T20 | Fxp model (coefs + data) + SQNR function per `fxp-policy-16.md` + ADR-0005 | T13 | common `Q2.(W-2)`, RNE-at-narrowing + saturate-only-at-boundary + fail-on-internal-overflow, `W_acc=2W+3` baseline, freq A (grow) / B (1b/stage) widths, `divide-by-16-then-cast`, complex SQNR `10log(sum\|y\|²/sum\|y-yfxp\|²)`, directed saturation/extreme/LSB checks + RNE-tie reachability check, signed-SV discipline, sign-extend-to-16 |
-| T21 | Bit-width sweep + N choice (SQNR ≥ 40 dB) phases A–D | T20 | `W=8,10,12,14,16,18(+20)`: A common-format × RNE/trunc, B wrap-diagnostic, C `2W+1/2/3`, D A-vs-B at same `W`, E `Q1` sensitivity out of scope for 11-06; split-half stability (>0.5dB → 4096 sym); row fields + overflow/sat counters; lowest `W_common` passing **both** domains, zero overflow/sat; width frozen without PPA-snooping (defer to #18) |
-| T22 | Freeze fxp coefs in `rtl/common/` | T21 | common-`Q2` ints (e.g. `[179,-1818,1818,11295,11295,1818,-1818,179]` at 16b), float-golden + derived-ints artifact, range-violation record, hex/bin + doc; unblocks F3 |
-
-### F3 — Serial RTL + vector matching (datapath vs float from 10-13, frozen-coef integration after T22)
+### F2 — Fixed point + SQNR (C owns; required RNE sweep and FFT-A validation; extras optional)
 
 | ID | Task | Depends on | DoD |
 | -- | ---- | ---------- | --- |
-| T30 | Serial **time** RTL (1 MAC / sample, `S=1,II=8`) per `rtl-streaming-17.md` | T22, T03 | `valid/ready` + hold, reset-sync, packed `{Q,I}`, `SPC=1`, FIR advances on `valid&&ready` only, `ready_o` deasserts 7/8 cycles, `rrc_pkg.sv`, no TB/vectors in DUT |
-| T31 | TB + **time** vector matching | T30, T13 | 100% exact int-code match (canonical + 3 `sys_corners`), `latency_samples/cycles` assert (`ready_i=1` run), `II` measured from handshake, bubble/stall + `ready_o`-loss robustness with scoreboard, no X/Z post-reset, manifest-driven widths, mismatch = index+expected+got + log |
-| T32 | Serial **frequency** RTL (`U=1`) per `rtl-streaming-17.md` + `frequency-block-contract-14.md` | T22, T03 | same handshake/reset/packing + parameterized `FFT_LEN/HOP/DISCARD_PREFIX/EMIT_START/EMIT_LEN`, DUT-zero-history, `valid_o` = `EMIT_LEN` contiguous per block, 257-block (256+1 tail-flush) handling, hop-9 switch = counter+selector only |
-| T33 | TB + **frequency** vector matching | T32, T13 | same gates as T31 on freq lane (257-block VCD coverage, fill-vs-tail latency split, steady `II` on first 256) + log |
+| T20 | Integer FXP models + SQNR per `fxp-policy-16.md` + ADR-0005 | T13 float references | production Q2.14, 35-bit time accumulator, RNE/explicit saturation; freeze FFT schedule, twiddles, H[k], widths, narrowing and total scale with Juan before T21 accepts rows; model actual integer stages, not a final cast of float FFTs; directed checks and overflow/saturation counters |
+| T21 | Required width sweep + production Q2.14 validation (SQNR ≥ 40 dB) | T20 numeric freeze | RNE at W=8,10,12,14,16,18 with conservative guards and frequency A; split-half stability and precision frontier; W=16 passes both domains with zero overflow/canonical saturation; optional diagnostics are not blockers; production-format changes require a recorded decision |
+| T22 | Export validated production coefficients and integer expectations | T21 | Q2.14 coefficient table + provenance; regenerate input and per-domain expected codes from accepted FXP models for canonical/corners; F2 stage manifest/hashes without guessed RTL latency; unblocks final F3 integration |
+
+### F3 — Serial RTL + vector matching (structural work after T03, integer integration after T22)
+
+| ID | Task | Depends on | DoD |
+| -- | ---- | ---------- | --- |
+| T30 | Serial **time** RTL (1 MAC / sample, `S=1,II=8`) | T03 to start; T22 for completion | Q2.14 interface, accepted-sample history, signed full-precision arithmetic and frozen casts; valid/ready/reset/packing; final numeric integration consumes validated production artifacts |
+| T31 | Per-variant metadata + **time** matching | T30, T22 | exact own-domain integer matching (canonical/corners), measured latency/II and scoreboard robustness; 7 accepted flush zeros at SPC=1, 2055 raw/compared outputs; wider beat padding counted separately; bounded drain/no loss/no extra outputs |
+| T32 | Serial **frequency** RTL (`U=1`) | T03 to start; T22 for completion | same interface discipline, T20-frozen integer FFT arithmetic and parameterized block engine; zero history internally; canonical 257-block schedule including 8 accepted flush zeros at SPC=1 |
+| T33 | Per-variant metadata + **frequency** matching | T32, T22 | exact own-domain matching and latency/II/robustness gates; 2056 raw outputs, exactly 2055 compared; final block-padding output declared; bounded drain and target-period activity |
 
 ### F4 — Optimized RTL (reduced 6-row matrix for 11-06; full 12-row on extension — C=time rows, B=freq rows, D=table)
 
@@ -86,17 +98,21 @@ Clocks: 100 MHz is the primary target; 10 MHz is an explicitly labelled fallback
 
 | ID | Task | Depends on | DoD |
 | -- | ---- | ---------- | --- |
-| T40 | Opt **time** RTL: `T-S4P1,S8P1` (reduced for 11-06; full factorial on extension) | T31 | vector matching (both rows) + Booth-share + `$readmemh`-vs-`case`-ROM paths tested; `P=1/P=2` realizability confirmed without numeric change |
-| T41 | Constraints + timing closure **time** | T40 | same SDC (`PNR/SIGNOFF` identical except period), sizing 55% util floor `200×200` (PDN-0185), die/core/util per row; 100 MHz pass or unchanged-RTL 10 MHz fallback in **separate** table |
+| T40 | Opt **time** RTL: `T-S4P1,S8P1` (reduced for 11-06; full factorial on extension) | T31 | ordinary signed arithmetic and one validated fixed-coefficient path; exact matching of both rows; P=1 realizability without numeric change; Booth and alternate ROM comparisons optional; P=2 only on extension |
+| T41 | Target-specific synthesis/timing/activity **time** | T40 (optimized), T31 (serial) | T-serial SLOW 10 MHz main, S4P1/S8P1 FAST 100 MHz main; prepare both targets, record failed/unrun results; pilot-prioritized comparative runs; retain reports, physical signoff, actual-period activity, matched-target serial deltas |
 | T42 | Opt **frequency** RTL: `F-U4,U8` (reduced for 11-06; U2/folded on extension) | T33 | vector matching + same source/bit-exact rule; `U=8` = full radix-2 butterfly parallelism |
-| T43 | Constraints + timing closure **frequency** | T42 | same rules as T41; freq VCD (C-operated pipeline) covers all 257 blocks |
-| T44 | Compared 6-row PPA table time vs freq (reduced; 12 on extension) (D owns; B/C run own-lane synth, C runs shared activity pipeline, D assembles) | T41, T43 | Pareto (area vs effective throughput, power/output when annotated) with gates (100% match + DRC/LVS/antenna + timing); fields `lane,arch,S,P,U,F,fft_n,hop,clock,timing,vector,area,die,core,util,ws/tns,hold,fmax,ii,samp_per_cycle,power,power_status,activity,coverage,drc,lvs,antenna,run_tag` + raw `resolved.json/metrics.json/csv/summary.rpt/max/min/checks/power.rpt`; derived `samp/s/um², energy/output, II`; syn-commit rule (inputs committed even if unrun; unrun≠result) |
+| T43 | Target-specific synthesis/timing/activity **frequency** | T42 (optimized), T33 (serial) | F-serial SLOW 10 MHz main, U4/U8 FAST 100 MHz main; same paired-run/evidence rules as T41; activity covers all 257 blocks |
+| T44 | PPA comparison for six base architectures (D owns; B/C synth, C activity) | T41, T43 | main-goal status and paired-run ledger; gated Pareto/deltas at matched target/corner/workload; each candidate reports improvement or regression vs own-domain serial; at least one improved axis from an optimized candidate per domain, not all axes/all variants; failed/not-comparable/unrun evidence remains explicit |
 
-> D3 interpretation for T41/T43/T44: 10 MHz is recovery, never ranked with 100 MHz passes. T44 compares only rows closed at the same target.
+> D3 interpretation: SLOW and FAST are declared target classes, not failure labels. A FAST failure remains a failed FAST goal even if its SLOW run passes. T44 compares only compatible evidence at the same target and does not attribute mixed-target gains to architecture alone.
 
 ### Delivered scope for 11-06 (decided 2026-09-25; checkpoint confirms progress)
 
-Delivery 11-06 covers exactly these 6 rows — no more, no less:
+Delivery 11-06 covers these six architectures. Architecture count is separate
+from physical run count: prepare both 10 MHz and 100 MHz runs for each, execute
+the six main objectives first, and prioritize matched-target comparative
+evidence using the first real pilot. Extra clock runs do not activate the
+twelve-architecture extension or relax any failed FAST goal.
 
 | Keep | Why it stays |
 | ---- | ------------ |
@@ -107,14 +123,38 @@ Delivery 11-06 covers exactly these 6 rows — no more, no less:
 | F-U4 | Mid replication point |
 | F-U8 | Full radix-2 butterfly parallelism; U4→U8 reads replication scaling |
 
+| Architecture | Main goal | Comparative target |
+| --- | --- | --- |
+| T-serial, F-serial | SLOW 10 MHz | 100 MHz |
+| T-S4P1, T-S8P1, F-U4, F-U8 | FAST 100 MHz | 10 MHz |
+
+T41/T43 retain both run inputs and statuses, including unrun/failed entries.
+At least one matched-target serial/optimized comparison per domain is needed
+to substantiate the required improvement; an unrun secondary configuration
+does not supply that evidence. Do not infer pilot capacity from the short
+toolchain smoke test or promise all twelve physical runs without measuring it.
+
 | Cut for 11-06 | Why it is the cheapest loss | Returns on extension |
 | ------------- | --------------------------- | -------------------- |
 | T-S2P1 | Low-parallelism trend readable from S4/S8 without it | yes |
-| T-S2P2, T-S4P2 | Pipeline (`P=2`) effect — the only sacrificed axis; the time lane still shows systolic scaling | yes |
+| T-S2P2, T-S4P2, T-S8P2 | Additional pipeline-depth (`P=2`) comparisons; the base retains registered `P=1` arithmetic and systolic scaling | yes |
 | F-U2 | Low replication trend readable from U4/U8 without it | yes |
-| F-F2 (folded) | Area/throughput contrast; the reuse argument is shown qualitatively in slides | yes |
+| F-F2 (folded) | Measured folding contrast is deferred; any qualitative discussion in slides must not imply a measured result | yes |
 
 Rules: this 6-row scope is decided (contract #18 amendment, 6-row baseline), not pending. The 10-16 checkpoint confirms progress and is the venue to request the extension (then: the full 12-row matrix resumes); otherwise the 6-row delivery stands. No matrix/RTL fork for cut rows without the extension; every datapath stays parameterized so cut rows come back by configuration, not redesign.
+
+### Base, optional experiments and excluded work (accepted 2026-10-02)
+
+| Level | Scope | Gate effect |
+| --- | --- | --- |
+| Required base | Production Q2.14/RNE, conservative 35-bit time accumulator, FFT A, required width sweep, one fixed-coefficient path, six architectures, matching/reset/handshake/flush and comparable PPA/slides/Gantt evidence | Required for phase/delivery completion. |
+| Optional experiments | Custom Booth, alternate ROM comparison, 33/34-bit accumulators, FFT B, truncation/wrap controls | Take only with capacity and base evidence; never block M2-M4 or create a new ranked base row. Any production adoption is a separate recorded change. |
+| Outside base | Extra S2/P2/U2/folded architectures, Q1.15 coefficient sensitivity, AWGN/BER/full-link analysis, writable taps, full AXI or new board-demo requirements | Explicit scope activation required; extra matrix architectures remain extension-only. An extension does not automatically activate all other extras. |
+
+Optional arithmetic/ROM work does not remove required signedness, RNE,
+overflow/saturation checks, fixed-coefficient correctness or TB `$readmemh`
+vector loading. A single correct path suffices; if alternatives are actually
+implemented, test their equivalence and report them separately from the base.
 
 ### F5 — Slides + close
 
@@ -123,31 +163,31 @@ Rules: this 6-row scope is decided (contract #18 amendment, 6-row baseline), not
 | T50 | Slides: contrast + PPA + lessons learned | T44 | PDF in `docs/slides/` (D assembles; technical plots delivered by C by 11-04); evidence per `ppa-matrix-18.md` (taps/response, SQNR, EVM vs float golden, constellation, eye/zero-ISI on canonical frame) + dormant `link-awgn-annex-35.md` if built (dual-arm float vs FXP-at-`W_common`, ideal/long TX ±8 sym — never 8-tap, `Es=2`, seed 2035, labelled interp, ideal-sync list, ≥100 errors/point, `Q(sqrt(Es/N0))`, loss at ref BER; no `vectors/rtl/tb` touch, never DoD) |
 | T51 | Actual vs planned Gantt + final demo | T50 | this table updated + `v1.1-close` tag |
 
-The T-task taxonomy above is the live execution plan. It is already instantiated as issues #38–#60 (sub-issues of map #12, owners, milestones M1–M5, native blocking); lazy sub-issues (per-row F4 splits, per-width sweep splits) are added only when their fog graduates.
+The T-task taxonomy above is the live execution plan. It is instantiated as issues #38–#60 plus shared prerequisite #67 (sub-issues of map #12, owners, milestones M1–M5, native blocking); lazy sub-issues (per-row F4 splits, per-width sweep splits) are added only when their fog graduates.
 
 ## Initial 4-way split (delivery 11-06; travel 10-15→11-08; C takes the time lane)
 
 | Person | Member | Main lane | Responsibility |
 | ------ | ------ | --------- | -------------- |
-| A | Ignacio (`iledesma08`) | Pre-travel only (no delivery tasks) | **09-28→10-14:** T10 (09-29→10-02) + T02 (09-29→10-04) + T11 (10-02→10-10) + T03 (10-06→10-12) + async reviews (T20a plan + C time-datapath plan, 10-14); **travel 10-15→11-08** — delivery happens without A; back only if extension is granted |
-| B | Juan (`JRondon23`) | Frequency lane + checkpoint co-presenter | **09-28→10-13:** T12 prep + T12 golden (needs only frozen T10); **10-13→10-29:** freq datapath + TB vs float (parameterized W) + hop-9 draft; **10-29→11-01:** coef integration + 100% match; **11-01→11-04:** reduced opt (U4/U8) + closure; **11-03→11-05:** freq synth support for T44 |
-| C | Matias (`matiascostamagna`) | Transversal + TIME lane (hottest lane — 1d stall rule) | **09-28→10-13:** T13 prep + review of T10/T11; **10-13→10-19:** T13 vectors; **10-13→10-29:** time datapath + TB vs float (parallel with vectors/F2); **10-19→10-29:** T20→T21→T22 (phases A–D only); **10-29→11-01:** coef integration + 100% match; **11-01→11-04:** reduced opt (S4P1/S8P1) + closure; **11-01→11-05:** activity runs + evidence plots (by 11-04) + vector guard |
+| A | Ignacio (`iledesma08`) | Pre-travel implementation (no delivery tasks) | **09-28→10-14:** T10 (09-29→10-02) + T02 (09-29→10-04) + T11s (#67 shared stimulus, prerequisite to T11/T12) + T11 (10-02→10-10) + T03 (10-06→10-12) + async reviews (T20a plan + C time-datapath plan, 10-14); **travel 10-15→11-08:** available for meetings via Zoom, but no implementation or delivery dependency on A |
+| B | Juan (`JRondon23`) | Frequency lane + checkpoint co-presenter | **09-28→10-13:** T12 prep + T12 golden (needs frozen T10 and shared T11s); **10-13→10-29:** freq datapath + TB vs float (parameterized W) + hop-9 draft; **10-29→11-01:** coef integration + 100% match; **11-01→11-04:** reduced opt (U4/U8) + closure; **11-03→11-05:** freq synth support for T44 |
+| C | Matias (`matiascostamagna`) | Transversal + TIME lane (hottest lane — 1d stall rule) | **09-28→10-13:** T13 prep + review of T10/T11; **10-13→10-19:** T13 references; **10-13→10-29:** structural time RTL (parallel with F2); **10-19→10-29:** T20→T21→T22 (required RNE sweep, conservative guards, FFT A); **10-29→11-01:** integer integration + matching; **11-01→11-04:** base S4P1/S8P1 + closure; **11-01→11-05:** activity + plots + vector guard; optional experiments do not consume mandatory critical-path slots |
 | D | Andres (`AndresCesana`) | PPA + close + checkpoint organizer | **09-28→10-05:** T02 co-author (JSON/SDC skeletons, A reviews) + smoke all machines; **10-05→10-19:** T44 framework + intake pipeline + slides outline; **10-19→10-29:** trial synth of both datapaths (de-risks closure); **10-29→11-05:** per-row reviews + incremental intake; **11-03→11-06:** T44 assembly + T50/T51 slides + demo + rehearsal |
 
 Rules:
 
 - Nobody merges their own PR (cross-review A↔B, C↔D).
 - C guards `sim/vectors/` (only one who regenerates).
-- A/B lanes: each lane owner runs their own synthesis (C: time lane, B: freq lane); C operates the shared activity-run pipeline producing one VCD/SAIF per row for every candidate; D owns the compared 6-row PPA table (T44) and checks same-target/activity status.
+- B/C lanes: each lane owner runs their own synthesis (C: time lane, B: freq lane); C operates the shared activity-run pipeline producing one VCD/SAIF per row for every candidate; D owns the compared 6-row PPA table (T44) and checks same-target/activity status.
 - D keeps this table and the slides up to date.
 - If a lane stalls for >2 days, ask for help and move an issue (leave a comment as record).
-- Crunch cadence 10-27→11-06: daily 15-min standup (A on Zoom until 10-15, then B/C/D); 1d stall rule for everyone in that window, replacing the 2d rule above (C keeps 1d throughout its triple stream).
-- A is unavailable 2026-10-15 – 2026-11-08 and misses both the 10-16 checkpoint and the 11-06 delivery. Handoff rule: A must leave `T10+T11+T02+T03` green on `main` (or PR ready) by 2026-10-13; A reviews the T20a plan and C's time-datapath plan async on 2026-10-14. No work may require A after 10-14.
-- B/C/D work only from frozen A outputs (`rrc8-v1` artifact, time golden, `rrc_pkg`/TB skeleton); C owns the time lane from 10-13 and B/C/D present the checkpoint. Any A question waits for a possible extension — otherwise it is decided without A and recorded.
+- Crunch cadence 10-27→11-06: daily 15-min standup for B/C/D; A may join via Zoom during travel. The 1d stall rule applies to everyone in that window, replacing the 2d rule above (C keeps 1d throughout its triple stream).
+- A is unavailable for implementation from 2026-10-15 through 2026-11-08 but remains available for meetings via Zoom, including the checkpoint. Handoff rule: A must leave `T10+T11+T02+T03` green on `main` (or PR ready) by 2026-10-13; A reviews the T20a plan and C's time-datapath plan async on 2026-10-14. No implementation or delivery gate may depend on A after 10-14.
+- B/C/D work from frozen A outputs (`rrc8-v1` artifact, time golden, `rrc_pkg`/TB skeleton); C owns the time lane from 10-13 and B/C/D prepare and present the checkpoint. A may advise remotely; B/C/D can proceed and record decisions without waiting for A.
 
 ## Estimated Gantt (delivery Fri 2026-11-06; checkpoint Fri 2026-10-16)
 
-> **How to read:** each `section` is one person. Delivery 11-06, checkpoint 10-16. A works only pre-travel; C carries transversal + time lane; zero slack — the checkpoint locks scope.
+> **How to read:** each `section` is one person. Delivery 11-06, checkpoint 10-16. A implements only pre-travel; C carries transversal + time lane. The six-row base is already decided; the checkpoint reviews progress and whether a deadline extension is needed.
 > Mermaid colors (GitHub-limited): `crit` = **red** (pre-travel/pre-checkpoint critical + leave gap), `active` = **blue** (sweep crunch), unmarked = **normal**, `milestone` = diamond.
 > Every bar names the T-task it implements; the legend below details input, output, and owner.
 
@@ -175,7 +215,7 @@ gantt
   T13 vectors C         :2026-10-13, 6d
   T30 datapath float C  :2026-10-13, 16d
   T20a model C          :2026-10-19, 3d
-  T20b-c sweep A-D C    :active, 2026-10-22, 5d
+  T21 required RNE sweep C :active, 2026-10-22, 5d
   T21-22 freeze C       :2026-10-27, 2d
   T30-31 match C        :2026-10-29, 3d
   T40-41 reduced opt C  :2026-11-01, 3d
@@ -193,51 +233,51 @@ gantt
   Delivery              :milestone, 2026-11-06, 0d
 ```
 
-> Project start Mon 2026-09-28. A leaves frozen `rrc8-v1`, time golden, and skeletons by 10-13 (red) + async reviews 10-14. Checkpoint 10-16 demos goldens + T13 progress + revised plan. Datapaths verify vs float from 10-13; `W_common` freezes 10-29; serials match by 11-01; reduced 6-row PPA + slides close 11-06.
-> Delivery Fri 2026-11-06; checkpoint Fri 2026-10-16 (professor gate: ratify the reduced matrix or grant extension).
+> Project start Mon 2026-09-28. A leaves frozen `rrc8-v1`, time golden, and skeletons by 10-13 (red) + async reviews 10-14. Checkpoint 10-16 demos goldens + T13 progress + revised plan. Structural RTL work starts 10-13; complete integer arithmetic is checked once T20 is available. Q2.14 evidence and expected codes freeze 10-29; serials match by 11-01; six-architecture PPA + slides target 11-06.
+> Delivery Fri 2026-11-06; checkpoint Fri 2026-10-16 (progress review and possible deadline extension, not ratification of the already-decided six-row base).
 > If the extension is granted, the F4–F5 block stretches while keeping dependency order.
 
 ### What each bar means
 
-**A Ignacio** — pre-travel only; misses checkpoint and delivery by design.
+**A Ignacio**: implementation before travel; available for meetings via Zoom during travel, with no delivery dependency on that availability.
 - `T00 kickoff all` (09-28, 2d): repo + project setup with everyone.
 - `T10 RRC coefficients` (09-29, 4d): `rrc8-v1` grid, values, unit-energy normalization, artifact, plots. Output unblocks `T11`/`T12`.
 - `T02 toolchain+infra` (09-29, 6d): pins, per-variant `run.sh` + top-level, lint CI, SDC template, OpenLane JSON skeletons, per-machine smoke. Output unblocks every lane.
 - `T11 time float golden` (10-02, 8d): 1024-symbol frame, edge patterns, zero insertion, full 2055-sample golden + checks. Must finish 10-10 as handoff buffer.
 - `T03 pkg+TB skeleton` (10-06, 6d): package with block params, handshake/reset shell, manifest-driven TB skeleton without frozen coefs. Output lets B/C/D work during the absence.
 - `A async reviews` (10-14, 1d): review the T20a plan and C's time-datapath plan the day before travel.
-- `A on leave travel` (10-15, 24d): travel unchanged; delivery happens without A — nothing resumes after, by design.
+- `A on leave travel` (10-15, 24d): no implementation during travel; A may attend meetings via Zoom. The delivery plan does not wait for A's return.
 
 **B Juan** — steady frequency lane; checkpoint co-presenter.
 - `T12 prep contract study` (09-28, 4d): study #13/#14/#17, set up the freq sim harness. Input: draft `T10`. Output: ready harness.
-- `T12 freq float golden` (10-02, 11d): forced-50% OLS float model + 7-check suite. Input: frozen `T10` only.
-- `T32 datapath float` (10-13, 16d): full serial freq datapath + TB vs float golden with placeholder coefs, parameterized `W`; hop-9 draft included. Input: frozen `T03+T12` only.
-- `T32-33 match` (10-29, 3d): coef-table integration + 100% match + robustness — pre-verified vs float, hence 3d.
+- `T12 freq float golden` (10-02, 11d): forced-50% OLS float model + 7-check suite. Input: frozen `T10` and shared `T11s`.
+- `T32 datapath float` (10-13, 16d): structural FFT engine, scheduler and stream/block checks using T03/T12; integrate the actual frozen integer arithmetic with Matias when T20 is available. Float checks diagnose algorithm/alignment but do not prove bit-exact FXP behavior.
+- `T32-33 match` (10-29, 3d): integrate T22 expected codes and per-variant metadata, then exact own-domain matching, flush/drain counts, latency and robustness. The three-day window is an estimate, not guaranteed by previous float checks.
 - `T42-43 reduced opt` (11-01, 3d): `F-U4`/`F-U8` + closure (U2/folded on extension).
 - `T44 freq support` (11-03, 2d): synth runs feeding D's incremental assembly.
 
 **C Matias** — transversal + time lane (hottest lane, 1d stall rule).
 - `T13 prep generator` (09-28, 15d): generator skeleton + review of `T10`/`T11` drafts.
-- `T13 golden vectors` (10-13, 6d): canonical + 3 full-length corner sets, normative manifest, per-file hashes. Compressed from 9d: skeleton pre-built, goldens frozen day one.
-- `T30 datapath float` (10-13, 16d): full serial time datapath + TB vs float golden with placeholder coefs; runs parallel with vectors/F2. A reviewed the plan 10-14.
-- `T20a model` (10-19, 3d): FXP model + SQNR + directed/tie checks (skeletons already in-tree).
-- `T20b-c sweep A-D` (10-22, 5d, blue): width/rounding/accumulator/FFT-schedule sweep + split-half check (phase E already out of scope) — the crunch both F3 lanes wait on.
-- `T21-22 freeze` (10-27, 2d): common-`Q2` ints + artifact; unblocks both serials.
-- `T30-31 match` (10-29, 3d): coef integration + 100% match (pre-verified vs float).
+- `T13 golden vectors` (10-13, 6d): generator and deterministic canonical/corner float-reference stage, with provenance/hashes. It does not require final integer expected codes or a future RTL latency.
+- `T30 datapath float` (10-13, 16d): structural time datapath/controller and algorithm checks, then T20-frozen integer operations. Float agreement is not exact integer matching. A's 10-14 review concerns the design plan, not future measured evidence.
+- `T20a model` (10-19, 3d): actual integer FXP models + SQNR + directed/tie checks; numeric FFT schedule/rounding freeze coordinated with Juan. Placeholder source files do not establish completion or prove this duration sufficient.
+- `T21 required RNE sweep` (10-22, 5d, blue): required width/SQNR frontier and Q2.14 validation using conservative guards and FFT A, plus split-half and overflow/saturation evidence. Truncation/wrap, narrow guards and FFT B do not block this slot.
+- `T21-22 freeze` (10-27, 2d): accept Q2.14 numerical evidence, report the diagnostic width frontier, and generate final per-domain integer expected codes. Failure of W=16 cannot be hidden by another width passing.
+- `T30-31 match` (10-29, 3d): final integer integration plus exact matching, measured metadata, flush counts, drain and robustness; previous float checks are not substitutes for these gates.
 - `T40-41 reduced opt` (11-01, 3d): `T-S4P1`/`T-S8P1` + closure.
 - `T44 activity+plots` (11-01, 4d): one VCD/SAIF per row as rows close + evidence plots by 11-04 + vector guard.
 
 **D Andres** — PPA + close; checkpoint organizer.
 - `T02 co-author` (09-28, 7d): OpenLane JSON/SDC skeletons (A reviews) + smoke all machines.
 - `T44 framework` (10-05, 14d): table template with auto-fill intake, slides outline from day one.
-- `D trial synth` (10-19, 10d): synthesis smoke of both datapaths — de-risks the 11-01 closure with zero RTL risk.
-- `T41-43 reviews+intake` (10-29, 7d): per-row timing review + incremental intake as rows close.
+- `D trial synth` (10-19, 10d): early synthesis and first real physical pilot as a verified candidate becomes available. Measure run capacity and prepare main/secondary target automation; smoke-only or unverified-core numbers are not final PPA evidence.
+- `T41-43 reviews+intake` (10-29, 7d): review target-specific timing/activity and incremental intake; prioritize comparative runs that establish same-target serial deltas per domain, then remaining target pairs if capacity permits.
 - `T44 assembly` (11-03, 2d): assembly-from-filled-template + Pareto defense.
 - `T50-51 slides+demo` (11-04, 2d): assembly on plots arriving from C by 11-04 + demo + rehearsal from the draft table.
 
-**Milestones + gate** — `Checkpoint demo+gate` (10-16, B/C/D): frozen set T10+T11+T12+T02/T03 + T13 progress + revised plan; ratifies the reduced matrix or triggers extension/scope-cut. `C1 retry` (10-27, 2d, conditional): consumes the freeze buffer; if triggered, emergency scope call with the professor. `Delivery` (11-06): slides + demo + tag.
+**Milestones + gate**: `Checkpoint demo+gate` (10-16, prepared by B/C/D; A may join via Zoom): frozen set T10+T11+T12+T02/T03 + T13 progress + revised plan; reviews progress and whether an extension is needed. The six-row base is already accepted. `C1 retry` (10-27, 2d, conditional): consumes the freeze buffer; if triggered, emergency scope call with the professor. `Delivery` (11-06): slides + demo + tag.
 
-**Travel + zero-slack audit:** A misses checkpoint and delivery by design — everything after 10-14 runs without A. The plan has zero slack: any >1d slip before 10-29 consumes the freeze buffer; any slip after 10-29 goes straight to the checkpoint-agreed fallback (reduced scope or extension). C's 10-13→10-29 triple stream is the hottest spot (1d stall rule, D absorbs plots/activity as backup).
+**Travel + zero-slack audit:** implementation and delivery after 10-14 do not depend on A; remote meeting participation is supported. The plan has zero slack: any >1d slip before 10-29 consumes the freeze buffer; any slip after 10-29 requires an explicit recovery decision (scope change or extension), not automatic activation of additional rows. C's 10-13→10-29 triple stream is the hottest spot (1d stall rule, D absorbs plots/activity as backup).
 
 ### Couplings: where the Gantt is truly parallel vs gated
 
@@ -246,9 +286,10 @@ Truly parallel (no shared gate): B vs C lanes from 10-13 (same T03 skeleton, sep
 | # | Coupling | Window | Slack / shock absorber |
 |---|----------|--------|------------------------|
 | 1 | A→all: T03 + T11 frozen | until 10-13 | Handoff 10-13 + async reviews 10-14; single supplier, thin but sufficient buffer |
-| 2 | T22 (C) gates both match windows | 10-29→11-01 | Float-first RTL: datapaths + TBs verify vs float for 16d, so a T22 slip delays but invalidates nothing |
+| 2 | T20 numeric freeze + T22 expectations gate final matching | 10-19→11-01 | Structural RTL can proceed earlier; exact arithmetic must agree with T20. Float checks cannot guarantee that only the coefficient table changes at integration. |
 | 3 | Opt rows → D assembly + C plots | 11-03→11-05 | Incremental intake from 10-29; serial/FXP plots advanceable, only opt-row EVM arrives last; zero slack regardless |
 | 4 | Checkpoint set frozen 10-15 | 10-15→10-16 | Set completes 10-12/10-13 by plan: 2–3d of air |
+| 5 | T11s (#67) → T11/T12 shared input | Before T11/T12 integration | One deterministic source unblocks both lanes; T10 remains an independent coefficient dependency |
 
 Non-issues: machine contention (all four run Nix/OpenLane locally per #19 — no shared runner); C's triple stream is load, not a dependency, with priority T13 > freeze > datapath-finish and D absorbing plots/activity as backup.
 
@@ -257,16 +298,16 @@ Non-issues: machine contention (all four run Nix/OpenLane locally per #19 — no
 | Risk | Mitigation |
 | ---- | ---------- |
 | FFT/IFFT does not match time | T12 forced-50% schedule + 7-check suite (`rtol=1e-10,atol=1e-12`) from day 1; no unexplained shift |
-| SQNR never reaches 40 dB | Phased sweep A–D (width + rounding + accumulator + FFT A/B) + split-half check before RTL; extend to 20, never lower threshold |
-| 100 MHz timing does not close | Same-SDC + sizing rule; unchanged-RTL 10 MHz fallback in separate table; request early review |
+| Production Q2.14 fails numerical gates | Retain the diagnostic sweep, correct internal arithmetic/scaling and repeat evidence; any external-format change is a recorded decision, never automatic widening or lower SQNR. |
+| FAST 100 MHz timing does not close | Record failed FAST goal; a successful secondary SLOW run does not fulfill it. Request early review and explicit recovery; matched-target evidence only. |
 | Vectors edited by hand / manifest drift | `sim/vectors/README` + CONTRIBUTING + per-file `.sha256` CI gate; TB reads manifest, never hardcodes; C is sole regenerator |
 | Professor gate (hop-9) | Keep hop-8 baseline; B drafts proposal (option c) with the datapath; checkpoint presents it; hop params, no RTL fork until approval |
-| PPA matrix overload (reduced scope) | One parameterized source, 6 rows for 11-06; B/C run own-lane synth, C runs activity pipeline, D owns table; syn-commit rule |
+| PPA run capacity | Six architectures, twelve prepared target runs: main objectives first, matched-target improvement evidence next, remaining pairs by measured pilot capacity. Extra architectures remain extension-only. |
 | D end-funnel (table+slides pile up Nov04) | Incremental intake from 10-29, C plots by 11-04, assembly-from-template 11-03; rehearsal starts on a draft table, never on empty docs |
 | Power ranked without activity | VCD/SAIF full-257 per candidate; unannotated = estimate, excluded from dynamic ranking |
-| A misses checkpoint + delivery (travel 10-15–11-08) | Handoff green by 10-13 + async reviews 10-14; checkpoint demo frozen 10-15 by B/C/D; delivery scope needs no A by construction |
-| Zero slack to 11-06 | Any >1d slip before 10-29 eats the freeze buffer; after 10-29 it hits the checkpoint-agreed fallback (scope cut or extension) |
+| A unavailable for implementation (travel 10-15–11-08) | Handoff green by 10-13 + async reviews 10-14; checkpoint demo frozen 10-15 by B/C/D; A may attend via Zoom but delivery scope needs no A by construction |
+| Zero slack to 11-06 | Any >1d slip before 10-29 eats the freeze buffer; after 10-29 it requires an explicitly agreed scope change or extension |
 | Reduced matrix scope | Decided 6-row base (contract #18 amendment); checkpoint is a progress gate + extension venue, not a scope decision |
 | C triple-stream 10-13→10-29 | 1d stall rule on the C lane; D absorbs plots/activity early as backup; datapath pre-verified vs float de-risks matching |
-| 3d serial match | Credible only because datapaths + TBs verify vs float for 16d first; the int coef swap is the only delta |
+| 3d serial match | Requires actual integer-model alignment before integration. Float prechecks do not guarantee bit-exactness; report arithmetic/flush/drain slips immediately rather than assuming a table-only swap. |
 | One lane races ahead | Weekly cross-reviews + actual Gantt in T51 |

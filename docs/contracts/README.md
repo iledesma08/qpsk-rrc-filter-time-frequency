@@ -14,13 +14,13 @@ checks.
 | [frequency-block-contract-14.md](frequency-block-contract-14.md) | #14 (closed) | Accepted D1; D2 via #15; D3 deferred | Forced-50% OLS (`N=16`, `H=8`, discard `z[0:8]`, emit `z[8:16]`), OLA comparison, professor gate, and the concept FAQ. |
 | [qpsk-stimulus-15.md](qpsk-stimulus-15.md) | #15 (closed) | Accepted D1-D8 | 1024 symbols, `default_rng(2026)`, edge patterns, zero-insertion upsampling, and the full causal output window. |
 | [fxp-common-width-16.md](fxp-common-width-16.md) | #16 (closed) | Research report — historical, superseded fields in Resolution Status; normative is fxp-policy-16.md | Long-form FXP study that backs `fxp-policy-16.md`. |
-| [fxp-policy-16.md](fxp-policy-16.md) | #16 (closed) | Accepted D1-D9 | Common `Q2.(W-2)`, phased `W=8..18` sweep, RNE/saturation policy, and the manifest schema. |
-| [rtl-streaming-17.md](rtl-streaming-17.md) | #17 (closed) | Accepted D1-D9 | `valid`/`ready` handshake, reset synchronizer, packed `{Q,I}`, latency declaration, and frequency block parameters. |
-| [vector-manifest-schema.md](vector-manifest-schema.md) | #15/#16/#17 (via #12) | Normative | Single vector-manifest schema (stimulus + FXP + streaming + hashes); per-doc lists are non-normative examples. |
+| [fxp-policy-16.md](fxp-policy-16.md) | #16 (closed) | Accepted D1-D9; format and base-scope amendments 2026-10-02 | Production Q2.14/RNE, conservative guards, frequency A, mandatory width sweep and integer freeze; truncation/wrap, narrow guards and frequency B are optional. |
+| [rtl-streaming-17.md](rtl-streaming-17.md) | #17 (closed) | Accepted D1-D9; finite-frame amendment 2026-10-02 | `valid`/`ready`, reset, packed `{Q,I}`, latency, and explicit flush/drain counts for the full causal window. |
+| [vector-manifest-schema.md](vector-manifest-schema.md) | #15/#16/#17 (via #12) | Normative; lifecycle amendment 2026-10-02 | Staged float reference, Q2.14 integer expectations, and per-variant RTL matching metadata with hashes and transport counts. |
 | [ppa-experiment-matrix-18.md](ppa-experiment-matrix-18.md) | #18 (closed) | Research report — historical, superseded fields in Resolution Status; normative is ppa-matrix-18.md | Long-form PPA matrix study that backs `ppa-matrix-18.md`. |
-| [ppa-matrix-18.md](ppa-matrix-18.md) | #18 (closed) | Accepted D1-D9, D1 amended 2026-09-25 to a 6-row base (12-row on extension) | 6-row base matrix (serials + S4/S8 + U4/U8), factor definitions, canonical workload, controlled conditions, VCD/SAIF power policy, and Pareto ranking. |
+| [ppa-matrix-18.md](ppa-matrix-18.md) | #18 (closed) | Six-architecture base; target/evidence amendment 2026-10-02 | Serial SLOW 10 MHz and optimized FAST 100 MHz main targets, paired comparative runs, valid activity, and same-domain serial improvement evidence. Additional architectures remain extension-only. |
 | [openlane-env-19.md](openlane-env-19.md) | #19 (closed) | Task record | Verified Nix/OpenLane/PDK, smoke test, report paths, and the small-design PDN fix. |
-| [link-awgn-annex-35.md](link-awgn-annex-35.md) | #35 (open) | Accepted D1-D8; dormant until built | Optional Python-only AWGN link annex (F5): chain, noise model, timing, significance rule; no RTL/vector/TB/DoD changes. |
+| [link-awgn-annex-35.md](link-awgn-annex-35.md) | #35 (open) | Accepted D1-D8; outside base, dormant pending explicit activation | Python-only AWGN link annex: chain, noise model, timing and significance; no RTL/vector/TB/DoD changes and no delivery blocker. |
 
 Original research branches remain as history; the copies in this folder are
 the maintained ones.
