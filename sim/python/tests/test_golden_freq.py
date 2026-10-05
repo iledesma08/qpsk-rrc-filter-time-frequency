@@ -1,9 +1,12 @@
 """Contract checks for the forced-50% frequency-domain golden model."""
 
+import hashlib
 import json
+from pathlib import Path
 
 import numpy as np
 
+import golden_freq
 from golden_freq import (
     FILTER_LENGTH,
     HOP_LENGTH,
@@ -14,6 +17,14 @@ from golden_freq import (
 )
 from rrc_coefs import load_rrc8_coefficients
 from stimulus import generate_canonical_samples
+
+
+def _sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _canonical_array_bytes(values: np.ndarray) -> bytes:
+    return np.asarray(values, dtype="<c16").tobytes()
 
 
 def _overlap_add(samples, coefficients):
@@ -177,4 +188,40 @@ def test_frequency_evidence_writes_plots_and_manifest(tmp_path):
     assert (comparison_dir / "canonical_time_frequency_comparison.png").is_file()
     assert (output_dir / "ols_boundaries.png").is_file()
     assert (output_dir / "impulse_response.png").is_file()
-    assert all(len(digest) == 64 for digest in manifest["plot_sha256"].values())
+
+    base_dir = output_dir.parent
+    for plot_name, relative_path in manifest["plots"].items():
+        file_path = base_dir / relative_path
+        assert file_path.is_file()
+        assert manifest["plot_sha256"][plot_name] == _sha256_bytes(file_path.read_bytes())
+
+    samples = generate_canonical_samples()
+    coefficients = load_rrc8_coefficients()
+    assert manifest["input"]["input_samples_sha256"] == _sha256_bytes(_canonical_array_bytes(samples))
+    assert manifest["input"]["coefficients_sha256"] == _sha256_bytes(_canonical_array_bytes(coefficients))
+
+    golden_time_path = Path(golden_freq.__file__).with_name("golden_time.py")
+    golden_freq_path = Path(golden_freq.__file__)
+    assert manifest["provenance"]["golden_time_source_sha256"] == _sha256_bytes(golden_time_path.read_bytes())
+    assert manifest["provenance"]["golden_frequency_source_sha256"] == _sha256_bytes(golden_freq_path.read_bytes())
+    assert manifest["provenance"]["evidence_generator"]["sha256"] == _sha256_bytes(golden_freq_path.read_bytes())
+
+    assert manifest["provenance"]["evidence_generator"]["source"] == "golden_freq.py:generate_frequency_evidence"
+    assert all(isinstance(manifest["provenance"]["versions"][name], str) for name in ("python", "numpy", "scipy", "matplotlib"))
+
+
+def test_frequency_evidence_handles_non_sibling_directories(tmp_path):
+    output_dir = tmp_path / "root" / "t12-freq-golden"
+    comparison_dir = tmp_path / "other" / "golden_comparison"
+    manifest_path = generate_frequency_evidence(output_dir, comparison_dir)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    base_dir = output_dir.parent
+    for plot_name, relative_path in manifest["plots"].items():
+        file_path = base_dir / relative_path
+        assert file_path.is_file()
+        assert manifest["plot_sha256"][plot_name] == _sha256_bytes(file_path.read_bytes())
+
+    assert manifest["plots"]["golden_comparison"].startswith("../")
+    assert manifest["plots"]["ols_boundaries"] == "t12-freq-golden/ols_boundaries.png"
+    assert manifest["plots"]["impulse_response"] == "t12-freq-golden/impulse_response.png"

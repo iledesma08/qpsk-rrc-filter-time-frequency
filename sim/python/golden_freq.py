@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import os
 import platform
 from collections.abc import Iterator
 from pathlib import Path
@@ -126,6 +127,7 @@ def generate_frequency_evidence(
 	axes[1].legend()
 	axes[2].plot(indices, absolute_error, color="black", linewidth=0.8)
 	axes[2].set(xlabel="Sample index", ylabel="Absolute error", xlim=(0, len(indices) - 1))
+	axes[2].set_ylim(bottom=0)
 	fig.suptitle(
 		f"Float goldens: max |y_freq - y_time| = {maximum_absolute_error:.3e}; "
 		f"rtol={_RTOL:g}, atol={_ATOL:g}"
@@ -147,11 +149,16 @@ def generate_frequency_evidence(
 		axis.plot(window_indices, frequency_output.imag[start:stop], "x--", label="Frequency Q", markersize=4)
 		for boundary in range(((start // HOP_LENGTH) + 1) * HOP_LENGTH, stop, HOP_LENGTH):
 			axis.axvline(boundary - 0.5, color="gray", linestyle=":", linewidth=0.8)
-		axis.set(xlim=(start - 0.5, stop - 0.5), ylabel="Amplitude")
+		axis.set(xlim=(start - 0.5, stop - 0.5), ylim=(-1.05, 1.05), ylabel="Amplitude")
 		axis.set_title(f"Output samples {start}–{stop - 1}")
 		axis.grid(alpha=0.25)
 		axis.legend(ncol=4, fontsize="small")
-	axes[-1].axvline(len(frequency_output) - 0.5, color="red", linestyle="--", label="Causal output limit")
+	last_start = 2032
+	last_stop = len(frequency_output)
+	axes[-1].set(xlim=(last_start - 0.5, last_stop + 0.5), ylim=(-1.05, 1.05))
+	axes[-1].axvspan(last_stop - 0.5, last_stop + 0.5, color="lightgray", alpha=0.35, label="Discarded padding")
+	axes[-1].axvline(last_stop - 0.5, color="red", linestyle="--", label="Causal output limit")
+	axes[-1].legend(ncol=4, fontsize="small")
 	axes[-1].set_xlabel("Sample index (vertical dotted lines: hop boundaries every 8 samples)")
 	fig.suptitle("Forced-50% OLS boundaries: 2056 scheduled positions, 2055 causal samples retained")
 	fig.tight_layout()
@@ -183,7 +190,10 @@ def generate_frequency_evidence(
 		"ols_boundaries": boundary_path,
 		"impulse_response": impulse_path,
 	}
-	plot_names = {name: path.relative_to(output_dir.parent).as_posix() for name, path in plot_paths.items()}
+	plot_names = {
+		name: Path(os.path.relpath(path, start=output_dir.parent)).as_posix()
+		for name, path in plot_paths.items()
+	}
 	manifest = {
 		"evidence_version": "t12-freq-golden-v1",
 		"stage": "floating_point_reference",

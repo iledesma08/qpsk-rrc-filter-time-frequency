@@ -39,6 +39,6 @@ python sim/python/golden_freq.py \
 	--comparison-output-dir sim/python/artifacts/golden_comparison
 ```
 
-The T12 directory contains `ols_boundaries.png`, `impulse_response.png`, and `evidence_manifest.json`. The comparison directory contains `canonical_time_frequency_comparison.png`. The manifest records the canonical input and coefficient hashes, forced-50% OLS schedule, valid output window, time/frequency error, source and plot hashes, and tool versions. This is floating-point reference evidence only; it is not FXP or RTL evidence.
+The T12 directory contains `ols_boundaries.png`, `impulse_response.png`, and `evidence_manifest.json`. The comparison directory contains `canonical_time_frequency_comparison.png`. The manifest records the canonical input and coefficient hashes, forced-50% OLS schedule, valid output window, time/frequency error, source and plot hashes, and tool versions. This is floating-point reference evidence only; it is not FXP or RTL evidence. The entries in `manifest["plots"]` are resolved relative to `output_dir.parent` (equivalent to `manifest_path.parent.parent` for the generated T12 manifest), so a comparison directory outside that parent is recorded with `../` segments instead of failing with a `ValueError`.
 
 The shared time/frequency integration check lives in `tests/test_golden_equivalence.py`; the frequency-specific tests continue to exercise the public filter and its OLS block selector.

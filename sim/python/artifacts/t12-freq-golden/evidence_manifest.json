@@ -16,9 +16,9 @@
     "symbol_count": 1024
   },
   "plot_sha256": {
-    "golden_comparison": "b66549cf32d2835ebe9d0c0c12e47b64ba1296f667d78cbb69eb4a9ade92f75e",
+    "golden_comparison": "f969185be1241a141ef2a31b98759607f3c233a90019b36e93c67f1d9d016ced",
     "impulse_response": "306a1d548d589fef541ab7876cff77a6a2634a442f569b278f9a3491b3473bc8",
-    "ols_boundaries": "46b2d10fb3a808c8c510ddb4ae48cd9acba1788d5a7187205fb1cb17daeeb4f3"
+    "ols_boundaries": "5ccdf6de986cec4f93055898d42c6b433851f8c1b9cad3f828c91c98c916dad3"
   },
   "plots": {
     "golden_comparison": "golden_comparison/canonical_time_frequency_comparison.png",
@@ -52,10 +52,10 @@
   },
   "provenance": {
     "evidence_generator": {
-      "sha256": "abe74030c28e58a538be1c54922c0e978586b933151177dca1fb4888ef1dc9e8",
+      "sha256": "f76a27163a520a106af791d79bcdba97ed8e8a1edaff5de674b81937cd922674",
       "source": "golden_freq.py:generate_frequency_evidence"
     },
-    "golden_frequency_source_sha256": "abe74030c28e58a538be1c54922c0e978586b933151177dca1fb4888ef1dc9e8",
+    "golden_frequency_source_sha256": "f76a27163a520a106af791d79bcdba97ed8e8a1edaff5de674b81937cd922674",
     "golden_time_source_sha256": "a9d32a70f90bfbff02153a530d2307dc8befcca77db776d9f571ef76b6e0b5bc",
     "versions": {
       "matplotlib": "3.11.2",
