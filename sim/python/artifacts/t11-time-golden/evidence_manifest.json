@@ -35,11 +35,18 @@
   },
   "folded_window_count": 896,
   "frequency_units": "cycles/symbol",
+  "hash_serialization": {
+    "algorithm": "SHA-256",
+    "array_order": "C",
+    "byte_order": "little-endian",
+    "coefficients_dtype": "<f8",
+    "samples_dtype": "<c16"
+  },
   "input_coefficients_sha256": "7747ce687f02603cb7aefe2192e796b7ae9acea6a5861fc1b76bfd2f8c3301ba",
   "input_samples": 2048,
   "input_samples_sha256": "d805588396a3eefd3b2895601856f929a99bfeaa32dd1f05879b477dc774c132",
   "interpolation": "none",
-  "model_source_sha256": "a9d32a70f90bfbff02153a530d2307dc8befcca77db776d9f571ef76b6e0b5bc",
+  "model_source_sha256": "91616464f7516077500c5c9e8b241dce667de105cbdafce02f3dbbf4c7d2a6ac",
   "output_samples": 2055,
   "plot_sha256": {
     "folded_samples_natural_grid.png": "96172190eb7dbf6cfb96074f1c2a11f1b7af89a3aca16f11e73679385eb49ebc",

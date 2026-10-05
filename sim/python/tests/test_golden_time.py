@@ -11,6 +11,14 @@ from golden_time import _filter_time_domain, _folded_sample_windows, generate_ti
 from rrc_coefs import load_rrc8_coefficients
 from stimulus import generate_canonical_samples
 
+_EXPECTED_HASH_SERIALIZATION = {
+    "algorithm": "SHA-256",
+    "array_order": "C",
+    "byte_order": "little-endian",
+    "samples_dtype": "<c16",
+    "coefficients_dtype": "<f8",
+}
+
 
 def test_time_golden_emits_the_full_causal_output():
     samples = generate_canonical_samples()
@@ -100,11 +108,16 @@ def test_evidence_uses_canonical_frame_and_natural_grid(tmp_path, monkeypatch):
         },
     }
     assert manifest["plots"] == ["folded_samples_natural_grid.png", "spectrum.png"]
+    assert manifest["hash_serialization"] == _EXPECTED_HASH_SERIALIZATION
     assert "model_source_sha256" in manifest
     assert "generator_sha256" not in manifest
     assert manifest["model_source_sha256"] == hashlib.sha256(Path(golden_time.__file__).read_bytes()).hexdigest()
-    assert manifest["input_samples_sha256"] == hashlib.sha256(samples.tobytes()).hexdigest()
-    assert manifest["input_coefficients_sha256"] == hashlib.sha256(coefficients.tobytes()).hexdigest()
+    assert manifest["input_samples_sha256"] == hashlib.sha256(
+        np.asarray(samples, dtype="<c16").tobytes(order="C")
+    ).hexdigest()
+    assert manifest["input_coefficients_sha256"] == hashlib.sha256(
+        np.asarray(coefficients, dtype="<f8").tobytes(order="C")
+    ).hexdigest()
 
     expected_phase, expected_i, expected_q = _folded_sample_windows(output)
     eye_lines = captured_axes[0].lines
