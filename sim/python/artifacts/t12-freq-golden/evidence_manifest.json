@@ -6,9 +6,16 @@
     "time_frequency_allclose": true
   },
   "evidence_version": "t12-freq-golden-v1",
+  "hash_serialization": {
+    "algorithm": "SHA-256",
+    "array_order": "C",
+    "byte_order": "little-endian",
+    "coefficients_dtype": "<f8",
+    "samples_dtype": "<c16"
+  },
   "input": {
     "coefficient_artifact": "rrc8-v1",
-    "coefficients_sha256": "db2dd3ecbb7be99272e81632280e2223705552833de6d392fc09b98dd87a00bb",
+    "coefficients_sha256": "7747ce687f02603cb7aefe2192e796b7ae9acea6a5861fc1b76bfd2f8c3301ba",
     "input_samples": 2048,
     "input_samples_sha256": "d805588396a3eefd3b2895601856f929a99bfeaa32dd1f05879b477dc774c132",
     "random_seed": 2026,
@@ -52,11 +59,11 @@
   },
   "provenance": {
     "evidence_generator": {
-      "sha256": "f76a27163a520a106af791d79bcdba97ed8e8a1edaff5de674b81937cd922674",
+      "sha256": "d4c07702ee11bf5cd10f85992af64fd7c3deab33e79843c44456af35b197e7cf",
       "source": "golden_freq.py:generate_frequency_evidence"
     },
-    "golden_frequency_source_sha256": "f76a27163a520a106af791d79bcdba97ed8e8a1edaff5de674b81937cd922674",
-    "golden_time_source_sha256": "a9d32a70f90bfbff02153a530d2307dc8befcca77db776d9f571ef76b6e0b5bc",
+    "golden_frequency_source_sha256": "d4c07702ee11bf5cd10f85992af64fd7c3deab33e79843c44456af35b197e7cf",
+    "golden_time_source_sha256": "91616464f7516077500c5c9e8b241dce667de105cbdafce02f3dbbf4c7d2a6ac",
     "versions": {
       "matplotlib": "3.11.2",
       "numpy": "2.5.3",

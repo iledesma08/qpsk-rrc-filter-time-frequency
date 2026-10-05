@@ -23,6 +23,18 @@ _FOLDED_ALPHA = 0.75
 _FOLDED_MARKER_SIZE = 3.5
 _FOLDED_MARKER_EDGE_WIDTH = 0.9
 _DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parent / "artifacts" / "t11-time-golden"
+_HASH_SERIALIZATION = {
+    "algorithm": "SHA-256",
+    "array_order": "C",
+    "byte_order": "little-endian",
+    "samples_dtype": "<c16",
+    "coefficients_dtype": "<f8",
+}
+
+
+def _array_sha256(values: np.ndarray, dtype: str) -> str:
+    canonical_values = np.asarray(values, dtype=dtype)
+    return hashlib.sha256(canonical_values.tobytes(order="C")).hexdigest()
 
 
 def _filter_time_domain(samples: np.ndarray, coefficients: np.ndarray) -> np.ndarray:
@@ -158,9 +170,10 @@ def generate_time_evidence(output_dir: Path) -> Path:
             },
         },
         "plots": plot_names,
+        "hash_serialization": _HASH_SERIALIZATION,
         "model_source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-        "input_samples_sha256": hashlib.sha256(samples.tobytes()).hexdigest(),
-        "input_coefficients_sha256": hashlib.sha256(coefficients.tobytes()).hexdigest(),
+        "input_samples_sha256": _array_sha256(samples, _HASH_SERIALIZATION["samples_dtype"]),
+        "input_coefficients_sha256": _array_sha256(coefficients, _HASH_SERIALIZATION["coefficients_dtype"]),
         "plot_sha256": {
             name: hashlib.sha256((output_dir / name).read_bytes()).hexdigest()
             for name in plot_names

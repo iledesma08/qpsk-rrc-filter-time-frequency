@@ -25,6 +25,13 @@ _RTOL = 1e-10
 _ATOL = 1e-12
 _DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parent / "artifacts" / "t12-freq-golden"
 _DEFAULT_COMPARISON_DIR = Path(__file__).resolve().parent / "artifacts" / "golden_comparison"
+_HASH_SERIALIZATION = {
+	"algorithm": "SHA-256",
+	"array_order": "C",
+	"byte_order": "little-endian",
+	"samples_dtype": "<c16",
+	"coefficients_dtype": "<f8",
+}
 
 
 def _iter_ols_blocks(
@@ -90,8 +97,8 @@ def _sha256_bytes(data: bytes) -> str:
 	return hashlib.sha256(data).hexdigest()
 
 
-def _canonical_array_bytes(values: np.ndarray) -> bytes:
-	return np.asarray(values, dtype="<c16").tobytes()
+def _canonical_array_bytes(values: np.ndarray, dtype: str) -> bytes:
+	return np.asarray(values, dtype=dtype).tobytes(order="C")
 
 
 def generate_frequency_evidence(
@@ -197,14 +204,19 @@ def generate_frequency_evidence(
 	manifest = {
 		"evidence_version": "t12-freq-golden-v1",
 		"stage": "floating_point_reference",
+		"hash_serialization": _HASH_SERIALIZATION,
 		"input": {
 			"stimulus_version": "qpsk-stim-15-v1",
 			"coefficient_artifact": "rrc8-v1",
 			"random_seed": _RANDOM_SEED,
 			"symbol_count": _SYMBOL_COUNT,
 			"input_samples": int(samples.size),
-			"input_samples_sha256": _sha256_bytes(_canonical_array_bytes(samples)),
-			"coefficients_sha256": _sha256_bytes(_canonical_array_bytes(coefficients)),
+			"input_samples_sha256": _sha256_bytes(
+				_canonical_array_bytes(samples, _HASH_SERIALIZATION["samples_dtype"])
+			),
+			"coefficients_sha256": _sha256_bytes(
+				_canonical_array_bytes(coefficients, _HASH_SERIALIZATION["coefficients_dtype"])
+			),
 		},
 		"schedule": {
 			"fft_length": FFT_LENGTH,

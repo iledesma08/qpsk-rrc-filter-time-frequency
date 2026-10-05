@@ -18,13 +18,21 @@ from golden_freq import (
 from rrc_coefs import load_rrc8_coefficients
 from stimulus import generate_canonical_samples
 
+_EXPECTED_HASH_SERIALIZATION = {
+    "algorithm": "SHA-256",
+    "array_order": "C",
+    "byte_order": "little-endian",
+    "samples_dtype": "<c16",
+    "coefficients_dtype": "<f8",
+}
+
 
 def _sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _canonical_array_bytes(values: np.ndarray) -> bytes:
-    return np.asarray(values, dtype="<c16").tobytes()
+def _canonical_array_bytes(values: np.ndarray, dtype: str = "<c16") -> bytes:
+    return np.asarray(values, dtype=dtype).tobytes(order="C")
 
 
 def _overlap_add(samples, coefficients):
@@ -173,6 +181,7 @@ def test_frequency_evidence_writes_plots_and_manifest(tmp_path):
 
     assert manifest_path == output_dir / "evidence_manifest.json"
     assert manifest["stage"] == "floating_point_reference"
+    assert manifest["hash_serialization"] == _EXPECTED_HASH_SERIALIZATION
     assert manifest["input"]["stimulus_version"] == "qpsk-stim-15-v1"
     assert manifest["input"]["coefficient_artifact"] == "rrc8-v1"
     assert manifest["schedule"]["scheduled_output_positions"] == 2056
@@ -198,7 +207,9 @@ def test_frequency_evidence_writes_plots_and_manifest(tmp_path):
     samples = generate_canonical_samples()
     coefficients = load_rrc8_coefficients()
     assert manifest["input"]["input_samples_sha256"] == _sha256_bytes(_canonical_array_bytes(samples))
-    assert manifest["input"]["coefficients_sha256"] == _sha256_bytes(_canonical_array_bytes(coefficients))
+    assert manifest["input"]["coefficients_sha256"] == _sha256_bytes(
+        _canonical_array_bytes(coefficients, _EXPECTED_HASH_SERIALIZATION["coefficients_dtype"])
+    )
 
     golden_time_path = Path(golden_freq.__file__).with_name("golden_time.py")
     golden_freq_path = Path(golden_freq.__file__)
