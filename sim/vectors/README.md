@@ -44,3 +44,5 @@ evidence manifests. They are Python-side references for F2. They are not packed
 `.hex` records and are never RTL expected codes. F1 writes no `.hex` and no
 `vector_manifest.svh`. Those arrive with `fxp_expected` (T22) and
 `rtl_matching` (T31/T33).
+
+Review plots of these vectors are separate evidence in `sim/python/artifacts/t13-reference-vectors/` (`gen_vectors.py --plots-dir`). They are never written here: this folder holds only generated payloads, manifests, and sidecars.

@@ -237,3 +237,35 @@ def test_pack_qi_records_sign_extends_narrow_widths():
 def test_pack_qi_records_rejects_floats_out_of_range_and_wide_records(i_codes, q_codes, width, error):
     with pytest.raises(error):
         pack_qi_records(i_codes, q_codes, width=width)
+
+
+def test_vector_plots_are_evidence_outside_the_vector_tree(generated, tmp_path):
+    from plot_vectors import generate_vector_plots
+
+    output_dir, _ = generated
+    before = _tree_bytes(output_dir)
+    manifest_path = generate_vector_plots(output_dir, tmp_path)
+    manifest = _load(manifest_path)
+
+    assert _tree_bytes(output_dir) == before
+    assert manifest["plots"] == [
+        "canonical_none.png",
+        "sys_corners_corner_repeat.png",
+        "sys_corners_max_alternation.png",
+        "sys_corners_single_symbol_perturbation.png",
+        "time_frequency_agreement.png",
+    ]
+    for name, digest in manifest["plot_sha256"].items():
+        assert digest == hashlib.sha256((tmp_path / name).read_bytes()).hexdigest()
+    for name, digest in manifest["vector_payload_sha256"].items():
+        assert digest == hashlib.sha256((output_dir / name).read_bytes()).hexdigest()
+    assert len(manifest["vector_payload_sha256"]) == 3 * len(_EXPECTED_FRAMES)
+    assert max(manifest["max_abs_time_frequency_error"].values()) < manifest["atol"]
+
+
+def test_plots_dir_flag_is_float_reference_only(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr("sys.argv", ["gen_vectors.py", "--stage", "fxp_expected", "--plots-dir", str(tmp_path)])
+
+    with pytest.raises(SystemExit):
+        gen_vectors.main()
+    assert "--plots-dir" in capsys.readouterr().err

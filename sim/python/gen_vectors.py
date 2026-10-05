@@ -331,10 +331,21 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate staged golden vectors (T13: float_reference)")
     parser.add_argument("--stage", choices=STAGES, default="float_reference")
     parser.add_argument("--output-dir", type=Path, default=_DEFAULT_OUTPUT_DIR)
+    parser.add_argument(
+        "--plots-dir",
+        type=Path,
+        help="also write review-evidence plots of the float_reference vectors (not part of the vectors)",
+    )
     args = parser.parse_args()
+    if args.plots_dir is not None and args.stage != "float_reference":
+        parser.error("--plots-dir is only available for --stage float_reference")
     if args.stage == "float_reference":
         for path in generate_float_reference(args.output_dir):
             print(path)
+        if args.plots_dir is not None:
+            from plot_vectors import generate_vector_plots
+
+            print(generate_vector_plots(args.output_dir, args.plots_dir))
     elif args.stage == "fxp_expected":
         export_fxp_expected(args.output_dir)
     else:
