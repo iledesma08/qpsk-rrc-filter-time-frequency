@@ -5,9 +5,7 @@ set -euo pipefail
 vector_dir="${1:-sim/vectors}"
 status=0
 
-for vector in "$vector_dir"/*; do
-  [[ -f "$vector" ]] || continue
-
+while IFS= read -r -d '' vector; do
   case "$vector" in
     */README.md|*.sha256)
       continue
@@ -28,6 +26,6 @@ for vector in "$vector_dir"/*; do
     printf 'Checksum mismatch for generated vector: %s\n' "$vector" >&2
     status=1
   fi
-done
+done < <(find "$vector_dir" -type f -print0 | sort -z)
 
 exit "$status"

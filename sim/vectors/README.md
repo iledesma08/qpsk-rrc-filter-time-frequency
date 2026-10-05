@@ -20,4 +20,27 @@ must not invent future RTL latency. See the normative lifecycle in the schema.
 - CSV is optional for Python analysis and is not consumed by RTL.
 - If a test fails, regenerate with the script; never edit the vector.
 
-Placeholder: this README keeps the folder in git.
+## F1 float references (T13)
+
+Regenerate with (Matias is the sole regenerator):
+
+```bash
+python sim/python/gen_vectors.py --stage float_reference --output-dir sim/vectors
+```
+
+Layout: `float_reference/<vector_set>/<vector_case>/`, one directory per frame
+(`canonical/none` and `sys_corners/{corner_repeat,max_alternation,single_symbol_perturbation}`):
+
+- `input_samples.c16.bin`: the 2048 zero-inserted input samples.
+- `reference_time.c16.bin`, `reference_freq.c16.bin`: the 2055-sample full
+  causal float64 references of each domain.
+- `manifest_time.json`, `manifest_freq.json`: `artifact_stage: float_reference`,
+  `model_domain`, schema section 1 stimulus fields, provenance, and file hashes.
+- A `<file>.sha256` sidecar (`sha256sum` format) for every file above.
+
+The `.c16.bin` payloads are raw C-order little-endian complex128 (`<c16`) with
+no header, so each file's SHA-256 equals the array hash recorded by the T11/T12
+evidence manifests. They are Python-side references for F2. They are not packed
+`.hex` records and are never RTL expected codes. F1 writes no `.hex` and no
+`vector_manifest.svh`. Those arrive with `fxp_expected` (T22) and
+`rtl_matching` (T31/T33).

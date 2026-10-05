@@ -1,0 +1,62 @@
+{
+  "artifact_stage": "float_reference",
+  "edge_pattern_symbols": 40,
+  "float_agreement": {
+    "atol": 1e-12,
+    "compared_with": "frequency",
+    "max_abs_error": 3.1401849173675503e-16,
+    "rtol": 1e-10
+  },
+  "hash_serialization": {
+    "algorithm": "SHA-256",
+    "array_order": "C",
+    "byte_order": "little-endian",
+    "coefficients_dtype": "<f8",
+    "samples_dtype": "<c16"
+  },
+  "hashes": {
+    "coefficients_sha256": "7747ce687f02603cb7aefe2192e796b7ae9acea6a5861fc1b76bfd2f8c3301ba",
+    "input_samples_sha256": "6e7ca00fcf521ea73044d4c2b3d33676b7de4efb088b3c4d32d187648b0c5aa7",
+    "reference_sha256": "44e7609b5cf6214e4fde2238c0f677ce86a03a9f74028dcac0cb662310d36442",
+    "rrc8_manifest_sha256": "9cc340c2ec210ec2648231f365a664bdafcb4ea1d3dde4c63bb735fa6e0e7a22"
+  },
+  "input_samples": 2048,
+  "model_domain": "time",
+  "output_samples": 2055,
+  "payload": {
+    "encoding": "raw C-order little-endian complex128 (<c16), no header",
+    "input_count": 2048,
+    "input_file": "input_samples.c16.bin",
+    "reference_count": 2055,
+    "reference_file": "reference_time.c16.bin"
+  },
+  "prng": "numpy.random.default_rng (PCG64)",
+  "provenance": {
+    "coefficient_artifact": "rrc8-v1",
+    "generator": "sim/python/gen_vectors.py",
+    "source_sha256": {
+      "gen_vectors.py": "cdeb9121e237277d0f986a92ee8b5de9ec4f6f4953c94f9d6a77c9c67bd29fc7",
+      "golden_freq.py": "d4c07702ee11bf5cd10f85992af64fd7c3deab33e79843c44456af35b197e7cf",
+      "golden_time.py": "91616464f7516077500c5c9e8b241dce667de105cbdafce02f3dbbf4c7d2a6ac",
+      "rrc_coefs.py": "5128ee400782bd990cfc474893928ec22694a2225539a7c7e96a1c386868742b",
+      "stimulus.py": "e1d285ecd2c5c257bed947f6c5c9751b53527959e41cc8b69840a04f3b82716e"
+    },
+    "versions": {
+      "numpy": "2.5.3",
+      "python": "3.12.14"
+    }
+  },
+  "random_seed": 2026,
+  "samples_per_symbol": 2,
+  "stimulus_version": "qpsk-stim-15-v1",
+  "symbol_center_offset_samples": 3.5,
+  "symbol_count": 1024,
+  "symbol_energy": 2,
+  "symbol_map": "0=+1+j, 1=+1-j, 2=-1+j, 3=-1-j",
+  "symbol_map_coding": "gray",
+  "upsampling": "zero_insertion",
+  "valid_len": 2055,
+  "valid_start": 0,
+  "vector_case": "corner_repeat",
+  "vector_set": "sys_corners"
+}
