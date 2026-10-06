@@ -12,11 +12,16 @@ module time_serial_filter #(
   input  logic ready_i,
   output logic [SAMPLES_PER_CLOCK-1:0][2*DATA_WIDTH-1:0] sample_o
 );
+  wire rst_sync_n;
+  rrc_reset_sync reset_sync (
+    .clk(clk), .rst_n(rst_n), .rst_sync_n(rst_sync_n)
+  );
+
   rrc_stream_shell #(
     .DATA_WIDTH(DATA_WIDTH), .SAMPLES_PER_CLOCK(SAMPLES_PER_CLOCK)
   ) shell (
     .clk(clk),
-    .rst_n(rst_n),
+    .rst_sync_n(rst_sync_n),
     .valid_i(valid_i),
     .ready_o(ready_o),
     .sample_i(sample_i),

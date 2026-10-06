@@ -5,6 +5,6 @@ package rrc_pkg;
   parameter integer FFT_LEN = 16;
   parameter integer HOP = 8;
   parameter integer DISCARD_PREFIX = 8;
-  parameter integer EMIT_START = 8;
-  parameter integer EMIT_LEN = 8;
+  parameter integer EMIT_START = DISCARD_PREFIX;
+  parameter integer EMIT_LEN = FFT_LEN - DISCARD_PREFIX;
 endpackage

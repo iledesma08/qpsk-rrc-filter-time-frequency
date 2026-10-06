@@ -5,7 +5,10 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 variant="${1:?variant is required}"
 shift
-case "$variant" in time_serial|freq_serial|time_opt|freq_opt) ;; *) exit 2 ;; esac
+case "$variant" in
+  time_serial|freq_serial|time_opt|freq_opt) ;;
+  *) printf 'Unknown variant: %s\n' "$variant" >&2; exit 2 ;;
+esac
 BUILD_DIR="$ROOT/.build/rtl/$variant"
 vector_dir=""
 width=16
@@ -46,6 +49,7 @@ defines=(-D "DUT_MODULE=${variant}_filter" -D RRC_TRANSPORT_DUT)
 if [[ "$variant" == freq_* ]]; then defines+=(-D FREQ_DUT); fi
 iverilog -g2012 -Wall "${defines[@]}" -I "$vector_dir" \
   -s rrc_stream_tb -o "$BUILD_DIR/sim.out" \
-  "$ROOT/rtl/common/rrc_pkg.sv" "$ROOT/rtl/common/rrc_stream_shell.sv" \
+  "$ROOT/rtl/common/rrc_pkg.sv" "$ROOT/rtl/common/rrc_reset_sync.sv" \
+  "$ROOT/rtl/common/rrc_stream_shell.sv" \
   "$ROOT/rtl/$variant/${variant}_filter.sv" "$ROOT/rtl/tb/rrc_stream_tb.sv"
 vvp "$BUILD_DIR/sim.out" "+vector_dir=$vector_dir"

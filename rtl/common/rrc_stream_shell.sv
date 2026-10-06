@@ -5,7 +5,7 @@ module rrc_stream_shell #(
   parameter integer SAMPLES_PER_CLOCK = rrc_pkg::SAMPLES_PER_CLOCK
 ) (
   input  logic clk,
-  input  logic rst_n,
+  input  logic rst_sync_n,
   input  logic valid_i,
   output logic ready_o,
   input  logic [SAMPLES_PER_CLOCK-1:0][2*DATA_WIDTH-1:0] sample_i,
@@ -13,18 +13,11 @@ module rrc_stream_shell #(
   input  logic ready_i,
   output logic [SAMPLES_PER_CLOCK-1:0][2*DATA_WIDTH-1:0] sample_o
 );
-  (* async_reg = "true" *) logic [1:0] reset_sync;
-  wire reset_n = reset_sync[1];
+  // The wrapper distributes this reset to the shell and future F3 registers.
+  assign ready_o = rst_sync_n && (!valid_o || ready_i);
 
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) reset_sync <= '0;
-    else reset_sync <= {reset_sync[0], 1'b1};
-  end
-
-  assign ready_o = reset_n && (!valid_o || ready_i);
-
-  always_ff @(posedge clk or negedge reset_n) begin
-    if (!reset_n) begin
+  always_ff @(posedge clk or negedge rst_sync_n) begin
+    if (!rst_sync_n) begin
       valid_o <= 1'b0;
       sample_o <= '0;
     end else if (ready_o) begin

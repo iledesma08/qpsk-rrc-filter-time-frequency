@@ -58,6 +58,175 @@ def update_manifest(directory, **fields):
     rehash(manifest)
 
 
+def simulate_adapter(directory, source, module="test_adapter"):
+    adapter = directory / f"{module}.sv"
+    adapter.write_text(source)
+    executable = directory / f"{module}.out"
+    compile_result = subprocess.run([
+        "iverilog", "-g2012", "-D", f"DUT_MODULE={module}", "-I", str(directory),
+        "-s", "rrc_stream_tb", "-o", str(executable),
+        str(ROOT / "rtl/common/rrc_pkg.sv"), str(ROOT / "rtl/common/rrc_reset_sync.sv"),
+        str(ROOT / "rtl/common/rrc_stream_shell.sv"),
+        str(adapter), str(ROOT / "rtl/tb/rrc_stream_tb.sv"),
+    ], capture_output=True, text=True, check=False)
+    assert compile_result.returncode == 0, compile_result.stderr
+    return subprocess.run(
+        ["vvp", str(executable), f"+vector_dir={directory}"],
+        capture_output=True, text=True, timeout=30, check=False,
+    )
+
+
+def non_fixture(directory):
+    manifest = directory / "vector_manifest.svh"
+    manifest.write_text(manifest.read_text().replace("`define RRC_SHELL_FIXTURE\n", ""))
+    rehash(manifest)
+
+
+@pytest.mark.parametrize("variable,minimum,maximum,ii,shell_fixture", [
+    (False, 8, 8, "8", False),
+    (True, 4, 8, "undefined", False),
+    (False, 8, 8, "8", True),
+], ids=["constant-II8", "variable-II", "retain-shell-II1-guard"])
+def test_tb_measures_synthetic_throttle_cadence_not_spc(
+    tmp_path, variable, minimum, maximum, ii, shell_fixture,
+):
+    # Acceptance throttle only, not a filter or production vector set.
+    fixture(tmp_path)
+    if not shell_fixture:
+        non_fixture(tmp_path)
+    result = simulate_adapter(tmp_path, f"""module test_adapter #(
+  parameter integer DATA_WIDTH=16, SAMPLES_PER_CLOCK=1
+) (
+  input logic clk, rst_n, valid_i, ready_i,
+  output wire ready_o, valid_o,
+  input logic [SAMPLES_PER_CLOCK-1:0][2*DATA_WIDTH-1:0] sample_i,
+  output wire [SAMPLES_PER_CLOCK-1:0][2*DATA_WIDTH-1:0] sample_o
+);
+  wire shell_ready;
+  wire rst_sync_n;
+  rrc_reset_sync reset_sync (.clk(clk), .rst_n(rst_n), .rst_sync_n(rst_sync_n));
+  integer cooldown, accepted;
+  always @(posedge clk or negedge rst_sync_n)
+    if (!rst_sync_n) begin cooldown <= 0; accepted <= 0; end
+    else if (valid_i && ready_o) begin
+      cooldown <= {"accepted % 2 == 0 ? 7 : 3" if variable else "7"};
+      accepted <= accepted + 1;
+    end else if (cooldown > 0) cooldown <= cooldown - 1;
+  assign ready_o = shell_ready && cooldown == 0;
+  rrc_stream_shell #(.DATA_WIDTH(DATA_WIDTH), .SAMPLES_PER_CLOCK(SAMPLES_PER_CLOCK)) shell (
+    .clk(clk), .rst_sync_n(rst_sync_n), .valid_i(valid_i && cooldown == 0), .ready_o(shell_ready),
+    .sample_i(sample_i), .valid_o(valid_o), .ready_i(ready_i), .sample_o(sample_o)
+  );
+endmodule
+""")
+    if shell_fixture:
+        assert result.returncode != 0, result.stdout + result.stderr
+        assert "Shell II must be measured as one cycle, not inferred from SPC" in result.stdout
+        return
+    assert result.returncode == 0, result.stdout + result.stderr
+    frame = next(line for line in result.stdout.splitlines() if line.startswith("Frame robustness=0 "))
+    assert f"interval_count=32 ii_min={minimum} ii_max={maximum} measured_ii={ii}" in frame
+    assert "compared=33 accepted_beats=33 emitted_beats=33" in frame
+
+
+@pytest.mark.parametrize("fault,diagnostic", [
+    ("clean", None),
+    ("hold", "Output must hold under backpressure"),
+    ("duplicate", "Mismatch index=1 expected=7fff8000 got=ffff0001"),
+    ("unknown", "X/Z in a valid output"),
+    ("reset", "Mismatch index=0 expected=ffff0001 got=7fff8000"),
+])
+def test_tb_rejects_directed_protocol_mutants_with_specific_diagnostics(tmp_path, fault, diagnostic):
+    fixture(tmp_path)
+    non_fixture(tmp_path)
+    result = simulate_adapter(tmp_path, f"""module test_adapter #(
+  parameter integer DATA_WIDTH=16, SAMPLES_PER_CLOCK=1
+) (
+  input logic clk, rst_n, valid_i, ready_i,
+  output wire ready_o, valid_o,
+  input logic [SAMPLES_PER_CLOCK-1:0][2*DATA_WIDTH-1:0] sample_i,
+  output wire [SAMPLES_PER_CLOCK-1:0][2*DATA_WIDTH-1:0] sample_o
+);
+  wire raw_valid;
+  wire rst_sync_n;
+  rrc_reset_sync reset_sync (.clk(clk), .rst_n(rst_n), .rst_sync_n(rst_sync_n));
+  wire [SAMPLES_PER_CLOCK-1:0][2*DATA_WIDTH-1:0] raw_sample;
+  logic corrupt, duplicated;
+  logic stale = 0;
+  // Deliberate reset mutant alone remembers payload across the raw reset edge.
+  always @(negedge rst_n)
+    if ({int(fault == 'reset')} && raw_valid && raw_sample == 32'h7fff8000) begin
+      stale = 1;
+      $display("FAULT reset armed by accepted prefix");
+    end
+  always @(posedge clk or negedge rst_sync_n)
+    if (!rst_sync_n) begin corrupt <= 0; duplicated <= 0; end
+    else begin
+      if ({int(fault == 'hold')} && raw_valid && !ready_i && !valid_i) begin
+        corrupt <= 1;
+        $display("FAULT hold on valid tail stall");
+      end
+      if ({int(fault == 'duplicate')} && raw_valid && ready_i && !duplicated) begin
+        duplicated <= 1;
+        $display("FAULT duplicate");
+      end
+      if ({int(fault == 'unknown')} && raw_valid) $display("FAULT unknown");
+    end
+  assign valid_o = raw_valid;
+  assign sample_o = {int(fault == 'unknown')} && raw_valid ? 'x :
+                    stale && raw_valid ? 32'h7fff8000 :
+                    corrupt ? raw_sample ^ 1'b1 : raw_sample;
+  rrc_stream_shell #(.DATA_WIDTH(DATA_WIDTH), .SAMPLES_PER_CLOCK(SAMPLES_PER_CLOCK)) shell (
+    .clk(clk), .rst_sync_n(rst_sync_n), .valid_i(valid_i), .ready_o(ready_o), .sample_i(sample_i),
+    .valid_o(raw_valid),
+    .ready_i(ready_i && !({int(fault == 'duplicate')} && raw_valid && !duplicated)),
+    .sample_o(raw_sample)
+  );
+endmodule
+""")
+    if diagnostic is None:
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "PASS: vector window W=16 SPC=1 compared=33" in result.stdout
+    else:
+        assert result.returncode != 0, result.stdout + result.stderr
+        assert f"FAULT {fault}" in result.stdout
+        assert diagnostic in result.stdout
+        if fault in ("hold", "reset"):
+            assert "Frame robustness=0 compared=33 accepted_beats=33 emitted_beats=33" in result.stdout
+            assert "Midtraffic reset prefix_accepted=2 restart_index=0" in result.stdout
+
+
+@pytest.mark.parametrize("count,intervals,ii", [(1, 0, "undefined"), (5, 4, "1"), (33, 32, "1")])
+def test_tb_reports_only_continuous_accepted_input_intervals(tmp_path, count, intervals, ii):
+    fixture(tmp_path, "--count", str(count))
+    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    assert result.returncode == 0, result.stdout + result.stderr
+    frames = [line for line in result.stdout.splitlines() if line.startswith("Frame robustness=")]
+    bound = ii if intervals else "-1"
+    assert (f"interval_count={intervals} ii_min={bound} ii_max={bound} "
+            f"measured_ii={ii}") in frames[0]
+    assert "interval_count=0 ii_min=-1 ii_max=-1 measured_ii=undefined" in frames[1]
+
+
+@pytest.mark.parametrize("count", [1, 5, 33])
+def test_tb_guarantees_a_valid_tail_stall_even_for_one_beat(tmp_path, count):
+    fixture(tmp_path, "--count", str(count))
+    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    assert result.returncode == 0, result.stdout + result.stderr
+    frames = [line for line in result.stdout.splitlines() if line.startswith("Frame robustness=")]
+    assert "tail_stalls=0" in frames[0]
+    assert int(re.search(r"tail_stalls=(\d+)", frames[1])[1]) >= 1
+
+
+@pytest.mark.parametrize("count,prefix", [(1, 0), (2, 1), (33, 2)])
+def test_tb_resets_an_accepted_prefix_and_restarts_at_record_zero(tmp_path, count, prefix):
+    fixture(tmp_path, "--count", str(count))
+    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert f"Midtraffic reset prefix_accepted={prefix} restart_index=0" in result.stdout
+    assert result.stdout.count(f"compared={count} accepted_beats={count} emitted_beats={count}") == 2
+
+
 @pytest.mark.parametrize("source,flush,compared,physical", [(33, 3, 35, 36), (2048, 8, 2055, 2056)])
 def test_tb_accepts_declared_flush_and_captures_raw_padding_without_expected_code(
     tmp_path, source, flush, compared, physical,
@@ -245,12 +414,9 @@ def test_tb_counts_outputs_from_the_manifest_sample_offset(
     fixture(tmp_path)
     update_manifest(tmp_path, raw_output_samples=raw, valid_len=compared,
                     valid_start=4, latency_samples=4, latency_cycles=5)
-    manifest = tmp_path / "vector_manifest.svh"
-    manifest.write_text(manifest.read_text().replace("`define RRC_SHELL_FIXTURE\n", ""))
-    rehash(manifest)
-    adapter = tmp_path / "offset_adapter.sv"
+    non_fixture(tmp_path)
     # Test adapter drops the first four records, exposing absolute indices 4..32.
-    adapter.write_text(f"""`timescale 1ns/1ps
+    result = simulate_adapter(tmp_path, f"""`timescale 1ns/1ps
 module offset_adapter #(
   parameter integer DATA_WIDTH=16, SAMPLES_PER_CLOCK=1
 ) (
@@ -260,31 +426,21 @@ module offset_adapter #(
   output wire [SAMPLES_PER_CLOCK-1:0][2*DATA_WIDTH-1:0] sample_o
 );
   wire raw_valid, raw_ready, shell_ready;
+  wire rst_sync_n;
+  rrc_reset_sync reset_sync (.clk(clk), .rst_n(rst_n), .rst_sync_n(rst_sync_n));
   integer index;
-  always @(posedge clk or negedge rst_n)
-    if (!rst_n) index <= 0;
+  always @(posedge clk or negedge rst_sync_n)
+    if (!rst_sync_n) index <= 0;
     else if (raw_valid && raw_ready) index <= index + 1;
   assign valid_o = raw_valid && index >= 4;
   assign raw_ready = index < 4 || ready_i;
   assign ready_o = {"index >= 33 ? 1'bx : shell_ready" if unknown_ready_after_frame else "shell_ready"};
   rrc_stream_shell #(.DATA_WIDTH(DATA_WIDTH), .SAMPLES_PER_CLOCK(SAMPLES_PER_CLOCK)) shell (
-    .clk(clk), .rst_n(rst_n), .valid_i(valid_i), .ready_o(shell_ready), .sample_i(sample_i),
+    .clk(clk), .rst_sync_n(rst_sync_n), .valid_i(valid_i), .ready_o(shell_ready), .sample_i(sample_i),
     .valid_o(raw_valid), .ready_i(raw_ready), .sample_o(sample_o)
   );
 endmodule
-""")
-    executable = tmp_path / "offset.out"
-    compile_result = subprocess.run([
-        "iverilog", "-g2012", "-D", "DUT_MODULE=offset_adapter", "-I", str(tmp_path),
-        "-s", "rrc_stream_tb", "-o", str(executable),
-        str(ROOT / "rtl/common/rrc_pkg.sv"), str(ROOT / "rtl/common/rrc_stream_shell.sv"),
-        str(adapter), str(ROOT / "rtl/tb/rrc_stream_tb.sv"),
-    ], capture_output=True, text=True, check=False)
-    assert compile_result.returncode == 0, compile_result.stderr
-    result = subprocess.run(
-        ["vvp", str(executable), f"+vector_dir={tmp_path}"],
-        capture_output=True, text=True, timeout=30, check=False,
-    )
+""", "offset_adapter")
     if error is not None:
         assert result.returncode != 0, result.stdout + result.stderr
         assert error in result.stdout
