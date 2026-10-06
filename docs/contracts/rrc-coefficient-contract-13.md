@@ -510,6 +510,7 @@ The team accepted the decisions below on 2026-09-22, before T10 freezes the simu
 - **Alternatives:** choose canonical OLS hop 9 or OLA immediately.
 - **Why they were rejected:** both alternatives deviate from the professor's stated baseline and require his approval; deciding them here would also mix a partially decided convention into the RRC contract.
 - **Why this was chosen:** deferring keeps a single decision owner (#14), which later accepted the forced-50% baseline and documented hop 9 as the alternative under the professor gate.
+- **Update (2026-10-06):** the revised assignment fixes 50% overlap. The #14 amendment records the confirmation and closes the professor gate (#74).
 
 ### D7 — Eye and spectrum presentation: natural half-sample grid
 

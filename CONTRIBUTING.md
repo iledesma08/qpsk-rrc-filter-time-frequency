@@ -84,7 +84,7 @@ Rules: one commit = one logical change, messages in English, no secrets or hand-
 | Phase | Done |
 | ----- | ---- |
 | Float sim | Green `pytest` + eye/spectrum plots + RRC coefficients (α=0.5, 8 taps, OS 2x) documented |
-| FXP | Diagnostic bit-width sweep + production Q2.14 measured at SQNR ≥ 40 dB in both domains + overflow/saturation evidence + frozen integer policy and per-domain expected codes |
+| FXP | Diagnostic bit-width sweep + production Q2.14 measured at SQNR ≥ 40 dB in both domains + cross-domain SQNR ≥ 33.98 dB (34 dB nominal) + overflow/saturation evidence + frozen integer policy and per-domain expected codes |
 | Serial RTL | 100% vector matching vs `sim/vectors/` in time and frequency; main timing target SLOW 10 MHz |
 | Opt RTL | Meets declared FAST 100 MHz main target + PPA report + vector matching; a SLOW 10 MHz secondary pass does not fulfill a failed FAST goal |
 | Slides | Time vs frequency contrast + PPA + lessons learned + actual vs planned Gantt |

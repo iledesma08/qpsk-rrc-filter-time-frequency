@@ -352,13 +352,12 @@ T03 (#42) retires `rtl/common/rrc_stream_placeholder.sv` and
 placed that retirement in F3; #42 explicitly requires the shared interface and
 TB skeleton first so both lanes can build their datapaths independently.
 
-### T03 transport shell (amendment tracked in PR #73)
+### T03 transport shell (amendment accepted with PR #73)
 
-This scoped amendment is introduced for review and acceptance through
-[PR #73](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/pull/73).
-It is not a separately accepted T03 decision from 2026-10-02; that date belongs
-to the earlier finite-frame amendment above. Acceptance follows the repository's
-PR review/merge process. D1-D9 and the accepted hop-8 baseline are unchanged.
+This scoped amendment was accepted when
+[PR #73](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/pull/73)
+merged on 2026-10-06. It is not a separately accepted T03 decision from
+2026-10-02; that date belongs to the earlier finite-frame amendment above. D1-D9 and the accepted hop-8 baseline are unchanged.
 
 The chosen temporary implementation is `rtl/common/rrc_stream_shell.sv`: a
 one-stage elastic transport register behind the interface above. The alternatives
@@ -382,8 +381,8 @@ Package and frequency-wrapper defaults derive `EMIT_START=DISCARD_PREFIX` and
 `EMIT_LEN=FFT_LEN-DISCARD_PREFIX`. The wrappers reject inconsistent final tuples
 at simulation time zero: positive power-of-two FFT length, legal discard/hop,
 and `EMIT_LEN=HOP`. These structural checks do not implement OLS or approve
-hop 9. Alternate schedules still require their existing approval and integration
-gates. No I/Q helper API is introduced merely to contain an unused signed cast:
+hop 9. Alternate schedules are not planned: the revised assignment fixes hop 8
+(#74). No I/Q helper API is introduced merely to contain an unused signed cast:
 transport is a bit copy; real arithmetic must unpack/cast its operands explicitly.
 
 - The shell forwards codes unchanged; it is **not an RRC filter**. Its `II=1`,
