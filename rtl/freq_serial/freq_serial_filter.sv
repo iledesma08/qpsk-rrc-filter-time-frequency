@@ -18,6 +18,9 @@ module freq_serial_filter #(
   output logic [SAMPLES_PER_CLOCK-1:0][2*DATA_WIDTH-1:0] sample_o
 );
   // Reserved OLS configuration for F3; this transport shell has no FFT engine.
+  // TODO(F3): when the coefficient table lands, also require
+  // DISCARD_PREFIX >= NUM_TAPS - 1 (8-tap RRC needs at least M-1 = 7
+  // discarded samples); the T03 check below is structural only.
   generate
     if (FFT_LEN <= 0 || (FFT_LEN & (FFT_LEN - 1)) != 0 ||
         DISCARD_PREFIX < 0 || DISCARD_PREFIX >= FFT_LEN ||
