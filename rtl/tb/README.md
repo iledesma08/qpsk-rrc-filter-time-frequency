@@ -88,6 +88,12 @@ The 10 ns TB clock is functional simulation, not 100 MHz physical-timing proof.
 
 ## Current post-#70 verification
 
+After integrating the current `main` on 2026-10-05,
+`.venv/bin/python -m pytest sim/python -v` passed all 104 cases without skips
+(51 inherited, 9 fixture, 44 Icarus). `bash rtl/run.sh` again passed both frames
+for all four wrappers. The 92-case results below describe the earlier branch
+checkpoint, before the frequency-golden tests were integrated.
+
 Rechecked locally on 2026-10-05 before the atomic #42 commits:
 `.venv/bin/python -m pytest sim/python -v` passed all 92 cases without skips,
 and `bash rtl/run.sh` passed both frames for each of the four wrappers.

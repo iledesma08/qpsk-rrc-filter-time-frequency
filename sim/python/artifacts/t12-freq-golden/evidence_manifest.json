@@ -1,0 +1,96 @@
+{
+  "comparison": {
+    "atol": 1e-12,
+    "max_absolute_error": 5.978733960281817e-16,
+    "rtol": 1e-10,
+    "time_frequency_allclose": true
+  },
+  "evidence_version": "t12-freq-golden-v1",
+  "hash_serialization": {
+    "algorithm": "SHA-256",
+    "array_order": "C",
+    "byte_order": "little-endian",
+    "coefficients_dtype": "<f8",
+    "samples_dtype": "<c16"
+  },
+  "input": {
+    "coefficient_artifact": "rrc8-v1",
+    "coefficients_sha256": "7747ce687f02603cb7aefe2192e796b7ae9acea6a5861fc1b76bfd2f8c3301ba",
+    "input_samples": 2048,
+    "input_samples_sha256": "d805588396a3eefd3b2895601856f929a99bfeaa32dd1f05879b477dc774c132",
+    "random_seed": 2026,
+    "stimulus_version": "qpsk-stim-15-v1",
+    "symbol_count": 1024
+  },
+  "plot_sha256": {
+    "golden_comparison": "f969185be1241a141ef2a31b98759607f3c233a90019b36e93c67f1d9d016ced",
+    "impulse_response": "306a1d548d589fef541ab7876cff77a6a2634a442f569b278f9a3491b3473bc8",
+    "ols_boundaries": "5ccdf6de986cec4f93055898d42c6b433851f8c1b9cad3f828c91c98c916dad3"
+  },
+  "plots": {
+    "golden_comparison": "golden_comparison/canonical_time_frequency_comparison.png",
+    "impulse_response": "t12-freq-golden/impulse_response.png",
+    "ols_boundaries": "t12-freq-golden/ols_boundaries.png"
+  },
+  "presentation": {
+    "axes": {
+      "boundary_x": "sample index",
+      "boundary_y": "amplitude",
+      "comparison_x": "sample index",
+      "comparison_y": "I/Q amplitude and absolute error",
+      "impulse_x": "sample index",
+      "impulse_y": "amplitude"
+    },
+    "boundary_windows_sample_indices": [
+      [
+        0,
+        23
+      ],
+      [
+        1016,
+        1039
+      ],
+      [
+        2032,
+        2054
+      ]
+    ],
+    "interpolation": "none"
+  },
+  "provenance": {
+    "evidence_generator": {
+      "sha256": "d4c07702ee11bf5cd10f85992af64fd7c3deab33e79843c44456af35b197e7cf",
+      "source": "golden_freq.py:generate_frequency_evidence"
+    },
+    "golden_frequency_source_sha256": "d4c07702ee11bf5cd10f85992af64fd7c3deab33e79843c44456af35b197e7cf",
+    "golden_time_source_sha256": "91616464f7516077500c5c9e8b241dce667de105cbdafce02f3dbbf4c7d2a6ac",
+    "versions": {
+      "matplotlib": "3.11.2",
+      "numpy": "2.5.3",
+      "python": "3.12.14",
+      "scipy": "1.18.1"
+    }
+  },
+  "schedule": {
+    "discard_initial": 8,
+    "fft_convention": {
+      "forward": "unscaled",
+      "inverse": "1/N normalization applied once by numpy.fft.ifft"
+    },
+    "fft_length": 16,
+    "filter_length": 8,
+    "hop_length": 8,
+    "overlap_length": 8,
+    "scheduled_blocks": 257,
+    "scheduled_output_positions": 2056,
+    "selected_samples_count": 8,
+    "selected_samples_start": 8
+  },
+  "stage": "floating_point_reference",
+  "window": {
+    "group_delay_samples": 3.5,
+    "output_samples": 2055,
+    "valid_len": 2055,
+    "valid_start": 0
+  }
+}
