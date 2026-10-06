@@ -6,7 +6,7 @@ Map: [#12](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/issues/1
 
 Date: 2026-09-22
 
-Updated: 2026-10-02
+Updated: 2026-10-04 (T03 finite-frame metadata and production/physical boundaries)
 
 Branch: `docs/17-rtl-streaming`
 
@@ -349,11 +349,89 @@ window. The TB uses the existing handshake to append zero input samples:
 
 ## Relationship to the Placeholder Shell
 
-The current `rtl/common/rrc_stream_placeholder.sv` and
-`rtl/tb/rrc_placeholder_tb.sv` are a temporary toolchain smoke shell with a
-scalar port and no handshake. This contract supersedes that interface; the F3
-implementation replaces the shell, and the placeholder testbench is retired
-when the real vector-matching testbenches land.
+T03 (#42) retires `rtl/common/rrc_stream_placeholder.sv` and
+`rtl/tb/rrc_placeholder_tb.sv`, rather than waiting for F3. The previous wording
+placed that retirement in F3; #42 explicitly requires the shared interface and
+TB skeleton first so both lanes can build their datapaths independently.
+
+### T03 transport shell (accepted 2026-10-02)
+
+The chosen temporary implementation is `rtl/common/rrc_stream_shell.sv`: a
+one-stage elastic transport register behind the interface above. The alternatives
+were an inactive shell plus a separate test DUT, or interface-only compilation.
+Transport was chosen so reset, hold, packing, and the scoreboard can be exercised
+on the actual shared shell before coefficients/datapaths are available.
+
+- The shell forwards codes unchanged; it is **not an RRC filter**. Its `II=1`,
+  `latency_cycles=1`, and `latency_samples=0` describe transport only, not the
+  serial filter's required `II=8` or frequency block timing. Cycle latency is
+  measured between accepting the first input and observing the first valid
+  output at a rising edge, before sequential nonblocking updates.
+- `rrc_pkg.sv` supplies width/SPC defaults and the accepted block constants.
+  Width/SPC remain module parameters. Contract #16 already mandates production
+  Q2.14 (`W_common=16`, `F_data=F_coeff=14`); widths such as 8/12 are diagnostic
+  fixture configurations, not production-format choices or SQNR acceptance.
+  Frequency wrappers expose block parameters but do not execute an OLS schedule
+  yet. No coefficient table or fractional arithmetic is introduced in T03;
+  numerical validation and T22's frozen production export remain pending.
+  Every future arithmetic part-select must still be explicitly cast to signed.
+- The runner generates synthetic transport fixtures under `.build/rtl/`, never
+  `sim/vectors/`. Their short frames and identity expected outputs are not
+  canonical or `sys_corners` sets and do not claim conformance to the full RRC
+  manifest schema. The fixture metadata carries `RRC_SHELL_FIXTURE`; current
+  runners also declare `RRC_TRANSPORT_DUT` independently of that metadata, and
+  reject missing fixture markers rather than report RRC matching.
+- The shared TB consumes generated `vector_manifest.svh` integer localparams
+  named `DATA_WIDTH`, `SPC`, `input_samples`, `output_samples`, `valid_start`,
+  `valid_len`, `latency_samples`, `latency_cycles`, `FFT_LEN`, `HOP`,
+  `DISCARD_PREFIX`, `EMIT_START`, `EMIT_LEN`, `block_cadence`, and
+  `fft_pipeline_cycles`, plus explicit `flush_samples`,
+  `transport_padding_samples`, `accepted_input_samples`, and
+  `raw_output_samples`. Widths are compile-time metadata, not runtime plusargs.
+  Production generators still own every field and invariant of the normative
+  vector-manifest schema; this projection does not replace that schema.
+- Lane 0 carries the earliest sample of each beat. Transfers are whole beats,
+  without `TKEEP`; the TB validates divisibility and uses exactly
+  `accepted_input_samples / SPC` input beats and `raw_output_samples / SPC`
+  output beats. It drives the `input_samples` original records, then declared
+  flush zeros, then declared transport-padding zeros. Actual source, flush,
+  padding, accepted, and full raw-output counts are checked on their respective
+  `valid && ready` transfers, not inferred from file lengths or elapsed clocks.
+- Each consumed output lane has absolute index
+  `received * SPC + lane + latency_samples`. Only indices in the valid window
+  look up `expected_codes[absolute_index]` and consume a compared code; raw
+  padding outside that window counts physically without an expected-code lookup
+  or consumption. Completion requires all input/raw-output beats and a bounded
+  drain check; missing emissions time out, and undeclared extra emissions or
+  invalid transport counts fail even when the valid window matches.
+- The fixture generator's nonnegative `--flush-samples` defaults to zero. Its
+  input file retains the source count (33 by default); identity expectations
+  contain source plus flush zeros, while accepted count rounds that sum up to
+  SPC and raw count equals accepted count. All four transport fields above are
+  generated. Synthetic asymmetric frames exercise generic finite-frame
+  mechanics, not RRC arithmetic. The non-fixture sample-offset adapter keeps
+  33 inputs, 29 raw outputs, and `latency_samples=4`.
+- Unequal source/expected file lengths are supported, not rejected by assuming
+  a one-to-one file relationship. Actual RRC matching is #48/#50; frequency
+  fill, the 257-block FFT schedule, latency, II, and datapath-specific cadence
+  checks remain F3 work in #49/#50.
+- Compile package, shared shell, wrapper, then TB for simulation. OpenLane
+  source lists remain DUT/shared RTL only. The T03 JSON `CLOCK_PERIOD=10.0`
+  and TB 10 ns clock are setup, not physical-timing validation or PPA rows.
+  Under ADR-0006, serial main targets are SLOW 10 MHz (100 ns) with FAST
+  secondary, and optimized main targets FAST 100 MHz (10 ns) with SLOW
+  secondary. Prepare both, prioritize main goals and measured-pilot-capacity
+  comparative runs, and never replace a failed FAST goal with a SLOW pass.
+  Real target-specific configurations/runs belong to #52/#54, and comparable
+  PPA evidence to #55; T03 does not promise all twelve completed physical runs.
+
+These are scoped T03 implementation choices, not changes to D1-D8 or the accepted
+hop-8 RRC baseline. F3 replaces transport with the FIR/FFT datapaths, connects
+real generated vector sets, and removes the transport-only runner declaration.
+T03 PASS is never evidence of SQNR, RRC vector matching, timing closure, or PPA.
+
+Design/learning and local test evidence: `rtl/common/README.md` and
+`rtl/tb/README.md`.
 
 ## References
 
