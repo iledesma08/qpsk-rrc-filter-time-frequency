@@ -21,8 +21,8 @@ with packed `{Q,I}`, width/SPC parameters, handshake and synchronized reset
 release from one wrapper-owned `rrc_reset_sync` instance. No unfolded FFT/IFFT
 datapath runs. FFT16/H8/discard8/emit8 are exposed block defaults, with emit
 defaults derived from the wrapper's FFT/discard values and inconsistent tuples
-rejected at simulation time zero. Changing the accepted hop-8 baseline still
-requires the professor gate.
+rejected at simulation time zero. The revised assignment fixes the hop-8
+(50% overlap) baseline; no alternative schedule is planned.
 
 Production Q2.14 (`W_common=16`, `F=14`) is already declared; parameterized shell
 widths are diagnostic fixtures, not alternative production formats. T03 has no

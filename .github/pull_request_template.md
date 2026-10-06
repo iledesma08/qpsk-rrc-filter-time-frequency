@@ -13,6 +13,7 @@ Closes #<!-- issue number -->
 <!-- Mandatory. Delete what does not apply. -->
 - [ ] `pytest sim/python -v` is green
 - [ ] Measured SQNR: _____ dB (≥ 40 dB required if it touches fxp)
+- [ ] Cross-domain SQNR: _____ dB (≥ 33.98 dB, 34 dB nominal, if it touches fxp)
 - [ ] Vector matching: _____ (pass/fail, attach log)
 - [ ] Synthesis/timing: fmax _____ MHz / area _____ / power _____ (if it touches opt RTL)
 

@@ -382,8 +382,8 @@ Package and frequency-wrapper defaults derive `EMIT_START=DISCARD_PREFIX` and
 `EMIT_LEN=FFT_LEN-DISCARD_PREFIX`. The wrappers reject inconsistent final tuples
 at simulation time zero: positive power-of-two FFT length, legal discard/hop,
 and `EMIT_LEN=HOP`. These structural checks do not implement OLS or approve
-hop 9. Alternate schedules still require their existing approval and integration
-gates. No I/Q helper API is introduced merely to contain an unused signed cast:
+hop 9. Alternate schedules are not planned: the revised assignment fixes hop 8
+(#74). No I/Q helper API is introduced merely to contain an unused signed cast:
 transport is a bit copy; real arithmetic must unpack/cast its operands explicitly.
 
 - The shell forwards codes unchanged; it is **not an RRC filter**. Its `II=1`,

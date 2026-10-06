@@ -52,6 +52,10 @@ _Avoid_: bit width, generic precision
 Signal-to-quantization-noise ratio in dB between float and fxp outputs.
 _Avoid_: SNR, SNQR
 
+**Cross-domain SQNR**:
+SQNR of the difference between the time and frequency FXP outputs, using the common float reference as signal power. It is the time/frequency correspondence evidence.
+_Avoid_: time-vs-frequency SNR, domain matching (matching is bit-exact and per domain)
+
 **Vector matching**:
 Sample-by-sample RTL vs golden-vector comparison from `sim/vectors/`.
 _Avoid_: matching test, golden test

@@ -97,6 +97,10 @@
   power relative to the error introduced by quantization. In this project it
   compares floating-point and fixed-point outputs. T10 defines coefficients;
   it does not run the FXP SQNR measurement.
+- **Cross-domain SQNR** — The same ratio applied to the difference between the
+  time and frequency FXP outputs, with the float reference as signal power.
+  If both domains reach 40 dB against float, their difference is at most twice
+  the allowed error, so the gate is `40 - 20 log10(2) ≈ 33.98 dB` (ADR-0005).
 - **Unit discrete L2 energy** — Coefficient normalization where
   `sum(|h[n]|^2) = 1`. For T10's real coefficients this is `sum(h[n]^2)=1`.
   It is not the same as unity DC gain, which would require `sum(h[n])=1`.
@@ -349,8 +353,8 @@
   repro, PDN-0185 floor, syn-commit rule.
 - `docs/adr/0001-python-float-golden-simulator.md` — Python float64 as the
   project's correctness reference; individual issues implement its stages.
-- `docs/adr/0005-common-sqnr-contract.md` - Shared comparison window and
-  time/frequency floating-point tolerances.
+- `docs/adr/0005-common-sqnr-contract.md` - Shared comparison window,
+  time/frequency floating-point tolerances and the cross-domain SQNR gate.
 - `docs/adr/0006-systemverilog-openlane-ppa-flow.md` — SystemVerilog +
   Icarus/vvp + Verilator lint-only + Classic; serial SLOW 10 MHz and optimized
   FAST 100 MHz main targets, with matched-target secondary comparisons.

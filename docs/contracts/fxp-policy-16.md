@@ -6,7 +6,8 @@ Map: [#12](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/issues/1
 
 Date: 2026-09-22
 
-Updated: 2026-10-02 (production Q2.14, numeric freeze and base-scope amendments)
+Updated: 2026-10-06 (cross-domain SQNR amendment, #74); 2026-10-02 (production
+Q2.14, numeric freeze and base-scope amendments)
 
 Branch: `docs/16-fxp-policy`
 
@@ -324,7 +325,7 @@ extension, never a simulator-specific conversion.
 | Coefficient normalization | #13: discrete unit energy, ascending time order. |
 | Frequency block | #14: forced-50% OLS, FFT16, hop 8, discard `z[0:8]`, emit `z[8:16]`. |
 | Alignment | #14/#15: full causal window with `D = 3.5` samples. |
-| Metric | ADR-0005 complex I/Q SQNR. |
+| Metric | ADR-0005 complex I/Q SQNR, per domain and cross-domain. |
 | Reproducibility | Git commit, dependency versions, manifest and vector hashes, policy fields. |
 
 ### Phases
@@ -348,7 +349,7 @@ W_common, F_data, F_coeff
 rounding_mode, overflow_mode
 W_product, W_acc_time
 fft_mode, fft_stage_widths, W_acc_freq, ifft_scale
-sqnr_time_db, sqnr_freq_db
+sqnr_time_db, sqnr_freq_db, sqnr_cross_db
 max_abs_acc_time, max_abs_acc_freq
 internal_overflow_count, output_saturation_count
 valid_start, valid_len, latency_samples, latency_cycles
@@ -372,6 +373,8 @@ external to that manifest to avoid a self-referential hash.
 A candidate is numerically acceptable only when:
 
 - `SQNR_time >= 40 dB` and `SQNR_freq >= 40 dB`;
+- `SQNR_cross >= 40 - 20 log10(2) dB` (about 33.98 dB, 34 dB nominal) between
+  the time and frequency FXP outputs, per the ADR-0005 cross-domain amendment;
 - zero internal overflow on the canonical frame and the edge-case checks
   (the `sys_corners` sets of #15 plus the directed arithmetic checks above);
 - zero canonical output saturation events;
@@ -433,7 +436,9 @@ variant metadata; unknown latencies are never invented at F1/F2.
 
 - **SQNR:** the 40 dB threshold is a measured criterion; report time and
   frequency separately and require the production `Q2.14` candidate to pass
-  in both, with overflow and saturation counters visible.
+  in both, with overflow and saturation counters visible. Report the
+  cross-domain SQNR next to them as the time/frequency correspondence
+  evidence.
 - **Area and timing:** wider words widen multipliers, adders, registers, and
   coefficient storage; RNE and saturation add low-order logic. Measure them in
   the synthesized candidate with identical OpenLane settings, not from bit
@@ -452,6 +457,29 @@ Their absence does not block F2, F3 or F4. Q1 sensitivity and the communications
 annex are outside the base; runtime-reloadable coefficients are not requested.
 Activating an experiment does not automatically authorize adopting its numeric
 policy in production or mixing it into the architecture-only PPA ranking.
+
+## Cross-domain amendment (accepted 2026-10-06)
+
+The revised assignment asks to verify the correspondence of results between
+the time and frequency versions. ADR-0005 defines the metric and its
+rationale; this contract fixes how F2 measures it:
+
+- `SQNR_cross = 10 log10(sum(|y_float|^2) / sum(|y_time_fxp - y_freq_fxp|^2))`
+  over the full causal 2055-sample window, with decoded production outputs at
+  the same absolute indices and the common float reference as signal power.
+- Production `Q2.14` must reach `SQNR_cross >= 40 - 20 log10(2) dB` (about
+  33.98 dB, 34 dB nominal) on the canonical frame. This is the bound implied
+  by both domains passing 40 dB, so a failure points to inconsistent
+  measurement inputs (window, alignment or reference) rather than a new
+  precision target.
+- The three `sys_corners` frames report `sqnr_cross_db` as diagnostics without
+  a threshold, like their per-domain SQNR. Diagnostic sweep widths may report
+  it too; only production W=16 is gated.
+- T21 measures it on the accepted FXP models and records `sqnr_cross_db` in
+  the result row. Per-domain vector manifests do not carry it, because it
+  compares two domains. F3 inherits it through exact per-domain matching.
+- Per-domain SQNR, overflow/saturation gates and the rule that time and
+  frequency codes need not be bit-identical are unchanged.
 
 ## Open Items
 
