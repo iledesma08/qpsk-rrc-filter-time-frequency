@@ -17,7 +17,8 @@ The actual serial frequency-domain implementation is T32 (`U=1`). Block
 parameters are exposed with package defaults FFT16/H8/discard8/emit8. Emit
 defaults derive from the wrapper's FFT/discard parameters, and inconsistent
 tuples fail at simulation time zero. These are structural checks, not an engine.
-Changing the accepted hop-8 baseline still requires the professor gate.
+The revised assignment fixes the hop-8 (50% overlap) baseline; no alternative
+schedule is planned (`docs/contracts/frequency-block-contract-14.md`).
 See `rtl/common/README.md` and `rtl/tb/README.md` for design, tests and evidence.
 Real RRC matching, 257-block cadence checks and timing/PPA remain unrun.
 

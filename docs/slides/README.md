@@ -7,9 +7,9 @@ Upload the final PDF + source (pptx/keynote/latex) before the `v1.1-close` tag.
 ## Outline (T50)
 
 1. Architecture: time-domain (`S4P1/S8P1`) vs frequency-domain (`U4/U8`), each contrasted with its serial baseline. Additional pipeline-depth and folded experiments are extension-only.
-2. SQNR vs diagnostic width (W): sweep frontier + measured production Q2.14 SQNR in both domains, with overflow/saturation evidence.
+2. SQNR vs diagnostic width (W): sweep frontier + measured production Q2.14 SQNR in both domains, with overflow/saturation evidence, plus the cross-domain SQNR as time/frequency correspondence evidence (canonical gate, `sys_corners` diagnostics).
 3. Six-architecture PPA comparison: declared SLOW serial / FAST optimized main goals, prepared paired clock runs and explicit statuses, matched-target Pareto and serial deltas. More architecture variants are extension-only; additional target runs are not additional architectures.
-4. Lessons learned from completed work, including the accepted OLS H8 schedule, Q2 precision choice, and II vs fmax trade-offs. Label unmeasured H9/Q1/folded alternatives as discussion only.
+4. Lessons learned from completed work, including the OLS H8 schedule (fixed by the revised assignment), Q2 precision choice, and II vs fmax trade-offs. Label unmeasured H9/Q1/folded alternatives as discussion only.
 5. Actual vs planned Gantt + demo.
 
 Do not wait for optional Booth/ROM, narrow-guard or FFT-B experiments to finish

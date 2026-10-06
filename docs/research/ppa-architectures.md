@@ -13,8 +13,8 @@ frequency-domain filtering uses complex FFT16 -> bin-wise response multiply
 -> IFFT16 with overlap-save (OLS). The accepted forced-50% schedule uses
 eight history samples plus eight new samples, discards `z[0:8]`, and emits
 `z[8:16]`. The eighth discarded position avoids a duplicate/pre-boundary
-output; it is not an extra alias-corrupted sample. Hop 9 is a separate
-alternative requiring approval, not a substitution in this comparison.
+output; it is not an extra alias-corrupted sample. Hop 9 is no longer a
+candidate: the revised assignment fixes 50% overlap (#74).
 
 Sources: [canonical vocabulary](../../CONTEXT.md#language),
 [architecture matrix](../contracts/ppa-matrix-18.md#matrix), and

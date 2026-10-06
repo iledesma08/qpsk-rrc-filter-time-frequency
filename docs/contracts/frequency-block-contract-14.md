@@ -6,7 +6,7 @@ Map: [#12](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/issues/1
 
 Date: 2026-09-21
 
-Updated: 2026-09-22
+Updated: 2026-10-06 (revised assignment confirms forced-50% OLS, #74)
 
 Branch: `research/frequency-block-contract`
 
@@ -483,7 +483,7 @@ D2 and D3 are resolved naturally by later tickets.
 
 ### D1. Which frequency baseline to lock
 
-- **Status:** accepted 2026-09-22 — professor's forced-50% baseline with the explicit schedule.
+- **Status:** accepted 2026-09-22 — professor's forced-50% baseline with the explicit schedule; confirmed by the revised assignment 2026-10-06 (#74).
 - **What is being chosen:** the OLS schedule used by the frequency-domain golden: the professor's forced-50% schedule (`N=16`, `H=8`, discard `z[0:8]`, emit `z[8:16]`) or the canonical OLS contract (`H=9`, overlap 7, discard `z[0:7]`, emit 9 samples).
 - **Alternatives:** (a) professor's forced 50% with the explicit schedule — recommended; (b) canonical OLS `H=9`; (c) OLA with an 8-sample cadence.
 - **Why it matters here:** the schedule fixes the frame grid, the discard/output mapping, the block cadence, and the alignment against the time-domain golden. It is also the contract the RTL implementation must follow.
@@ -680,8 +680,29 @@ Thank you,
 
 - D1 remains accepted as the forced-50% hop-8 baseline.
 - This section is the comparison and the proposal draft requested by the team.
-- No contract change happens until the professor answers; option (c) is the
-  team's preferred middle ground if a comparison experiment is welcome.
+- Closed 2026-10-06 (#74): the revised assignment fixes block processing with
+  50% overlap, so the proposal above is withdrawn and will not be sent. See
+  the amendment below. The comparison stays as background for the slides.
+
+## Amendment - Revised assignment confirms 50% overlap (2026-10-06)
+
+The assignment text revised on 2026-10-06 requires the frequency-domain filter
+to use block processing with 50% overlap, and the time-domain filter to be an
+8-tap FIR. With `M=8` and `N=16`, that is the D1 schedule: hop 8, discard
+`z[0:8]`, emit `z[8:16]`.
+
+- D1 is confirmed by the assignment itself. The hop-9 professor gate is
+  closed. Canonical OLS hop 9 and OLA are no longer candidates for the
+  baseline or for the base PPA matrix.
+- D2, D3, the frame formula, block count and alignment are unchanged. No
+  golden, vector or RTL change follows from this amendment.
+- `HOP`, `DISCARD_PREFIX` and `EMIT_START` remain parameters (#17 D7), but no
+  alternative schedule is planned.
+- Slides may still show the hop-9 comparison as background, labelled as
+  discussion, never as a measured result.
+- The revised assignment also asks for the highest possible parallelization
+  of the FFT, spectral multiply and IFFT. That is an architecture question for
+  the PPA matrix (#18, T42), not a change to this block contract.
 
 ## Decision Rationale
 

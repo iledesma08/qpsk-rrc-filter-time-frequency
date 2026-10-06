@@ -15,7 +15,7 @@ The assignment fixes the filter and deliverables. The linked contracts also reco
 | Versions | time (convolution) + frequency (FFT -> response multiply -> IFFT, FFT16 forced-50% OLS, H = 8) (#14) |
 | Stimulus | 1024 symbols, `default_rng(2026)`, full 2055-sample causal window (#15) |
 | Golden | float64 Python (ADR-0001) |
-| Fixed point | Production `Q2.14` (`W_common=16`); diagnostic bit sweep retained; measured SQNR ≥ 40 dB in both domains (ADR-0005, #16) |
+| Fixed point | Production `Q2.14` (`W_common=16`); diagnostic bit sweep retained; measured SQNR ≥ 40 dB in both domains and cross-domain SQNR ≥ 33.98 dB (34 dB nominal) between them (ADR-0005, #16) |
 | Vectors | packed `{Q[15:0],I[15:0]}` `.hex` + manifest + SHA-256, generated only (ADR-0004) |
 | Baseline RTL | serial + 100% vector matching before optimizing (ADR-0002) |
 | Opt RTL | Base: two serials + time `S4P1/S8P1` + frequency `U4/U8`; additional pipeline-depth and folded comparisons only on extension (#18) |
