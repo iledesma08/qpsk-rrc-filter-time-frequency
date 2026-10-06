@@ -58,6 +58,7 @@ python sim/python/tests/rtl_shell_fixture.py \
   --flush-samples 2
 python -m pytest sim/python/tests/test_rtl_shell_fixture.py -v
 python -m pytest sim/python/tests/test_rtl_stream.py -v
+python -m pytest sim/python/tests/test_rtl_config.py -v
 ```
 
 `--flush-samples` is nonnegative and defaults to zero. `--count 33` keeps
@@ -78,13 +79,17 @@ T03 contains no fractional arithmetic and does not establish numerical
 acceptance. T20/T21 validation and T22's frozen production coefficient/expected
 code export remain pending; the fixture is not a replacement for `gen_vectors.py`.
 
-The RTL regression needs `iverilog` and `vvp` in PATH. Without them those tests
-are skipped by the Python job and executed in the required RTL CI job instead.
+The RTL regression needs `iverilog` and `vvp` in PATH. Without them simulation
+cases are skipped by the Python job and executed in the required RTL CI job
+instead. The runner diagnostic needs no simulator. The generator remains a
+test fixture utility even though the simulation runner invokes its CLI; it is
+not production-vector generation. Its block constants mirror the accepted
+`rrc_pkg.sv` baseline and are checked by the TB, not parsed from RTL at runtime.
 The pre-#70 local suite with Icarus available passed 65 tests on 2026-10-02;
 that historical count does not include the time-golden tests now on `main`.
 These tests establish streaming transport correctness, not SQNR or RRC matching.
-After integrating the current `main`, the suite was rechecked locally on
-2026-10-05: 104 passed, including 51 inherited cases, 9 fixture cases and
-44 Icarus cases, with no skips. All four wrappers
+After the PR #73 review changes, the suite was rechecked locally on 2026-10-06:
+167 passed, including 51 inherited cases, 9 fixture cases, 61 stream cases and
+46 structural/configuration cases, with no skips. All four wrappers
 also passed `bash rtl/run.sh`. See `rtl/tb/README.md` for the scoped evidence;
 these results do not establish RRC arithmetic, SQNR, or physical timing.

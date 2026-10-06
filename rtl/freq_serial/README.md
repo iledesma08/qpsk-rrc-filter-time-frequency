@@ -9,12 +9,14 @@ bash rtl/freq_serial/run.sh --data-width 12 --spc 2
 
 `freq_serial_filter.sv` currently wraps the shared elastic transport shell:
 `valid`/`ready`, packed `{Q,I}`, parameterized width/SPC, and synchronized reset
-release. It forwards codes unchanged; no FFT, multiply, IFFT or OLS engine runs.
+release from one wrapper-owned `rrc_reset_sync` instance. It forwards codes
+unchanged; no FFT, multiply, IFFT or OLS engine runs.
 Fixtures are generated under `.build/rtl/freq_serial/`, not `sim/vectors/`.
 
 The actual serial frequency-domain implementation is T32 (`U=1`). Block
-parameters are exposed with package defaults FFT16/H8/discard8/emit8; their
-current unused-parameter lint warnings are expected until the engine lands.
+parameters are exposed with package defaults FFT16/H8/discard8/emit8. Emit
+defaults derive from the wrapper's FFT/discard parameters, and inconsistent
+tuples fail at simulation time zero. These are structural checks, not an engine.
 Changing the accepted hop-8 baseline still requires the professor gate.
 See `rtl/common/README.md` and `rtl/tb/README.md` for design, tests and evidence.
 Real RRC matching, 257-block cadence checks and timing/PPA remain unrun.

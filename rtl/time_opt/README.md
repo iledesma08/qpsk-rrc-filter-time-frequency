@@ -18,7 +18,8 @@ bash rtl/time_opt/run.sh --data-width 16 --spc 4
 
 `time_opt_filter.sv` currently wraps the same elastic **transport-only** shell
 as the other variants. It has packed `{Q,I}`, width/SPC parameters, handshake
-and synchronized reset release, but no systolic or pipelined RRC datapath.
+and synchronized reset release from one wrapper-owned `rrc_reset_sync` instance,
+but no systolic or pipelined RRC datapath.
 Its generated identity fixtures in `.build/rtl/time_opt/` verify streaming
 control, not an optimized filter or a PPA row. `SPC` is not the systolic factor
 `S`, and neither alone establishes throughput.

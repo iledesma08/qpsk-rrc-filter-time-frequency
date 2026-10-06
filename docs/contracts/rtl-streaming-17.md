@@ -6,9 +6,7 @@ Map: [#12](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/issues/1
 
 Date: 2026-09-22
 
-Updated: 2026-10-04 (T03 finite-frame metadata and production/physical boundaries)
-
-Branch: `docs/17-rtl-streaming`
+Updated: 2026-10-06 (PR #73 review: shared reset ownership and TB robustness)
 
 Scope: decision record for the common SystemVerilog streaming interface used by
 the serial and optimized time/frequency variants, the latency declaration, the
@@ -354,13 +352,39 @@ T03 (#42) retires `rtl/common/rrc_stream_placeholder.sv` and
 placed that retirement in F3; #42 explicitly requires the shared interface and
 TB skeleton first so both lanes can build their datapaths independently.
 
-### T03 transport shell (accepted 2026-10-02)
+### T03 transport shell (amendment tracked in PR #73)
+
+This scoped amendment is introduced for review and acceptance through
+[PR #73](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/pull/73).
+It is not a separately accepted T03 decision from 2026-10-02; that date belongs
+to the earlier finite-frame amendment above. Acceptance follows the repository's
+PR review/merge process. D1-D9 and the accepted hop-8 baseline are unchanged.
 
 The chosen temporary implementation is `rtl/common/rrc_stream_shell.sv`: a
 one-stage elastic transport register behind the interface above. The alternatives
 were an inactive shell plus a separate test DUT, or interface-only compilation.
 Transport was chosen so reset, hold, packing, and the scoreboard can be exercised
 on the actual shared shell before coefficients/datapaths are available.
+
+The register is temporary transport, not a required pipeline-stage design for
+F3. Its combinational `ready_i -> ready_o` path allows empty-entry loading and
+same-edge pop/push. Chaining that path across many stages requires timing analysis;
+F3 can introduce ready-path cuts or skid buffering when its actual architecture
+needs them. T03 adds no speculative two-entry buffer or physical-timing claim.
+
+Each wrapper instantiates `rrc_reset_sync.sv` once and distributes `rst_sync_n`
+to the shell and future datapath registers. The shell consumes that reset without
+resynchronizing it. Raw `rst_n` is used only by the synchronizer. Its `async_reg`
+annotation documents tool-dependent intent, not guaranteed preservation or
+placement in the Sky130 flow; those require mapped/physical verification.
+
+Package and frequency-wrapper defaults derive `EMIT_START=DISCARD_PREFIX` and
+`EMIT_LEN=FFT_LEN-DISCARD_PREFIX`. The wrappers reject inconsistent final tuples
+at simulation time zero: positive power-of-two FFT length, legal discard/hop,
+and `EMIT_LEN=HOP`. These structural checks do not implement OLS or approve
+hop 9. Alternate schedules still require their existing approval and integration
+gates. No I/Q helper API is introduced merely to contain an unused signed cast:
+transport is a bit copy; real arithmetic must unpack/cast its operands explicitly.
 
 - The shell forwards codes unchanged; it is **not an RRC filter**. Its `II=1`,
   `latency_cycles=1`, and `latency_samples=0` describe transport only, not the
@@ -415,15 +439,28 @@ on the actual shared shell before coefficients/datapaths are available.
   a one-to-one file relationship. Actual RRC matching is #48/#50; frequency
   fill, the 257-block FFT schedule, latency, II, and datapath-specific cadence
   checks remain F3 work in #49/#50.
-- Compile package, shared shell, wrapper, then TB for simulation. OpenLane
+- The continuous run records accepted-input interval count, minimum/maximum,
+  and a single `measured_ii` only when a nonempty measurement has constant
+  cadence. One-beat and variable-cadence frames report `undefined`, not an
+  invented average; robustness stalls are excluded. F3 must define its steady
+  measurement window and check its expected cadence using the actual datapath.
+  Synthetic II=8 and variable-cadence adapters test the instrumentation only.
+- The robustness run retains bounded sink-ready opportunities while declared
+  raw outputs remain and guarantees a valid post-input tail stall. This is
+  additional hold coverage, not a replacement for the continuous always-ready
+  run or the bounded always-ready check for extra emissions after completion.
+  Reset also aborts an accepted prefix under continuous offers and restarts at
+  record zero; one-beat frames have no proper nonempty prefix. Fault adapters
+  exercise hold corruption, duplicated output, valid payload X, and stale
+  post-reset output with specific diagnostics.
+- Compile package, common reset synchronizer, shared shell, wrapper, then TB
+  for simulation. OpenLane
   source lists remain DUT/shared RTL only. The T03 JSON `CLOCK_PERIOD=10.0`
   and TB 10 ns clock are setup, not physical-timing validation or PPA rows.
-  Under ADR-0006, serial main targets are SLOW 10 MHz (100 ns) with FAST
-  secondary, and optimized main targets FAST 100 MHz (10 ns) with SLOW
-  secondary. Prepare both, prioritize main goals and measured-pilot-capacity
-  comparative runs, and never replace a failed FAST goal with a SLOW pass.
-  Real target-specific configurations/runs belong to #52/#54, and comparable
-  PPA evidence to #55; T03 does not promise all twelve completed physical runs.
+  Target-specific configurations/runs belong to #52/#54; the authoritative
+  target, prioritization, and comparison rules are
+  [ADR-0006](../adr/0006-systemverilog-openlane-ppa-flow.md) and
+  [the PPA contract](ppa-matrix-18.md), not a second copy in this amendment.
 
 These are scoped T03 implementation choices, not changes to D1-D8 or the accepted
 hop-8 RRC baseline. F3 replaces transport with the FIR/FFT datapaths, connects

@@ -8,8 +8,9 @@ bash rtl/time_serial/run.sh --data-width 8 --spc 4
 ```
 
 `time_serial_filter.sv` currently wraps the shared elastic transport shell:
-`valid`/`ready`, packed `{Q,I}`, parameterized width/SPC, and internal reset
-synchronization. It forwards codes unchanged; it is not a time-domain filter.
+`valid`/`ready`, packed `{Q,I}`, parameterized width/SPC, and one wrapper-owned
+`rrc_reset_sync` instance shared with future datapath state. It forwards codes
+unchanged; it is not a time-domain filter.
 The run verifies reset, exact codes, latency, bubbles and stalls using generated
 fixtures in `.build/rtl/time_serial/`, not RRC goldens.
 

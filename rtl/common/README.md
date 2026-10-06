@@ -7,7 +7,10 @@ Nothing domain-specific goes here: shared logic is shared, not duplicated.
 ## T03 design (#42)
 
 `rrc_pkg.sv` owns the block defaults: FFT length 16, hop 8, discard prefix 8,
-emit start 8, emit length 8. Data width 16 and SPC 1 are interface defaults,
+emit start 8, emit length 8. Emit defaults derive from the FFT/discard parameters;
+frequency wrappers validate their final tuples at simulation time zero without
+implementing a block engine or activating alternate schedules.
+Data width 16 and SPC 1 are interface defaults,
 and width/SPC remain module parameters. Production `W_common=16` and
 `F_data=F_coeff=14` (`Q2.14`) are already mandated by contract #16, not a future
 width-selection decision. Widths such as 8 and 12 exercise diagnostic transport
@@ -22,13 +25,19 @@ bits, Q in the high bits, and lane 0 first.
 
 The shell accepts input when its output register is empty or its pending output
 can be consumed. Backpressure holds the payload and valid flag; an idle source
-allows a pending output to drain once, then clears valid. An internal two-flop
-reset synchronizer asserts asynchronously and releases synchronously. No stream
-transfer occurs during reset.
+allows a pending output to drain once, then clears valid.
+`rrc_reset_sync.sv` asserts asynchronously and releases through two flip-flops.
+Each wrapper instantiates it once and distributes `rst_sync_n` to the shell and
+future F3 state; the shell consumes that reset, without a second synchronizer.
+No stream transfer occurs during reset. The `async_reg` annotation documents
+tool-dependent intent, not physical preservation or placement guarantees.
 
 The interface and the scoped choice to retire placeholders in T03 rather than
 F3 are recorded in `docs/contracts/rtl-streaming-17.md`. Actual filter datapaths
 replace transport in F3; do not use this shell for filter matching or PPA.
+The combinational backward-ready path enables same-cycle replacement in this
+single entry; it is not a prescription to chain it through every future stage.
+F3 chooses ready-path cuts/skid buffering using its actual timing and PPA needs.
 
 ## Learning for review
 
@@ -40,8 +49,9 @@ replace transport in F3; do not use this shell for filter matching or PPA.
   packed bits itself is not arithmetic. The TB casts I/Q separately when
   sign-extending the records used for exact comparison.
 - Compile the package before its consumers. Simulation, lint, and OpenLane
-  source lists use that order. Simulation compiles package, shell, wrapper, then
-  TB; OpenLane includes DUT/shared RTL only, never TB metadata or vectors.
+  source lists use that order. Simulation compiles package, reset synchronizer,
+  shell, wrapper, then TB; OpenLane includes DUT/shared RTL only, never TB
+  metadata or vectors.
 
 ## Physical-target boundary
 

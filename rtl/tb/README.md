@@ -64,6 +64,24 @@ Actual RRC matching is #48/#50; the frequency engine's 257-block schedule,
 latency, II, and block cadence remain #49/#50 integration checks, not shell
 results. Synthetic asymmetric frames exercise only the generic TB mechanics.
 
+Continuous-run reports append `interval_count`, `ii_min`, `ii_max`, and
+`measured_ii` from successive accepted-input edges. A constant nonempty cadence
+has a numeric II; one-beat or variable-cadence measurements report `undefined`.
+Robustness-induced waits do not enter those statistics. Synthetic constant-II8
+and variable 4/8 adapters test this instrumentation, not a finished serial filter.
+
+The robust run guarantees a valid post-input tail stall and keeps bounded ready
+opportunities while capturing all declared raw outputs. The continuous run
+remains always ready, and the final bounded extra-output check also forces
+`ready_i=1`. `tail_stalls` reports actual covered holds, not just attempted stalls.
+An accepted prefix is aborted by asynchronous reset under continuous offers;
+the next full-frame run restarts at record zero with fresh counters. One-beat
+frames explicitly have no proper nonempty prefix to abort.
+
+Directed faulty adapters mutate a held payload, duplicate a code, drive X on a
+valid payload, or retain stale post-reset data. Tests require their specific
+hold/mismatch/unknown diagnostics and include a passing clean-adapter baseline.
+
 Coverage includes async reset assertion, two-flop release, reset while an output
 is pending, back-to-back traffic, deterministic seeded source gaps/sink stalls,
 DUT backpressure, source tails padded to whole beats, and diagnostic W/SPC
@@ -86,7 +104,24 @@ arrival latency, sample alignment and II are distinct. Icarus 12 required
 separate `$isunknown` checks for ready/valid rather than their concatenation.
 The 10 ns TB clock is functional simulation, not 100 MHz physical-timing proof.
 
-## Current post-#70 verification
+## Current PR #73 review verification
+
+On 2026-10-06 after the reviewer changes:
+
+- `.venv/bin/python -m pytest sim/python -v`: **167 passed**, no skips
+  (51 inherited + 9 fixtures + 61 stream + 46 reset/configuration cases).
+- `bash rtl/run.sh`: all four wrappers passed both frames. The continuous frame
+  measured 32 intervals at II=1; the robust frame covered a post-input tail stall
+  and restarted at index zero after resetting a two-beat accepted prefix.
+- DUT-only Verilator commands from CI passed without warnings. Frequency
+  parameters are now used in structural checks, not FFT arithmetic.
+- `bash scripts/check-vectors.sh` and `git diff --check` passed.
+
+The common reset source precedes the shell in simulation/lint/OpenLane lists.
+Icarus compilation of OpenLane source lists is not synthesis or physical signoff.
+No SQNR, actual RRC matching, physical timing, or PPA is established here.
+
+## Historical post-#70 verification
 
 After integrating the current `main` on 2026-10-05,
 `.venv/bin/python -m pytest sim/python -v` passed all 104 cases without skips

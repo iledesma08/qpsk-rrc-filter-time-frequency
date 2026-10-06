@@ -18,9 +18,11 @@ bash rtl/freq_opt/run.sh --data-width 16 --spc 4
 
 `freq_opt_filter.sv` currently wraps the shared elastic **transport-only** shell
 with packed `{Q,I}`, width/SPC parameters, handshake and synchronized reset
-release. No unfolded FFT/IFFT datapath runs. FFT16/H8/discard8/emit8 are exposed
-block defaults; unused-parameter lint warnings are expected until the engine
-lands. Changing the accepted hop-8 baseline still requires the professor gate.
+release from one wrapper-owned `rrc_reset_sync` instance. No unfolded FFT/IFFT
+datapath runs. FFT16/H8/discard8/emit8 are exposed block defaults, with emit
+defaults derived from the wrapper's FFT/discard values and inconsistent tuples
+rejected at simulation time zero. Changing the accepted hop-8 baseline still
+requires the professor gate.
 
 Production Q2.14 (`W_common=16`, `F=14`) is already declared; parameterized shell
 widths are diagnostic fixtures, not alternative production formats. T03 has no

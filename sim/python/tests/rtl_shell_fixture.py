@@ -38,6 +38,7 @@ def main():
         "flush_samples": args.flush_samples, "transport_padding_samples": padding,
         "accepted_input_samples": accepted, "raw_output_samples": accepted,
         "latency_samples": 0, "latency_cycles": 1,
+        # Accepted baseline mirrored from rrc_pkg.sv; the TB checks agreement.
         "FFT_LEN": 16, "HOP": 8, "DISCARD_PREFIX": 8,
         "EMIT_START": 8, "EMIT_LEN": 8,
         "block_cadence": 8, "fft_pipeline_cycles": 0,
