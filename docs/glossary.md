@@ -129,11 +129,84 @@
 - **RNE (round-to-nearest-even)** — Rounding to the nearest integer, choosing
   the even integer when a value lies exactly halfway between two integers.
   NumPy's `rint` uses this rule. T10 uses it only for the explicitly
-  illustrative Q2.14 integer example; the final common width is decided in
-  T21/T22.
+  illustrative Q2.14 integer example; production Q2.14 is already declared,
+  while T20/T21 validate its arithmetic and T22 exports accepted integer codes.
+
+## Streaming and RTL structure
+
+- **Streaming** - Exchanging an ordered sequence progressively through
+  transfers, rather than requiring the whole frame at once. A stream can pause
+  without changing the order or identity of its accepted samples.
+- **Handshake** - The agreement that transfers data at a clock edge when both
+  the producer's `valid` and the consumer's `ready` are asserted. Offering valid
+  data alone is not an accepted transfer.
+- **Shell** - A shared interface/control envelope prepared to contain a
+  processing implementation. A shell can implement transport without yet
+  performing the numerical operations of a filter.
+- **Beat** - One complete group of samples transferred together by a single
+  handshake. With SPC=4 a beat carries four complex samples; four elapsed
+  clocks are not automatically four beats.
+- **Lane** - One sample position within a multi-sample beat. Lane 0 is the
+  earliest sample in this project's ordering; all lanes transfer together.
+- **Wrapper** - An outer module that exposes an interface and connects it to
+  an implementation inside. Different wrapper names do not by themselves
+  establish different algorithms or performance.
+- **Package** - A SystemVerilog namespace containing shared declarations,
+  such as constants and types. It is not an instantiated datapath or storage
+  for samples in flight.
+- **Backpressure** - A consumer's lack of capacity propagated toward the
+  producer through `ready`. A producer offering valid data must wait and
+  preserve that offer until it is accepted.
+- **Bubble** - An input opportunity with no valid sample offered. It is an
+  absence of data, not a sample whose value is zero; a source bubble can coexist
+  with a pending output stall.
+- **Stall** - A valid output waiting because its consumer is not ready.
+  No output is consumed during that wait, regardless of how many clocks pass.
+- **Hold** - Preserving a pending valid indication and its payload until the
+  consumer accepts it. Retaining stale payload bits while valid is zero is not
+  a pending valid transaction.
+- **Push / pop** - Inserting an accepted beat into storage / removing a
+  consumed beat from storage. Both can occur at the same edge, replacing the
+  old beat with a new one without duplicating or losing either.
+- **Cycle latency (latencia en ciclos)** - Clock-edge separation between an
+  accepted input and the appearance of its corresponding valid output under
+  stated observation and traffic conditions. A subsequent stall can delay
+  consumption without changing when that output first became valid.
+- **Sample latency (latencia en muestras)** - The sample-index offset used
+  to align captured output records with their reference sequence. It is not
+  elapsed clocks, the FIR's group delay, or automatically the FFT block size.
+- **Initiation interval, II (intervalo de iniciacion)** - The number of
+  cycles between successive accepted inputs under stated traffic conditions.
+  It describes acceptance cadence, not bus width or input-to-output latency.
+
+  **II=1:** consecutive beats can be accepted every cycle when valid data and
+  downstream capacity are available; it does not guarantee progress under stalls.
+
+  **II=8:** successive acceptances are eight cycles apart under continuous
+  offered traffic without downstream stalls. With SPC=1 this is one sample
+  per eight cycles, not eight cycles of sample-index displacement.
+
+- **Synthetic transport (transporte sintetico)** - A controlled test scenario
+  with artificial input codes and a declared transport relationship, such as
+  unchanged output codes. It verifies transfer mechanics, not an RRC response.
+- **Sign extension (extension de signo)** - Widening a two's-complement
+  signed integer by repeating its sign bit, preserving its value. Eight-bit
+  `FF` (-1) becomes sixteen-bit `FFFF`, not zero-extended `00FF` (+255).
+- **Flush** - Explicitly accepted zero-valued input samples after the original
+  source frame, used to complete its declared response. Flush samples are data,
+  unlike idle clocks; they are distinct from padding added only to fill a beat.
+- **Datapath** - The arithmetic and data-storage path that performs the
+  numerical transformation, such as FIR accumulation or FFT butterflies.
+  Transporting unchanged bits does not implement that filter datapath.
 
 ## Verification
 
+- **Fixture** - A controlled, reproducible set of inputs, expected results,
+  and configuration for a test. A transport fixture is not automatically a
+  canonical QPSK frame or a golden RRC output.
+- **Scoreboard** - Verification bookkeeping that associates accepted or
+  consumed transactions with expected results and checks their order and
+  counts. It advances on transfer events, not simply on elapsed clocks.
 - **rtol (relative tolerance)** - The magnitude-dependent part of a numerical
   comparison's allowed error. NumPy's `assert_allclose(actual, expected, ...)`
   checks each element using
@@ -250,6 +323,10 @@
   width decisions owned by later phases.
 - `docs/contracts/toolchain-gap-2.md` — pins, `iverilog/vvp` contract,
   Verilator lint, OpenLane JSON/SDC/evidence.
+- `docs/contracts/rtl-streaming-17.md` - Handshake, packing, reset,
+  sample/cycle latency, initiation interval, and finite-frame transport counts.
+- `docs/contracts/vector-manifest-schema.md` - Production vector metadata
+  and its separation from synthetic transport fixtures.
 - `docs/contracts/openlane-env-19.md` — verified Nix/OpenLane/PDK, smoke
   repro, PDN-0185 floor, syn-commit rule.
 - `docs/adr/0001-python-float-golden-simulator.md` — Python float64 as the
