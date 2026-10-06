@@ -1,7 +1,8 @@
 {
   "DESIGN_NAME": "freq_serial_filter",
   "VERILOG_FILES": [
-    "dir::../../rtl/common/*.sv",
+    "dir::../../rtl/common/rrc_pkg.sv",
+    "dir::../../rtl/common/rrc_stream_shell.sv",
     "dir::../../rtl/freq_serial/*.sv"
   ],
   "CLOCK_PORT": "clk",

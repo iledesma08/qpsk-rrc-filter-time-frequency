@@ -1,17 +1,5 @@
 #!/usr/bin/env bash
-# SMOKE ONLY — retired in F3.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
-BUILD_DIR="$ROOT/.build/rtl/freq_serial"
-mkdir -p "$BUILD_DIR"
-cd "$ROOT"
-
-iverilog -g2012 -Wall \
-  -D DUT_MODULE=freq_serial_filter \
-  -s rrc_placeholder_tb \
-  -o "$BUILD_DIR/sim.out" \
-  rtl/common/rrc_stream_placeholder.sv \
-  rtl/freq_serial/freq_serial_filter.sv \
-  rtl/tb/rrc_placeholder_tb.sv
-vvp "$BUILD_DIR/sim.out"
+bash "$ROOT/rtl/run_variant.sh" freq_serial "$@"
