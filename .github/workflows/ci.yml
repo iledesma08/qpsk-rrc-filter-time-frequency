@@ -34,10 +34,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Install Icarus Verilog
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y iverilog
-      - name: Compile and run RTL placeholders
+      - name: Install Icarus Verilog and test runner
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y iverilog python3-pytest
+      - name: Compile and run streaming shells
         run: bash rtl/run.sh
+      - name: Exercise widths, SPC and negative vector checks
+        run: python3 -m pytest -c sim/python/pytest.ini sim/python/tests/test_rtl_stream.py sim/python/tests/test_rtl_config.py -v
 
   verilator-lint:
     name: Optional Verilator lint
@@ -52,13 +54,13 @@ jobs:
         run: |
           verilator --lint-only -sv -Wall -Wno-fatal \
             --top-module time_serial_filter \
-            rtl/common/rrc_stream_placeholder.sv rtl/time_serial/time_serial_filter.sv
+            rtl/common/rrc_pkg.sv rtl/common/rrc_reset_sync.sv rtl/common/rrc_stream_shell.sv rtl/time_serial/time_serial_filter.sv
           verilator --lint-only -sv -Wall -Wno-fatal \
             --top-module freq_serial_filter \
-            rtl/common/rrc_stream_placeholder.sv rtl/freq_serial/freq_serial_filter.sv
+            rtl/common/rrc_pkg.sv rtl/common/rrc_reset_sync.sv rtl/common/rrc_stream_shell.sv rtl/freq_serial/freq_serial_filter.sv
           verilator --lint-only -sv -Wall -Wno-fatal \
             --top-module time_opt_filter \
-            rtl/common/rrc_stream_placeholder.sv rtl/time_opt/time_opt_filter.sv
+            rtl/common/rrc_pkg.sv rtl/common/rrc_reset_sync.sv rtl/common/rrc_stream_shell.sv rtl/time_opt/time_opt_filter.sv
           verilator --lint-only -sv -Wall -Wno-fatal \
             --top-module freq_opt_filter \
-            rtl/common/rrc_stream_placeholder.sv rtl/freq_opt/freq_opt_filter.sv
+            rtl/common/rrc_pkg.sv rtl/common/rrc_reset_sync.sv rtl/common/rrc_stream_shell.sv rtl/freq_opt/freq_opt_filter.sv

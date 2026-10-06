@@ -72,6 +72,21 @@ an RTL variant's `SPC`, latency, or physical transfer counts. Those section 3
 fields are bound and checked in F3; their absence in `fxp_expected` is not a
 conformance failure and MUST NOT be replaced by guessed values.
 
+T03's synthetic transport fixtures remain outside this RRC schema.
+Their metadata-only `vector_manifest.svh` is marked `RRC_SHELL_FIXTURE` and
+describes identity transport, not a production artifact stage. The fixture
+generator keeps original source records in `input.hex`, appends explicit flush
+zeros only to identity `expected.hex`, and declares `flush_samples`,
+`transport_padding_samples`, `accepted_input_samples`, and `raw_output_samples`.
+Accepted count rounds source plus flush up to a whole SPC beat; identity raw
+count equals accepted count, without adding beat-padding expected codes. The
+TB counts full physical beats and compares only absolute valid-window indices;
+padding outside that window neither looks up nor consumes an expected code.
+Diagnostic fixture widths such as 8/12 do not change production Q2.14 or the
+normative RRC fields/invariants. See the scoped T03 section of
+`rtl-streaming-17.md` for fixture mechanics; actual RRC metadata/matching
+remains T31/T33 (#48/#50).
+
 Legacy aliases (MUST NOT be emitted as canonical fields; listed only so old
 text stays readable): `input_scale_16bit` / `coefficient_scale_16bit` /
 `output_scale_16bit` / `evidence_interpolation` (pre-Task-6 stimulus wording,

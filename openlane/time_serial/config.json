@@ -1,7 +1,9 @@
 {
   "DESIGN_NAME": "time_serial_filter",
   "VERILOG_FILES": [
-    "dir::../../rtl/common/*.sv",
+    "dir::../../rtl/common/rrc_pkg.sv",
+    "dir::../../rtl/common/rrc_reset_sync.sv",
+    "dir::../../rtl/common/rrc_stream_shell.sv",
     "dir::../../rtl/time_serial/*.sv"
   ],
   "CLOCK_PORT": "clk",

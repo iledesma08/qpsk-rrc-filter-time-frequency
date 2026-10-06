@@ -1,7 +1,9 @@
 {
   "DESIGN_NAME": "freq_opt_filter",
   "VERILOG_FILES": [
-    "dir::../../rtl/common/*.sv",
+    "dir::../../rtl/common/rrc_pkg.sv",
+    "dir::../../rtl/common/rrc_reset_sync.sv",
+    "dir::../../rtl/common/rrc_stream_shell.sv",
     "dir::../../rtl/freq_opt/*.sv"
   ],
   "CLOCK_PORT": "clk",
