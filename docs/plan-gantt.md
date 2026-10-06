@@ -31,7 +31,7 @@ flowchart LR
 > T11s (#67) is the shared input prerequisite for T11/T12; T10 remains their separate coefficient prerequisite. T11 and T12 can proceed in parallel once both prerequisites are met.
 > Numeric completion chain: `T13 -> T20 -> T21 -> T22 -> T30/T32 completion -> T31/T33`. Structural RTL work can start after T03; integer matching cannot start from a cast of float references or guessed future latency.
 > `SQNR-retry` (7d, only if no width hits 40 dB) extends F2; `signoff-respin` (5d) follows T44;
-> `professor-gate` is a zero-duration wait before F5 sign-off.
+> `professor-gate` (hop-9 approval) is closed (2026-10-06, #74): the revised assignment fixes 50% overlap, so no professor wait precedes F5 sign-off.
 
 - **F1** produces RRC `rrc8-v1` (α=0.5, 8 taps, OS 2x, `D=3.5`), shared stimulus, and float references for `canonical` + 3 `sys_corners` cases. Metadata declares the float-reference stage; no final integer expectations or RTL latencies are claimed. Contracts: #13, #14, #15, schema.
 - **F2** validates production `Q2.14` (`W_common=16`) at SQNR ≥ 40 dB in both domains and cross-domain SQNR ≥ 33.98 dB (34 dB nominal) between them, reports the required RNE width frontier, and exports per-domain integer expectations. T20 freezes production FFT-A arithmetic before accepting sweep results. Narrow-guard, FFT-B and truncation/wrap comparisons are optional, not phase gates. Contract: #16.
@@ -60,7 +60,7 @@ Clocks: serial main targets are SLOW 10 MHz; optimized main targets are FAST 100
 | T00 | Organized repo (this pack) + labels + `main` protection | this PR | all |
 | T01 | Fill in team table in README + create GitHub Project | T00 | all |
 | T02 | Toolchain/infra: `requirements.txt` pins (`toolchain-gap-2.md`), `run.sh` per variant (time/freq serial/opt) plus the top-level `rtl/run.sh`, `iverilog -g2012` + `vvp` nonzero-on-mismatch, Verilator lint-only CI (DUT only), SDC template (`PNR/SIGNOFF` identical except period) + OpenLane JSON skeleton per variant (DUT only, syn-commit rule), per-machine smoke re-verify per `openlane-env-19.md` | T00 | **A+D co-author before 2026-10-05** |
-| T03 | Streaming skeleton (no frozen coefs): `rtl/common/rrc_pkg.sv` (`FFT_LEN=16,HOP=8,DISCARD_PREFIX=8,EMIT_START=8,EMIT_LEN=8,DATA_WIDTH/SPC` params), handshake/reset shell (`valid/ready`, async-assert/sync-deassert + 2-flop sync), packed `{Q,I}` + signed casts, manifest-driven TB skeleton (`DATA_WIDTH/SPC/valid_start/valid_len/latency_samples` from manifest, exact int-code compare, bubble/stall scoreboard hooks) per `rtl-streaming-17.md` | T02 | **A before 2026-10-13**; B reviews freq params for professor-gate switch |
+| T03 | Streaming skeleton (no frozen coefs): `rtl/common/rrc_pkg.sv` (`FFT_LEN=16,HOP=8,DISCARD_PREFIX=8,EMIT_START=8,EMIT_LEN=8,DATA_WIDTH/SPC` params), handshake/reset shell (`valid/ready`, async-assert/sync-deassert + 2-flop sync), packed `{Q,I}` + signed casts, manifest-driven TB skeleton (`DATA_WIDTH/SPC/valid_start/valid_len/latency_samples` from manifest, exact int-code compare, bubble/stall scoreboard hooks) per `rtl-streaming-17.md` | T02 | **A before 2026-10-13**; B reviews freq params for professor-gate switch (gate closed, #74) |
 
 > T02/T03 are the front-load: frozen base (infra + package + TB skeleton) that lets B/C/D build datapaths from 10-13 with no A needed.
 

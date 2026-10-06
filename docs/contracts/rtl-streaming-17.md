@@ -352,13 +352,12 @@ T03 (#42) retires `rtl/common/rrc_stream_placeholder.sv` and
 placed that retirement in F3; #42 explicitly requires the shared interface and
 TB skeleton first so both lanes can build their datapaths independently.
 
-### T03 transport shell (amendment tracked in PR #73)
+### T03 transport shell (amendment accepted with PR #73)
 
-This scoped amendment is introduced for review and acceptance through
-[PR #73](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/pull/73).
-It is not a separately accepted T03 decision from 2026-10-02; that date belongs
-to the earlier finite-frame amendment above. Acceptance follows the repository's
-PR review/merge process. D1-D9 and the accepted hop-8 baseline are unchanged.
+This scoped amendment was accepted when
+[PR #73](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/pull/73)
+merged on 2026-10-06. It is not a separately accepted T03 decision from
+2026-10-02; that date belongs to the earlier finite-frame amendment above. D1-D9 and the accepted hop-8 baseline are unchanged.
 
 The chosen temporary implementation is `rtl/common/rrc_stream_shell.sv`: a
 one-stage elastic transport register behind the interface above. The alternatives
