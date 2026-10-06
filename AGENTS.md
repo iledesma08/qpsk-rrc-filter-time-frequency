@@ -46,6 +46,7 @@ rtl/freq_opt/    frequency-domain filter, optimized version (unfolded/folded/...
 rtl/tb/          testbenches (with vector matching against sim/vectors)
 docs/adr/        architecture decisions
 docs/slides/     final presentation
+docs/block-diagram.md  system block diagram + stage descriptions
 docs/plan-gantt.md  phases, milestones, 4-person split
 scripts/         utilities (label setup, vector generation, etc.)
 ```

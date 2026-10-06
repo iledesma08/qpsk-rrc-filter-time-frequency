@@ -12,6 +12,9 @@ Upload the final PDF + source (pptx/keynote/latex) before the `v1.1-close` tag.
 4. Lessons learned from completed work, including the accepted OLS H8 schedule, Q2 precision choice, and II vs fmax trade-offs. Label unmeasured H9/Q1/folded alternatives as discussion only.
 5. Actual vs planned Gantt + demo.
 
+The architecture part reuses the system block diagram and stage descriptions
+in `docs/block-diagram.md` (T52).
+
 Do not wait for optional Booth/ROM, narrow-guard or FFT-B experiments to finish
 the base presentation. Include them only when explicitly activated and backed
 by evidence, clearly separate from the six-architecture base. Q1.15 and the
