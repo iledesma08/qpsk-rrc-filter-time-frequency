@@ -1,0 +1,55 @@
+{
+  "artifact_stage": "float_reference",
+  "atol": 1e-12,
+  "evidence_for": "T13 (#43)",
+  "frames": [
+    "canonical/none",
+    "sys_corners/corner_repeat",
+    "sys_corners/max_alternation",
+    "sys_corners/single_symbol_perturbation"
+  ],
+  "interpolation": "none",
+  "max_abs_time_frequency_error": {
+    "canonical/none": 5.978733960281817e-16,
+    "sys_corners/corner_repeat": 3.1401849173675503e-16,
+    "sys_corners/max_alternation": 1.5700924586837752e-16,
+    "sys_corners/single_symbol_perturbation": 3.1401849173675503e-16
+  },
+  "plot_sha256": {
+    "canonical_none.png": "6bf438ab101773531cb83ee36ae4b65915df2cc8c90572f6a9dd848e25928577",
+    "sys_corners_corner_repeat.png": "c3dd1680fe11799ccb299070257958f507a8f300f08f09185d46c06ef9f284e9",
+    "sys_corners_max_alternation.png": "b6621d3d6dc4cca0e4f174598b97992c946368b9105886e0bef1d71862e071b6",
+    "sys_corners_single_symbol_perturbation.png": "5a08cc118c103c17f35c1b7c868062b82ec6d497bbde44b3a6c7f84c83fc134d",
+    "time_frequency_agreement.png": "f28db7fe5f8d1ec7410ecf93eb90f9036af319aa8ec9489d54d221391f37e05e"
+  },
+  "plots": [
+    "canonical_none.png",
+    "sys_corners_corner_repeat.png",
+    "sys_corners_max_alternation.png",
+    "sys_corners_single_symbol_perturbation.png",
+    "time_frequency_agreement.png"
+  ],
+  "series_colors": {
+    "I": "#0057B8",
+    "Q": "#E65100"
+  },
+  "source_sha256": "df8b43d1431b5ac530317b09e608521d1c22b61d3b82d7857d536aad0fc89fb1",
+  "vector_payload_sha256": {
+    "float_reference/canonical/none/input_samples.c16.bin": "d805588396a3eefd3b2895601856f929a99bfeaa32dd1f05879b477dc774c132",
+    "float_reference/canonical/none/reference_freq.c16.bin": "cefa76202847ceedf08d6cd940a007f3861b948db7f77cade6ce32b15dc002a5",
+    "float_reference/canonical/none/reference_time.c16.bin": "582b5a1b9081aa3511ec2300c9f12d01a9a8f6ab4c5175f45e80ad243884c7ba",
+    "float_reference/sys_corners/corner_repeat/input_samples.c16.bin": "6e7ca00fcf521ea73044d4c2b3d33676b7de4efb088b3c4d32d187648b0c5aa7",
+    "float_reference/sys_corners/corner_repeat/reference_freq.c16.bin": "fb06ce4635b5c3bf7f06053b80432ea18c09087bca97fe92e9a8cfbd4bfd0c0f",
+    "float_reference/sys_corners/corner_repeat/reference_time.c16.bin": "44e7609b5cf6214e4fde2238c0f677ce86a03a9f74028dcac0cb662310d36442",
+    "float_reference/sys_corners/max_alternation/input_samples.c16.bin": "5f6bee08644730f006124b305d160bfb2e9fe27d58ff30aa9bb24a7d0c112109",
+    "float_reference/sys_corners/max_alternation/reference_freq.c16.bin": "679088ebff18b5993e30cd440de256ba9c253974a634b541d647cd1c945151d3",
+    "float_reference/sys_corners/max_alternation/reference_time.c16.bin": "832ac10ac4f7ff93f5cdeff40ce11805b385950a3feeb1118e6f198fb50b7c9e",
+    "float_reference/sys_corners/single_symbol_perturbation/input_samples.c16.bin": "912d35ce6c0df3894a7d7d4851c5d2df64980395cbe06eb140a0ea620b70e734",
+    "float_reference/sys_corners/single_symbol_perturbation/reference_freq.c16.bin": "1ef018e4e3bb1217b39f9c89eadb68ca9bac77320f668604fa03a7b86484e104",
+    "float_reference/sys_corners/single_symbol_perturbation/reference_time.c16.bin": "04505ce4de7dbc0f77f24666fb452d74e58eac5a0f1129184b340b4041304f83"
+  },
+  "versions": {
+    "matplotlib": "3.11.2",
+    "numpy": "2.5.3"
+  }
+}
