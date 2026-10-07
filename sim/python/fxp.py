@@ -8,9 +8,11 @@ internal overflow, which fails the candidate.
 
 The narrowing primitives (quantization, RNE rounding and saturation) use
 ``fxpmath`` with ``rounding='around'`` (RNE) and ``overflow='saturate'``.
-fxpmath converts its operand through float64, which is exact only below 2^53,
-while the inverse-FFT twiddle products reach about 2^53 at W=18. Integer RNE
-narrowing therefore reduces the operand by an even multiple of the step first
+fxpmath converts its operand through float64, which is exact only below 2^53.
+The largest narrowed operand, an inverse-FFT twiddle product, measures 2^52.2
+at W=18 on the accepted frames (less than one bit of margin), and its declared
+64-67-bit containers guarantee nothing below 2^53. Integer RNE narrowing
+therefore reduces the operand by an even multiple of the step first
 (``round_shift``), so fxpmath rounds exactly at every datapath width. Additions
 and products stay exact integer operations, as in the RTL.
 

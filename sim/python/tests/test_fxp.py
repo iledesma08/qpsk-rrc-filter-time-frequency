@@ -150,7 +150,7 @@ def test_round_shift_matches_exact_round_half_even(shift):
 
 @pytest.mark.parametrize(("bits", "shift"), [(61, 14), (63, 16), (67, 16), (90, 20)])
 def test_round_shift_stays_exact_beyond_the_float64_significand(bits, shift):
-    # The inverse-FFT twiddle products reach about 2^53 at W=18.
+    # Inverse-FFT twiddle products measure 2^52.2 at W=18 in 64-67-bit containers.
     rng = np.random.default_rng(bits)
     limit = 1 << (bits - 2)
     values = [int(value) * limit // (1 << 62) for value in rng.integers(-(1 << 62), 1 << 62, size=2000)]
