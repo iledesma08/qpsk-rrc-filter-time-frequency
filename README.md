@@ -43,6 +43,7 @@ rtl/tb/            testbenches with vector matching
 docs/adr/          decisions (see ADRs)
 docs/contracts/  frozen decision contracts backing the ADRs (#13–#19, #35)
 docs/slides/       final presentation
+docs/block-diagram.md system block diagram + stage descriptions
 docs/plan-gantt.md phases, milestones, 4-way split
 scripts/          repo utilities (labels, checks)
 ```

@@ -162,8 +162,9 @@ implemented, test their equivalence and report them separately from the base.
 | -- | ---- | ---------- | --- |
 | T50 | Slides: contrast + PPA + lessons learned | T44 | PDF in `docs/slides/` (D assembles; technical plots delivered by C by 11-04); evidence per `ppa-matrix-18.md` (taps/response, SQNR, EVM vs float golden, constellation, eye/zero-ISI on canonical frame) + dormant `link-awgn-annex-35.md` if built (dual-arm float vs FXP-at-`W_common`, ideal/long TX ±8 sym — never 8-tap, `Es=2`, seed 2035, labelled interp, ideal-sync list, ≥100 errors/point, `Q(sqrt(Es/N0))`, loss at ref BER; no `vectors/rtl/tb` touch, never DoD) |
 | T51 | Actual vs planned Gantt + final demo | T50 | this table updated + `v1.1-close` tag |
+| T52 | System block diagram + stage descriptions (`docs/block-diagram.md`), required by the revised assignment | Accepted contracts; revisit after T42 | Mermaid system/verification, time and frequency views; per-stage function, parameters and source matching contracts and code; linked from README, AGENTS and slides; updated when T42 fixes the optimized frequency architecture |
 
-The T-task taxonomy above is the live execution plan. It is instantiated as issues #38–#60 plus shared prerequisite #67 (sub-issues of map #12, owners, milestones M1–M5, native blocking); lazy sub-issues (per-row F4 splits, per-width sweep splits) are added only when their fog graduates.
+The T-task taxonomy above is the live execution plan. It is instantiated as issues #38–#60 plus shared prerequisite #67 and T52 (#76) (sub-issues of map #12, owners, milestones M1–M5, native blocking); lazy sub-issues (per-row F4 splits, per-width sweep splits) are added only when their fog graduates.
 
 ## Initial 4-way split (delivery 11-06; travel 10-15→11-08; C takes the time lane)
 
@@ -220,6 +221,7 @@ gantt
   T30-31 match C        :2026-10-29, 3d
   T40-41 reduced opt C  :2026-11-01, 3d
   T44 activity+plots C  :2026-11-01, 4d
+  T52 block diagram C   :2026-10-06, 1d
   section D Andres
   T02 co-author D       :2026-09-28, 7d
   T44 framework D       :2026-10-05, 14d
@@ -266,6 +268,7 @@ gantt
 - `T30-31 match` (10-29, 3d): final integer integration plus exact matching, measured metadata, flush counts, drain and robustness; previous float checks are not substitutes for these gates.
 - `T40-41 reduced opt` (11-01, 3d): `T-S4P1`/`T-S8P1` + closure.
 - `T44 activity+plots` (11-01, 4d): one VCD/SAIF per row as rows close + evidence plots by 11-04 + vector guard.
+- `T52 block diagram` (10-06, 1d): candidate system block diagram and stage descriptions for team review; revisited when T42 fixes the optimized frequency architecture.
 
 **D Andres** — PPA + close; checkpoint organizer.
 - `T02 co-author` (09-28, 7d): OpenLane JSON/SDC skeletons (A reviews) + smoke all machines.
