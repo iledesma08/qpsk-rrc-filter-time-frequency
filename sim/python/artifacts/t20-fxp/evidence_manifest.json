@@ -1,0 +1,879 @@
+{
+  "evidence_version": "t20-fxp-v1",
+  "frames": {
+    "canonical/none": {
+      "f1_manifest_sha256": {
+        "frequency": "7e978f02bf461f4302228a51eae5c9b0142a3be021f02adfb1880cc55650edc0",
+        "time": "4c8a1dbd92cc1d88b59a210f71e665c257f606ef5de6ce14157621b0eac2e0c4"
+      },
+      "frequency": {
+        "internal_overflow_count": 0,
+        "output_codes_sha256": "202312fc748c3a77c27fa31f89f7f85d9d725c41a521afefcd0e994714e80752",
+        "output_saturation_count": 0,
+        "ranges": {
+          "fft_input": {
+            "declared_width": 16,
+            "max": 16384,
+            "min": -16384,
+            "overflow_count": 0,
+            "required_width": 16
+          },
+          "fft_stage1": {
+            "declared_width": 17,
+            "max": 46340,
+            "min": -46340,
+            "overflow_count": 0,
+            "required_width": 17
+          },
+          "fft_stage2": {
+            "declared_width": 18,
+            "max": 92680,
+            "min": -92680,
+            "overflow_count": 0,
+            "required_width": 18
+          },
+          "fft_stage3": {
+            "declared_width": 19,
+            "max": 158216,
+            "min": -135046,
+            "overflow_count": 0,
+            "required_width": 19
+          },
+          "fft_stage4": {
+            "declared_width": 20,
+            "max": 158216,
+            "min": -135046,
+            "overflow_count": 0,
+            "required_width": 19
+          },
+          "ifft_stage1": {
+            "declared_width": 42,
+            "max": 3358348140,
+            "min": -3574099440,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage1_rotated": {
+            "declared_width": 42,
+            "max": 3330264034,
+            "min": -3181759458,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage2": {
+            "declared_width": 43,
+            "max": 5131862016,
+            "min": -4861254624,
+            "overflow_count": 0,
+            "required_width": 34
+          },
+          "ifft_stage2_rotated": {
+            "declared_width": 43,
+            "max": 3358348140,
+            "min": -3574099440,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage3": {
+            "declared_width": 44,
+            "max": 5231420176,
+            "min": -5198240736,
+            "overflow_count": 0,
+            "required_width": 34
+          },
+          "ifft_stage3_rotated": {
+            "declared_width": 44,
+            "max": 4861254624,
+            "min": -4151982000,
+            "overflow_count": 0,
+            "required_width": 34
+          },
+          "ifft_stage4": {
+            "declared_width": 45,
+            "max": 3961145527,
+            "min": -3961129305,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage4_rotated": {
+            "declared_width": 45,
+            "max": 3961017732,
+            "min": -3960998874,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "spectral_product": {
+            "declared_width": 41,
+            "max": 3330264034,
+            "min": -3181759458,
+            "overflow_count": 0,
+            "required_width": 33
+          }
+        },
+        "rounding": {
+          "fft_twiddle": {
+            "inexact": 0,
+            "operations": 16448,
+            "ties": 0
+          },
+          "ifft_twiddle": {
+            "inexact": 3594,
+            "operations": 16448,
+            "ties": 0
+          },
+          "output_cast": {
+            "inexact": 3551,
+            "operations": 4110,
+            "ties": 0
+          }
+        },
+        "split_half_sqnr_db": [
+          89.09882536796609,
+          88.8048978700472
+        ],
+        "sqnr_db": 88.94932779069833
+      },
+      "sqnr_cross_db": 89.29315133158015,
+      "time": {
+        "internal_overflow_count": 0,
+        "output_codes_sha256": "874198a244236c4c48cc9aa26103254576203904f2c202074217d210c6dd9750",
+        "output_saturation_count": 0,
+        "ranges": {
+          "time_accumulator": {
+            "declared_width": 35,
+            "max": 247562240,
+            "min": -247562240,
+            "overflow_count": 0,
+            "required_width": 29
+          },
+          "time_product": {
+            "declared_width": 32,
+            "max": 185057280,
+            "min": -185057280,
+            "overflow_count": 0,
+            "required_width": 29
+          }
+        },
+        "rounding": {
+          "output_cast": {
+            "inexact": 0,
+            "operations": 4110,
+            "ties": 0
+          }
+        },
+        "split_half_sqnr_db": [
+          91.13070545989954,
+          91.1812369588159
+        ],
+        "sqnr_db": 91.1559059199376
+      }
+    },
+    "sys_corners/corner_repeat": {
+      "f1_manifest_sha256": {
+        "frequency": "b2e7abc9434f83bb7e210f017efa2d9e5275558411197626f6304c74d587dad4",
+        "time": "50794dce212446dd1cb4393e8a4c1625d2d48dbff8700322b4d437b95a8a2ffc"
+      },
+      "frequency": {
+        "internal_overflow_count": 0,
+        "output_codes_sha256": "2f3ac78d5029cfe784b16873c62230221708eed4d719e5737fabb3ac73ad20d2",
+        "output_saturation_count": 0,
+        "ranges": {
+          "fft_input": {
+            "declared_width": 16,
+            "max": 16384,
+            "min": 0,
+            "overflow_count": 0,
+            "required_width": 16
+          },
+          "fft_stage1": {
+            "declared_width": 17,
+            "max": 32768,
+            "min": -23170,
+            "overflow_count": 0,
+            "required_width": 17
+          },
+          "fft_stage2": {
+            "declared_width": 18,
+            "max": 65536,
+            "min": -32768,
+            "overflow_count": 0,
+            "required_width": 18
+          },
+          "fft_stage3": {
+            "declared_width": 19,
+            "max": 131072,
+            "min": -55938,
+            "overflow_count": 0,
+            "required_width": 19
+          },
+          "fft_stage4": {
+            "declared_width": 20,
+            "max": 131072,
+            "min": -55938,
+            "overflow_count": 0,
+            "required_width": 19
+          },
+          "ifft_stage1": {
+            "declared_width": 42,
+            "max": 3007840256,
+            "min": -1391074420,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage1_rotated": {
+            "declared_width": 42,
+            "max": 1379441894,
+            "min": -1379441894,
+            "overflow_count": 0,
+            "required_width": 32
+          },
+          "ifft_stage2": {
+            "declared_width": 43,
+            "max": 3007840256,
+            "min": -1718738520,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage2_rotated": {
+            "declared_width": 43,
+            "max": 1391074420,
+            "min": -1391074420,
+            "overflow_count": 0,
+            "required_width": 32
+          },
+          "ifft_stage3": {
+            "declared_width": 44,
+            "max": 3007840256,
+            "min": -2587571919,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage3_rotated": {
+            "declared_width": 44,
+            "max": 1718738520,
+            "min": -1718738520,
+            "overflow_count": 0,
+            "required_width": 32
+          },
+          "ifft_stage4": {
+            "declared_width": 45,
+            "max": 3484411481,
+            "min": -476571225,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage4_rotated": {
+            "declared_width": 45,
+            "max": 1980491353,
+            "min": -1980491353,
+            "overflow_count": 0,
+            "required_width": 32
+          },
+          "spectral_product": {
+            "declared_width": 41,
+            "max": 3007840256,
+            "min": -1379441894,
+            "overflow_count": 0,
+            "required_width": 33
+          }
+        },
+        "rounding": {
+          "fft_twiddle": {
+            "inexact": 0,
+            "operations": 16448,
+            "ties": 0
+          },
+          "ifft_twiddle": {
+            "inexact": 32,
+            "operations": 16448,
+            "ties": 0
+          },
+          "output_cast": {
+            "inexact": 26,
+            "operations": 4110,
+            "ties": 0
+          }
+        },
+        "split_half_sqnr_db": [
+          93.45765286306468,
+          93.45765286306454
+        ],
+        "sqnr_db": 93.45765286306461
+      },
+      "sqnr_cross_db": null,
+      "time": {
+        "internal_overflow_count": 0,
+        "output_codes_sha256": "2f3ac78d5029cfe784b16873c62230221708eed4d719e5737fabb3ac73ad20d2",
+        "output_saturation_count": 0,
+        "ranges": {
+          "time_accumulator": {
+            "declared_width": 35,
+            "max": 217776128,
+            "min": -29786112,
+            "overflow_count": 0,
+            "required_width": 29
+          },
+          "time_product": {
+            "declared_width": 32,
+            "max": 185057280,
+            "min": -29786112,
+            "overflow_count": 0,
+            "required_width": 29
+          }
+        },
+        "rounding": {
+          "output_cast": {
+            "inexact": 0,
+            "operations": 4110,
+            "ties": 0
+          }
+        },
+        "split_half_sqnr_db": [
+          93.45765286306461,
+          93.45765286306465
+        ],
+        "sqnr_db": 93.45765286306462
+      }
+    },
+    "sys_corners/max_alternation": {
+      "f1_manifest_sha256": {
+        "frequency": "3e7565edda423f8767749a4a464256023d0d00f492fa49ae434dca1f7bc57c8c",
+        "time": "fadfe51c7de48904906d0b030e0253d6c051c693e9a099153f0d54b9a61aba0f"
+      },
+      "frequency": {
+        "internal_overflow_count": 0,
+        "output_codes_sha256": "dd56c49232038afaa2757a4cafd2ca4008320b7cf0e63453beef90c5abb98ad1",
+        "output_saturation_count": 0,
+        "ranges": {
+          "fft_input": {
+            "declared_width": 16,
+            "max": 16384,
+            "min": -16384,
+            "overflow_count": 0,
+            "required_width": 16
+          },
+          "fft_stage1": {
+            "declared_width": 17,
+            "max": 32768,
+            "min": -32768,
+            "overflow_count": 0,
+            "required_width": 17
+          },
+          "fft_stage2": {
+            "declared_width": 18,
+            "max": 65536,
+            "min": -65536,
+            "overflow_count": 0,
+            "required_width": 18
+          },
+          "fft_stage3": {
+            "declared_width": 19,
+            "max": 131072,
+            "min": -55938,
+            "overflow_count": 0,
+            "required_width": 19
+          },
+          "fft_stage4": {
+            "declared_width": 20,
+            "max": 131072,
+            "min": -55938,
+            "overflow_count": 0,
+            "required_width": 19
+          },
+          "ifft_stage1": {
+            "declared_width": 42,
+            "max": 3007840256,
+            "min": -3007840256,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage1_rotated": {
+            "declared_width": 42,
+            "max": 3007840256,
+            "min": -1079385046,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage2": {
+            "declared_width": 43,
+            "max": 3007840256,
+            "min": -3007840256,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage2_rotated": {
+            "declared_width": 43,
+            "max": 3007840256,
+            "min": -3007840256,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage3": {
+            "declared_width": 44,
+            "max": 3007840256,
+            "min": -3007840256,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage3_rotated": {
+            "declared_width": 44,
+            "max": 1670064717,
+            "min": -1670064717,
+            "overflow_count": 0,
+            "required_width": 32
+          },
+          "ifft_stage4": {
+            "declared_width": 45,
+            "max": 3437472473,
+            "min": -3437417302,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage4_rotated": {
+            "declared_width": 45,
+            "max": 1933552345,
+            "min": -1933552345,
+            "overflow_count": 0,
+            "required_width": 32
+          },
+          "spectral_product": {
+            "declared_width": 41,
+            "max": 3007840256,
+            "min": -1079385046,
+            "overflow_count": 0,
+            "required_width": 33
+          }
+        },
+        "rounding": {
+          "fft_twiddle": {
+            "inexact": 0,
+            "operations": 16448,
+            "ties": 0
+          },
+          "ifft_twiddle": {
+            "inexact": 32,
+            "operations": 16448,
+            "ties": 0
+          },
+          "output_cast": {
+            "inexact": 26,
+            "operations": 4110,
+            "ties": 0
+          }
+        },
+        "split_half_sqnr_db": [
+          93.44069144922747,
+          93.44069144922753
+        ],
+        "sqnr_db": 93.4406914492275
+      },
+      "sqnr_cross_db": null,
+      "time": {
+        "internal_overflow_count": 0,
+        "output_codes_sha256": "dd56c49232038afaa2757a4cafd2ca4008320b7cf0e63453beef90c5abb98ad1",
+        "output_saturation_count": 0,
+        "ranges": {
+          "time_accumulator": {
+            "declared_width": 35,
+            "max": 214843392,
+            "min": -214843392,
+            "overflow_count": 0,
+            "required_width": 29
+          },
+          "time_product": {
+            "declared_width": 32,
+            "max": 185057280,
+            "min": -185057280,
+            "overflow_count": 0,
+            "required_width": 29
+          }
+        },
+        "rounding": {
+          "output_cast": {
+            "inexact": 0,
+            "operations": 4110,
+            "ties": 0
+          }
+        },
+        "split_half_sqnr_db": [
+          93.44069144922742,
+          93.44069144922742
+        ],
+        "sqnr_db": 93.44069144922742
+      }
+    },
+    "sys_corners/single_symbol_perturbation": {
+      "f1_manifest_sha256": {
+        "frequency": "e5405cd24ed3bf251c2f2ac096e5f385c2ba3468ba8e154781588ee452a5d64a",
+        "time": "5489387857606110e93a964a77989ef7e9d8e8aa7c14014e66366e56a3fd1d78"
+      },
+      "frequency": {
+        "internal_overflow_count": 0,
+        "output_codes_sha256": "837377e8d30d3c37ef6dcdc8f904094347618bffd114a6d05342697a88ca8443",
+        "output_saturation_count": 0,
+        "ranges": {
+          "fft_input": {
+            "declared_width": 16,
+            "max": 16384,
+            "min": -16384,
+            "overflow_count": 0,
+            "required_width": 16
+          },
+          "fft_stage1": {
+            "declared_width": 17,
+            "max": 32768,
+            "min": -32768,
+            "overflow_count": 0,
+            "required_width": 17
+          },
+          "fft_stage2": {
+            "declared_width": 18,
+            "max": 65536,
+            "min": -32768,
+            "overflow_count": 0,
+            "required_width": 18
+          },
+          "fft_stage3": {
+            "declared_width": 19,
+            "max": 131072,
+            "min": -55938,
+            "overflow_count": 0,
+            "required_width": 19
+          },
+          "fft_stage4": {
+            "declared_width": 20,
+            "max": 131072,
+            "min": -55938,
+            "overflow_count": 0,
+            "required_width": 19
+          },
+          "ifft_stage1": {
+            "declared_width": 42,
+            "max": 3007840256,
+            "min": -1391074420,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage1_rotated": {
+            "declared_width": 42,
+            "max": 1379441894,
+            "min": -1379441894,
+            "overflow_count": 0,
+            "required_width": 32
+          },
+          "ifft_stage2": {
+            "declared_width": 43,
+            "max": 3007840256,
+            "min": -1921646592,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage2_rotated": {
+            "declared_width": 43,
+            "max": 1391074420,
+            "min": -1391074420,
+            "overflow_count": 0,
+            "required_width": 32
+          },
+          "ifft_stage3": {
+            "declared_width": 44,
+            "max": 3868668032,
+            "min": -3868668032,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage3_rotated": {
+            "declared_width": 44,
+            "max": 1947021440,
+            "min": -1947021440,
+            "overflow_count": 0,
+            "required_width": 32
+          },
+          "ifft_stage4": {
+            "declared_width": 45,
+            "max": 3960978608,
+            "min": -2914002973,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "ifft_stage4_rotated": {
+            "declared_width": 45,
+            "max": 2960993501,
+            "min": -2960993501,
+            "overflow_count": 0,
+            "required_width": 33
+          },
+          "spectral_product": {
+            "declared_width": 41,
+            "max": 3007840256,
+            "min": -1379441894,
+            "overflow_count": 0,
+            "required_width": 33
+          }
+        },
+        "rounding": {
+          "fft_twiddle": {
+            "inexact": 0,
+            "operations": 16448,
+            "ties": 0
+          },
+          "ifft_twiddle": {
+            "inexact": 48,
+            "operations": 16448,
+            "ties": 0
+          },
+          "output_cast": {
+            "inexact": 50,
+            "operations": 4110,
+            "ties": 0
+          }
+        },
+        "split_half_sqnr_db": [
+          93.44873088173962,
+          93.41102447775823
+        ],
+        "sqnr_db": 93.42983789054523
+      },
+      "sqnr_cross_db": 114.30831761125472,
+      "time": {
+        "internal_overflow_count": 0,
+        "output_codes_sha256": "23e067d51140306cb40062c9c64483593d1ce6c1e76e799340d3ea7115c48104",
+        "output_saturation_count": 0,
+        "ranges": {
+          "time_accumulator": {
+            "declared_width": 35,
+            "max": 247562240,
+            "min": -214843392,
+            "overflow_count": 0,
+            "required_width": 29
+          },
+          "time_product": {
+            "declared_width": 32,
+            "max": 185057280,
+            "min": -185057280,
+            "overflow_count": 0,
+            "required_width": 29
+          }
+        },
+        "rounding": {
+          "output_cast": {
+            "inexact": 0,
+            "operations": 4110,
+            "ties": 0
+          }
+        },
+        "split_half_sqnr_db": [
+          93.44873088173969,
+          93.44150230684137
+        ],
+        "sqnr_db": 93.44511530747363
+      }
+    }
+  },
+  "freeze": {
+    "coefficient_codes": [
+      179,
+      -1818,
+      1818,
+      11295,
+      11295,
+      1818,
+      -1818,
+      179
+    ],
+    "format": "Q2.14",
+    "frequency": {
+      "bin_numbering": "standard DFT bin k (k=0 is DC); bit-reversed storage is an address mapping",
+      "fft_fraction_bits": 14,
+      "fft_stage_widths": [
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "fft_twiddle_narrowing": "RNE right shift by 14 into the stage width",
+      "forward": "radix-2 DIF, spans 8,4,2,1, natural-order input, bit-reversed output, unscaled",
+      "h_spectrum": {
+        "definition": "exact DFT16 of the quantized taps zero-padded to 16, one RNE",
+        "imag": [
+          0,
+          -22783,
+          -8925,
+          17827,
+          11474,
+          -4763,
+          -1653,
+          -193,
+          0,
+          193,
+          1653,
+          4763,
+          -11474,
+          -17827,
+          8925,
+          22783
+        ],
+        "order": "natural bin k",
+        "real": [
+          22948,
+          4532,
+          -21547,
+          -11912,
+          11474,
+          7128,
+          -685,
+          968,
+          0,
+          968,
+          -685,
+          7128,
+          11474,
+          -11912,
+          -21547,
+          4532
+        ],
+        "storage_order": "bit_reversed"
+      },
+      "ifft_fraction_bits": 28,
+      "ifft_stage_widths": [
+        41,
+        42,
+        43,
+        44,
+        45
+      ],
+      "ifft_twiddle_narrowing": "RNE right shift by 14 into the stage width",
+      "inverse": "radix-2 DIT, spans 1,2,4,8, bit-reversed input, natural-order output, conjugate twiddles, unscaled",
+      "output_cast": "divide by 16 as an exact binary-point move, then one RNE right shift by 18 and saturation to 16 bits",
+      "spectral_product_fraction_bits": 28,
+      "spectral_product_width": 41,
+      "total_scale": "forward x1, inverse x16 (unscaled), final /16 exactly once",
+      "twiddles": {
+        "definition": "T[k] = exp(-j*2*pi*k/16), k = 0..7, RNE from exact value",
+        "imag": [
+          0,
+          -6270,
+          -11585,
+          -15137,
+          -16384,
+          -15137,
+          -11585,
+          -6270
+        ],
+        "real": [
+          16384,
+          15137,
+          11585,
+          6270,
+          0,
+          -6270,
+          -11585,
+          -15137
+        ]
+      }
+    },
+    "narrowing_implementation": "fxpmath rounding='around' (RNE) and overflow='saturate'; integer RNE narrowing reduces the operand by an even multiple of the step so the float64 path is exact at any width",
+    "status": "proposed in the fxp-policy-16.md T20 amendment, pending frequency co-design sign-off",
+    "time": {
+      "accumulation_order": "ascending tap index k = 0..7, no intermediate rounding",
+      "accumulator_width": 35,
+      "output_cast": "RNE right shift by 14, saturate to 16 bits",
+      "product_fraction_bits": 28,
+      "product_width": 32
+    }
+  },
+  "gate_preview": {
+    "canonical_output_saturation_count": 0,
+    "internal_overflow_count": 0,
+    "passed": true,
+    "scope": "preview on the canonical frame; numerical acceptance is T21 (#45)",
+    "sqnr_cross_min_db": 33.979400086720375,
+    "sqnr_cross_passed": true,
+    "sqnr_freq_passed": true,
+    "sqnr_min_db": 40.0,
+    "sqnr_time_passed": true
+  },
+  "hash_serialization": {
+    "algorithm": "SHA-256",
+    "array_order": "C",
+    "byte_order": "little-endian",
+    "codes_dtype": "<i8",
+    "codes_layout": "shape (samples, 2), columns [I, Q]",
+    "coefficients_dtype": "<f8",
+    "samples_dtype": "<c16"
+  },
+  "policy": {
+    "F_coeff": 14,
+    "F_data": 14,
+    "W_acc_freq": 45,
+    "W_acc_time": 35,
+    "W_common": 16,
+    "W_product": 32,
+    "fft_mode": "baseline_A_grow_by_stage",
+    "fft_stage_widths": [
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "ifft_scale": "divide_by_16_then_cast_to_Q2.14",
+    "overflow_mode": "saturating_narrowing_with_fail_on_internal_overflow",
+    "rounding_mode": "RNE"
+  },
+  "provenance": {
+    "source_sha256": {
+      "fxp.py": "440275ba28be9fce70923d0da862950b977b9d817c19bf19e8eebe64fd9399ad",
+      "gen_vectors.py": "78138e806734e0b4220b73a99d344f07150599e90ce1a4b1e6fe748ce15f0232",
+      "rrc_coefs.py": "5128ee400782bd990cfc474893928ec22694a2225539a7c7e96a1c386868742b",
+      "sqnr.py": "aeb03aa6f579d8b67e096159e5a54351b0dddc19242e2b8ad2939aec15f2566d"
+    },
+    "versions": {
+      "fxpmath": "0.4.10",
+      "numpy": "2.5.3",
+      "python": "3.12.14"
+    }
+  },
+  "scope": "integer FXP model evidence; not fxp_expected vectors (T22) or the width sweep (T21)",
+  "sqnr_reference": {
+    "cross_domain": "time F1 float reference as common signal power",
+    "null_db": "zero quantization error (infinite SQNR)",
+    "per_domain": "each domain against its own F1 float reference"
+  },
+  "stage": "fxp_model_evidence",
+  "tie_reachability": {
+    "frequency": {
+      "fft_twiddle": {
+        "inexact": 0,
+        "operations": 65792,
+        "ties": 0
+      },
+      "ifft_twiddle": {
+        "inexact": 3706,
+        "operations": 65792,
+        "ties": 0
+      },
+      "output_cast": {
+        "inexact": 3653,
+        "operations": 16440,
+        "ties": 0
+      }
+    },
+    "time": {
+      "output_cast": {
+        "inexact": 0,
+        "operations": 16440,
+        "ties": 0
+      }
+    }
+  },
+  "traces": {
+    "file": "traces.json",
+    "sha256": "e067c88ac5bacd553882f5dd85a2b1130a0abae781f75060763e90a70c14c802"
+  },
+  "window": {
+    "valid_len": 2055,
+    "valid_start": 0
+  }
+}
