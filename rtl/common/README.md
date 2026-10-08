@@ -17,8 +17,17 @@ width-selection decision. Widths such as 8 and 12 exercise diagnostic transport
 fixtures, not production formats. T03 has no fractional arithmetic; numerical
 acceptance and the frozen production coefficient export in T22 remain pending.
 
+T30 (#47) adds the time-domain numeric policy to the package: `RRC_TAPS`,
+`FRAC_BITS`, `W_PRODUCT=32`, `W_ACC_TIME=35`, the `Q2.14` coefficient table
+(`RRC_COEFS`, read through `rrc_coef(k)`) and the single RNE/saturating output
+cast `time_output_cast`. The table equals the T20 model's
+`quantize_coefficients()`; T22 still has to validate it against the frozen
+export. The serial filter and the future optimized time variants share these
+definitions, so their arithmetic stays bit-exact by construction.
+
 `rrc_stream_shell.sv` replaces the inactive toolchain placeholder with a
-one-stage elastic **transport-only** register. All four wrappers share it.
+one-stage elastic **transport-only** register. The three wrappers without a
+datapath share it; `time_serial` replaced it with the T30 filter.
 It forwards each accepted `{Q,I}` beat unchanged, with no FIR or FFT arithmetic.
 The packed bus is `[SAMPLES_PER_CLOCK-1:0][2*DATA_WIDTH-1:0]`, with I in the low
 bits, Q in the high bits, and lane 0 first.
