@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Shared compile/run path; generated shell fixtures are not RRC golden vectors.
+# Shared compile/run path. Generated fixtures are not RRC golden vectors: the
+# transport wrappers use identity shell fixtures, and time_serial (T30) uses
+# structural frames from the T20 integer time model.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -31,8 +33,16 @@ if [[ -n "$vector_dir" && "$override" == 1 ]]; then
   printf 'The manifest owns DATA_WIDTH/SPC; --vectors cannot use width/SPC overrides\n' >&2
   exit 2
 fi
+if [[ "$variant" == time_serial && ( "$width" != 16 || "$spc" != 1 ) ]]; then
+  printf 'time_serial implements only production DATA_WIDTH=16 at SPC=1\n' >&2
+  exit 2
+fi
 mkdir -p "$BUILD_DIR"
-if [[ -z "$vector_dir" ]]; then
+if [[ -z "$vector_dir" && "$variant" == time_serial ]]; then
+  vector_dir="$BUILD_DIR/fixture-canonical"
+  "${PYTHON:-python3}" "$ROOT/sim/python/tests/rtl_filter_fixture.py" \
+    --output "$vector_dir" --frame canonical
+elif [[ -z "$vector_dir" ]]; then
   vector_dir="$BUILD_DIR/fixture-w${width}-spc${spc}"
   "${PYTHON:-python3}" "$ROOT/sim/python/tests/rtl_shell_fixture.py" \
     --output "$vector_dir" --data-width "$width" --spc "$spc"
@@ -45,11 +55,14 @@ for name in vector_manifest.svh input.hex expected.hex; do
   fi
 done
 bash "$ROOT/scripts/check-vectors.sh" "$vector_dir"
-defines=(-D "DUT_MODULE=${variant}_filter" -D RRC_TRANSPORT_DUT)
+defines=(-D "DUT_MODULE=${variant}_filter")
+sources=("$ROOT/rtl/common/rrc_pkg.sv" "$ROOT/rtl/common/rrc_reset_sync.sv")
+if [[ "$variant" != time_serial ]]; then
+  defines+=(-D RRC_TRANSPORT_DUT)
+  sources+=("$ROOT/rtl/common/rrc_stream_shell.sv")
+fi
 if [[ "$variant" == freq_* ]]; then defines+=(-D FREQ_DUT); fi
 iverilog -g2012 -Wall "${defines[@]}" -I "$vector_dir" \
   -s rrc_stream_tb -o "$BUILD_DIR/sim.out" \
-  "$ROOT/rtl/common/rrc_pkg.sv" "$ROOT/rtl/common/rrc_reset_sync.sv" \
-  "$ROOT/rtl/common/rrc_stream_shell.sv" \
-  "$ROOT/rtl/$variant/${variant}_filter.sv" "$ROOT/rtl/tb/rrc_stream_tb.sv"
+  "${sources[@]}" "$ROOT/rtl/$variant/${variant}_filter.sv" "$ROOT/rtl/tb/rrc_stream_tb.sv"
 vvp "$BUILD_DIR/sim.out" "+vector_dir=$vector_dir"

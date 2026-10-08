@@ -34,12 +34,21 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Install Icarus Verilog and test runner
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y iverilog python3-pytest
-      - name: Compile and run streaming shells
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: sim/python/requirements.txt
+      # time_serial fixtures take expected codes from the T20 integer model.
+      - name: Install Icarus Verilog and simulator dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install --no-install-recommends -y iverilog
+          python -m pip install -r sim/python/requirements.txt
+      - name: Compile and run RTL variants
         run: bash rtl/run.sh
-      - name: Exercise widths, SPC and negative vector checks
-        run: python3 -m pytest -c sim/python/pytest.ini sim/python/tests/test_rtl_stream.py sim/python/tests/test_rtl_config.py -v
+      - name: Exercise widths, SPC, filter structure and negative vector checks
+        run: python -m pytest -c sim/python/pytest.ini sim/python/tests/test_rtl_stream.py sim/python/tests/test_rtl_config.py sim/python/tests/test_rtl_time_serial.py -v
 
   verilator-lint:
     name: Optional Verilator lint
@@ -54,7 +63,7 @@ jobs:
         run: |
           verilator --lint-only -sv -Wall -Wno-fatal \
             --top-module time_serial_filter \
-            rtl/common/rrc_pkg.sv rtl/common/rrc_reset_sync.sv rtl/common/rrc_stream_shell.sv rtl/time_serial/time_serial_filter.sv
+            rtl/common/rrc_pkg.sv rtl/common/rrc_reset_sync.sv rtl/time_serial/time_serial_filter.sv
           verilator --lint-only -sv -Wall -Wno-fatal \
             --top-module freq_serial_filter \
             rtl/common/rrc_pkg.sv rtl/common/rrc_reset_sync.sv rtl/common/rrc_stream_shell.sv rtl/freq_serial/freq_serial_filter.sv

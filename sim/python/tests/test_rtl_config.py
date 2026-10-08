@@ -10,6 +10,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
 VARIANTS = ("time_serial", "time_opt", "freq_serial", "freq_opt")
+# time_serial carries the T30 filter; its reset test is in test_rtl_time_serial.py.
+TRANSPORT_VARIANTS = ("time_opt", "freq_serial", "freq_opt")
 FREQUENCY = ("freq_serial", "freq_opt")
 
 
@@ -33,7 +35,7 @@ def simulate(tmp_path, body, variant=None, sources=None):
     )
 
 
-@pytest.mark.parametrize("variant", (*VARIANTS, "direct"))
+@pytest.mark.parametrize("variant", (*TRANSPORT_VARIANTS, "direct"))
 def test_distributed_reset_and_elastic_hold(tmp_path, variant):
     if variant == "direct":
         instance = """
