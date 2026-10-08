@@ -25,6 +25,7 @@ from fxp import (
     quantize_coefficients,
     quantize_samples,
     round_shift,
+    run_fxp_model,
     saturate,
     twiddle_codes,
 )
@@ -385,6 +386,48 @@ def test_traces_agree_with_the_model_outputs(production_frames):
         assert entry["output_q"] == results["frequency"].q_codes[first : first + valid].tolist()
 
 
+@pytest.mark.parametrize(("domain", "positions"), [("time", [0, 7]), ("frequency", [0])])
+def test_trace_keeps_only_the_default_positions_a_short_input_has(domain, positions):
+    impulse = np.array([1 + 0j])
+    traced = run_fxp_model(domain, impulse, trace=True)
+    plain = run_fxp_model(domain, impulse)
+    key = "output_index" if domain == "time" else "block"
+    assert [entry[key] for entry in traced.trace] == positions
+    assert traced.i_codes.tolist() == plain.i_codes.tolist()
+    assert traced.q_codes.tolist() == plain.q_codes.tolist()
+
+
+def test_explicit_trace_positions_are_absolute_and_match_the_outputs():
+    samples = np.array([1 + 0j, -1 + 1j, 1 - 1j])
+    time = filter_time_fxp(samples, trace_indices=(np.int64(9), 2))
+    assert [entry["output_index"] for entry in time.trace] == [9, 2]
+    for entry in time.trace:
+        assert entry["output_i"] == time.i_codes[entry["output_index"]]
+        assert entry["output_q"] == time.q_codes[entry["output_index"]]
+    frequency = filter_frequency_fxp(samples, trace_blocks=(1,))
+    (entry,) = frequency.trace
+    assert (entry["block"], entry["first_output_index"], entry["valid_outputs"]) == (1, 8, 2)
+    assert entry["output_i"] == frequency.i_codes[8:10].tolist()
+    assert entry["output_q"] == frequency.q_codes[8:10].tolist()
+
+
+@pytest.mark.parametrize(
+    ("position", "error"),
+    [(-1, ValueError), ("limit", ValueError), (1.0, TypeError), (True, TypeError), (np.bool_(True), TypeError)],
+)
+@pytest.mark.parametrize(("domain", "limit"), [("time", 10), ("frequency", 2)])
+def test_trace_positions_must_be_integers_inside_the_output(domain, limit, position, error):
+    # Three samples give 10 outputs and 2 overlap-save blocks. A negative
+    # position is refused rather than read as NumPy indexing from the end.
+    samples = np.array([1 + 0j, -1 + 1j, 1 - 1j])
+    position = limit if isinstance(position, str) else position
+    with pytest.raises(error):
+        if domain == "time":
+            filter_time_fxp(samples, trace_indices=(position,))
+        else:
+            filter_frequency_fxp(samples, trace_blocks=(position,))
+
+
 # Production gate preview (canonical gate, sys_corners diagnostic) ---------
 
 
@@ -449,6 +492,9 @@ def test_evidence_regeneration_is_byte_identical(evidence, tmp_path):
 def test_committed_evidence_is_current(evidence):
     committed = _COMMITTED_EVIDENCE / "evidence_manifest.json"
     assert _without_provenance(committed) == _without_provenance(evidence)
+    committed_sources = json.loads(committed.read_text(encoding="utf-8"))["provenance"]["source_sha256"]
+    fresh_sources = json.loads(evidence.read_text(encoding="utf-8"))["provenance"]["source_sha256"]
+    assert committed_sources == fresh_sources
     assert (_COMMITTED_EVIDENCE / "traces.json").read_bytes() == evidence.with_name("traces.json").read_bytes()
 
 

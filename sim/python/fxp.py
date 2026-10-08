@@ -394,6 +394,22 @@ def _integers(values: np.ndarray) -> list:
     return [int(value) for value in np.asarray(values).ravel()]
 
 
+def _trace_positions(requested, limit: int, name: str) -> tuple[int, ...]:
+    """Validate explicit trace positions as absolute indices in ``[0, limit)``.
+
+    Negative positions are refused instead of being read as NumPy indexing
+    from the end, so every trace entry carries its absolute position.
+    """
+    positions = []
+    for value in requested:
+        if isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, np.integer)):
+            raise TypeError(f"{name}: expected integer positions, got {value!r}")
+        if not 0 <= value < limit:
+            raise ValueError(f"{name}: position {int(value)} outside [0, {limit})")
+        positions.append(int(value))
+    return tuple(positions)
+
+
 def _cast_output(
     monitor: ArithmeticMonitor,
     values: np.ndarray,
@@ -416,12 +432,14 @@ def filter_time_fxp(
 
     Full-precision ``2W``-bit products are summed in ascending tap order in a
     ``2W+3``-bit accumulator with no intermediate rounding; the only narrowing
-    is the final RNE/saturating cast to ``Q2.(W-2)``.
+    is the final RNE/saturating cast to ``Q2.(W-2)``. ``trace_indices`` are
+    absolute output indices in ``[0, output_length)``.
     """
     input_i, input_q = quantize_samples(samples, policy)
     coefficients = quantize_coefficients(policy)
     monitor = ArithmeticMonitor()
     output_length = input_i.size + FILTER_LENGTH - 1
+    trace_indices = _trace_positions(trace_indices, output_length, "trace_indices")
     history = np.zeros(FILTER_LENGTH - 1, dtype=object)
     taps = np.arange(FILTER_LENGTH)
     window_index = np.arange(output_length)[:, np.newaxis] + (FILTER_LENGTH - 1) - taps
@@ -439,7 +457,7 @@ def filter_time_fxp(
 
     trace = []
     for index in trace_indices:
-        entry = {"output_index": int(index)}
+        entry = {"output_index": index}
         for name, (window, products, partial_sums, output) in components.items():
             entry[f"input_{name}"] = _integers(window[index])
             entry[f"products_{name}"] = _integers(products[index])
@@ -545,6 +563,7 @@ def filter_frequency_fxp(
     Frames start with eight zero history samples, exactly as the float golden.
     The spectral product keeps full precision; the IFFT output carries ``2F``
     fractional bits and a factor 16, removed by one RNE shift of ``F + 4``.
+    ``trace_blocks`` are absolute block numbers in ``[0, block_count)``.
     """
     input_i, input_q = quantize_samples(samples, policy)
     monitor = ArithmeticMonitor()
@@ -555,6 +574,7 @@ def filter_frequency_fxp(
 
     output_length = input_i.size + FILTER_LENGTH - 1
     block_count = -(-output_length // HOP_LENGTH)
+    trace_blocks = _trace_positions(trace_blocks, block_count, "trace_blocks")
     right_padding = block_count * HOP_LENGTH - input_i.size
     zeros_left = np.zeros(HOP_LENGTH, dtype=object)
     zeros_right = np.zeros(right_padding, dtype=object)
@@ -581,10 +601,10 @@ def filter_frequency_fxp(
 
     trace = []
     for block in trace_blocks:
-        first = int(block) * HOP_LENGTH
-        valid = max(0, min(HOP_LENGTH, output_length - first))
+        first = block * HOP_LENGTH
+        valid = min(HOP_LENGTH, output_length - first)
         entry = {
-            "block": int(block),
+            "block": block,
             "first_output_index": first,
             "valid_outputs": valid,
             "frame_i": _integers(frame_real[block]),
@@ -613,11 +633,19 @@ def filter_frequency_fxp(
 
 
 def run_fxp_model(domain: str, samples, policy: FxpPolicy = PRODUCTION_POLICY, trace: bool = False) -> FxpResult:
-    """Run the integer model of ``domain`` (``time`` or ``frequency``)."""
+    """Run the integer model of ``domain`` (``time`` or ``frequency``).
+
+    ``trace=True`` records the default trace positions that exist for this
+    input length; on the canonical frame these are all of them.
+    """
+    output_length = np.asarray(samples).size + FILTER_LENGTH - 1
     if domain == "time":
-        return filter_time_fxp(samples, policy, TRACE_OUTPUT_INDICES if trace else ())
+        indices = [index for index in TRACE_OUTPUT_INDICES if index < output_length] if trace else ()
+        return filter_time_fxp(samples, policy, indices)
     if domain == "frequency":
-        return filter_frequency_fxp(samples, policy, TRACE_BLOCKS if trace else ())
+        block_count = -(-output_length // HOP_LENGTH)
+        blocks = [block for block in TRACE_BLOCKS if block < block_count] if trace else ()
+        return filter_frequency_fxp(samples, policy, blocks)
     raise ValueError(f"domain: expected 'time' or 'frequency', got {domain!r}")
 
 
@@ -766,12 +794,12 @@ def generate_fxp_evidence(
         "frame": "canonical/none",
         "policy": policy.manifest_fields(),
         "time": {
-            "output_indices": list(TRACE_OUTPUT_INDICES),
+            "output_indices": [entry["output_index"] for entry in traces["time"]],
             "operand_order": "input_*, products_* and partial_sums_* listed for taps k = 0..7 (x[n-k] * h[k])",
             "entries": traces["time"],
         },
         "frequency": {
-            "blocks": list(TRACE_BLOCKS),
+            "blocks": [entry["block"] for entry in traces["frequency"]],
             "stage_storage_order": "fft stages in DIF butterfly order (stage 4 = bit-reversed bins); "
             "spectral product in bit-reversed bin order; ifft stage 4 in natural time order",
             "entries": traces["frequency"],
