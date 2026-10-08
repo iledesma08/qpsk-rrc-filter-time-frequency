@@ -20,9 +20,8 @@ acceptance and the frozen production coefficient export in T22 remain pending.
 T30 (#47) adds the time-domain numeric policy to the package: `RRC_TAPS`,
 `FRAC_BITS`, `W_PRODUCT=32`, `W_ACC_TIME=35`, the `Q2.14` coefficient table
 (`RRC_COEFS`, read through `rrc_coef(k)`) and the single RNE/saturating output
-cast `time_output_cast`. The table equals the T20 model's
-`quantize_coefficients()`; T22 still has to validate it against the frozen
-export. The serial filter and the future optimized time variants share these
+cast `time_output_cast`. The table holds the Q2.14 integers listed in
+`fxp-policy-16.md`; T22 still has to validate it against the frozen export. The serial filter and the future optimized time variants share these
 definitions, so their arithmetic stays bit-exact by construction.
 
 `rrc_stream_shell.sv` replaces the inactive toolchain placeholder with a

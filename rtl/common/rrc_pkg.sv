@@ -16,8 +16,8 @@ package rrc_pkg;
   parameter integer W_ACC_TIME = W_PRODUCT + 3;
 
   // Q2.14 RRC coefficient codes; slice k multiplies delay k (ascending time
-  // order), so the concatenation lists c[7] first. Equal to
-  // fxp.quantize_coefficients(); T22 validates the frozen export. A flat
+  // order), so the concatenation lists c[7] first. These are the Q2.14
+  // integers listed in fxp-policy-16; T22 validates the frozen export. A flat
   // vector, because Icarus 11 rejects multidimensional package parameters.
   parameter logic [RRC_TAPS*DATA_WIDTH-1:0] RRC_COEFS = {
     16'sd179, -16'sd1818, 16'sd1818, 16'sd11295,

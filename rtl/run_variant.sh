@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Shared compile/run path. Generated fixtures are not RRC golden vectors: the
 # transport wrappers use identity shell fixtures, and time_serial (T30) uses
-# structural frames from the T20 integer time model.
+# structural frames from an exact integer reference of the accepted policy.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)

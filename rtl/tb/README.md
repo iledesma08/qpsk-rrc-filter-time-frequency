@@ -5,8 +5,8 @@
 `rrc_stream_tb.sv` is the shared manifest-driven family for all four wrappers.
 It replaces `rrc_placeholder_tb.sv`. Runs of the transport wrappers test
 transport, **not RRC vector matching**. Since T30 (#47), `time_serial` runs real
-filter arithmetic against structural fixtures from the T20 integer model
-(including the impulse check `x[0] => y[0:8] = h`); see
+filter arithmetic against structural fixtures from an exact integer reference
+of the accepted time policy (including the impulse check `x[0] => y[0:8] = h`); see
 `rtl/time_serial/README.md`. Matching against `sim/vectors/` is still T31/T33.
 
 From the repository root:

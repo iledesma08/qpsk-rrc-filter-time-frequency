@@ -1,8 +1,9 @@
 """T30 structural checks for the serial time-domain filter (S=1, P=1, SPC=1, II=8).
 
-Expected codes come from the T20 integer time model through
-``rtl_filter_fixture.py``. These checks are not T31 vector matching against
-``sim/vectors`` and claim no timing or PPA result.
+Expected codes come from the exact integer reference of the accepted time
+policy in ``rtl_filter_fixture.py``, independent of the FXP model under review
+(T20). These checks are not T31 vector matching against ``sim/vectors`` and
+claim no timing or PPA result.
 """
 
 from pathlib import Path
@@ -13,8 +14,8 @@ import subprocess
 import numpy as np
 import pytest
 
-from fxp import PRODUCTION_POLICY, quantize_coefficients, round_shift, saturate
 import rtl_filter_fixture
+from rtl_filter_fixture import FRAC_BITS, MAX_CODE, MIN_CODE, W_ACC_TIME, W_PRODUCT, WIDTH
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -56,9 +57,9 @@ def packed(i_code, q_code):
 
 @pytest.mark.parametrize("frame", rtl_filter_fixture.FRAMES)
 @requires_icarus
-def test_structural_frame_matches_the_integer_model_at_ii8(tmp_path, frame):
+def test_structural_frame_matches_the_integer_reference_at_ii8(tmp_path, frame):
     rtl_filter_fixture.write_fixture(tmp_path, frame)
-    source = rtl_filter_fixture.frame_codes(frame)[0].size
+    source = len(rtl_filter_fixture.frame_codes(frame)[0])
     outputs = source + rtl_filter_fixture.FLUSH_SAMPLES
     result = run_time_serial("--vectors", str(tmp_path))
     assert result.returncode == 0, result.stdout + result.stderr
@@ -75,22 +76,24 @@ def test_structural_frame_matches_the_integer_model_at_ii8(tmp_path, frame):
 
 
 def test_frames_exercise_rounding_saturation_and_the_impulse_response():
-    coefficients = quantize_coefficients().astype(np.int64)
-    counters = {}
-    for frame in rtl_filter_fixture.FRAMES:
-        _, _, result = rtl_filter_fixture.build_frame(frame)
-        counters[frame] = result.monitor.as_dict()
-        assert result.monitor.internal_overflow_count == 0
-    # Q2.14 QPSK inputs make the canonical cast exact (fxp-policy-16 freeze, time item 4).
-    assert counters["canonical"]["rounding"]["output_cast"]["inexact"] == 0
-    assert counters["canonical"]["output_saturation_count"] == 0
-    assert counters["rne_ties"]["rounding"]["output_cast"]["ties"] > 0
-    assert counters["arbitrary"]["rounding"]["output_cast"]["inexact"] > 0
-    assert counters["saturation"]["output_saturation_count"] > 0
+    # filter_reference raises on any product or partial sum outside its declared width.
+    counters = {frame: rtl_filter_fixture.build_frame(frame)[2].counters
+                for frame in rtl_filter_fixture.FRAMES}
+    # QPSK inputs are 0 or +/-2^14, so every canonical accumulator is a multiple of 2^14.
+    assert counters["canonical"].inexact == 0 and counters["canonical"].saturated == 0
+    assert counters["rne_ties"].ties > 0
+    assert counters["arbitrary"].inexact > counters["arbitrary"].ties
+    assert counters["saturation"].saturated > 0
+    coefficients = rtl_filter_fixture.coefficient_codes()
     _, _, impulse = rtl_filter_fixture.build_frame("impulse")
-    assert impulse.i_codes[:8].tolist() == coefficients.tolist()
-    assert impulse.q_codes[:8].tolist() == (-coefficients).tolist()
-    assert not np.any(impulse.i_codes[8:]) and not np.any(impulse.q_codes[8:])
+    assert impulse.i_codes[:8] == coefficients
+    assert impulse.q_codes[:8] == [-c for c in coefficients]
+    assert not any(impulse.i_codes[8:]) and not any(impulse.q_codes[8:])
+
+
+def test_reference_coefficients_are_the_policy_q2_14_codes():
+    # Integers listed by fxp-policy-16 (Numeric Policy) for the accepted coefficients.
+    assert rtl_filter_fixture.coefficient_codes() == [179, -1818, 1818, 11295, 11295, 1818, -1818, 179]
 
 
 def test_fixture_refuses_the_protected_vector_directory():
@@ -101,7 +104,7 @@ def test_fixture_refuses_the_protected_vector_directory():
 
 
 @requires_icarus
-def test_rtl_coefficients_and_widths_match_the_fxp_policy(tmp_path):
+def test_rtl_coefficients_and_widths_match_the_numeric_policy(tmp_path):
     result = simulate(tmp_path, """`timescale 1ns/1ps
 module tb;
   logic signed [rrc_pkg::DATA_WIDTH-1:0] coef;
@@ -118,20 +121,16 @@ endmodule
 """)
     assert result.returncode == 0, result.stdout + result.stderr
     coefficients = [int(m[1]) for m in re.finditer(r"COEF \d+ (-?\d+)", result.stdout)]
-    assert coefficients == quantize_coefficients().astype(np.int64).tolist()
-    policy = PRODUCTION_POLICY
-    assert (f"WIDTHS {policy.width} {policy.fraction_bits} {policy.product_width} "
-            f"{policy.time_accumulator_width}") in result.stdout
+    assert coefficients == rtl_filter_fixture.coefficient_codes()
+    assert f"WIDTHS {WIDTH} {FRAC_BITS} {W_PRODUCT} {W_ACC_TIME}" in result.stdout
 
 
 @requires_icarus
-def test_output_cast_matches_fxp_rne_and_saturation(tmp_path):
-    policy = PRODUCTION_POLICY
-    width = policy.time_accumulator_width
-    shift = policy.fraction_bits
-    half = 1 << (shift - 1)
-    one = 1 << shift
-    limit = 1 << (policy.width - 1)
+def test_output_cast_matches_exact_rne_and_saturation(tmp_path):
+    width = W_ACC_TIME
+    half = 1 << (FRAC_BITS - 1)
+    one = 1 << FRAC_BITS
+    limit = MAX_CODE + 1
     edges = [0, 1, -1, half, -half, half - 1, half + 1, -half - 1, -half + 1,
              (limit - 1) * one + half - 1, (limit - 1) * one + half,
              -limit * one - half, -limit * one - half - 1,
@@ -156,11 +155,11 @@ endmodule
 """)
     assert result.returncode == 0, result.stdout + result.stderr
     got = [int(m[1]) for m in re.finditer(r"CAST (-?\d+)", result.stdout)]
-    array = np.array(values, dtype=object)
-    rounded, _, ties = round_shift(array, shift)
-    expected, saturated = saturate(rounded, policy.width)
-    assert np.any(ties) and np.any(saturated)
-    assert got == [int(v) for v in expected]
+    counters = rtl_filter_fixture.CastCounters()
+    expected = [rtl_filter_fixture.output_cast(v, counters) for v in values]
+    assert counters.ties and counters.saturated
+    assert MIN_CODE in expected and MAX_CODE in expected
+    assert got == expected
 
 
 STREAM_TB = """`timescale 1ns/1ps
@@ -205,8 +204,7 @@ endmodule
 
 
 def impulse_codes():
-    coefficients = quantize_coefficients().astype(np.int64)
-    return [packed(c, -c) for c in coefficients] + ["00000000"]
+    return [packed(c, -c) for c in rtl_filter_fixture.coefficient_codes()] + ["00000000"]
 
 
 def events(stdout, kind):

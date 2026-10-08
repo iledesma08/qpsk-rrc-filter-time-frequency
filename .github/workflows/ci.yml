@@ -40,7 +40,7 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: sim/python/requirements.txt
-      # time_serial fixtures take expected codes from the T20 integer model.
+      # time_serial fixtures need NumPy/SciPy for the stimulus and float taps.
       - name: Install Icarus Verilog and simulator dependencies
         run: |
           sudo apt-get update && sudo apt-get install --no-install-recommends -y iverilog
