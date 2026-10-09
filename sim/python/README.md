@@ -13,10 +13,11 @@ python -m pytest sim/python -v
 - `golden_time.py` (T11): full causal float time-domain RRC reference and folded-sample/spectrum evidence from the shared stimulus. The folded view shows discrete samples around symbol centers, not a continuous eye diagram.
 - `golden_freq.py` (T12): full causal float frequency-domain RRC reference using complex FFT16, response multiplication, IFFT16, and forced-50% OLS (`H=8`). It consumes the shared stimulus and validated `rrc8-v1` coefficients.
 - `rrc_coefs.py` (T10): generates and validates the 8 RRC coefficients with α=0.5.
-- `fxp.py` + `sqnr.py` (T20, placeholders): pending fixed-point model and SQNR ≥ 40 dB measurement.
+- `fxp.py` (T20): integer FXP models of both domains (production `Q2.14`, sweep-parameterized `Q2.(W-2)`): the 35-bit time MAC and the integer FFT16 overlap-save path (DIF FFT, `H[k]`, DIT IFFT, one cast), with overflow/saturation/rounding counters and per-stage traces.
+- `sqnr.py` (T20): complex SQNR, cross-domain SQNR and the split-half check over the full causal window (ADR-0005).
 - `plot_vectors.py` (T13): review-evidence plots of the F1 float references (imported lazily by `gen_vectors.py --plots-dir`). Plots are evidence under `artifacts/`, never vectors.
 - `gen_vectors.py` (T13): staged vector generator. It writes the F1 `float_reference` stage to `sim/vectors/` with `.sha256` sidecars and stage-validated manifests. The `fxp_expected` (T22) and `rtl_matching` (T31/T33) exports and the integer-only `{Q,I}` packer are interfaces for those later stages. Do not edit vectors by hand.
-- `tests/`: coefficient, shared-stimulus, time-golden, frequency-golden, and vector-generator suites, plus an import smoke test. T20 behavior tests remain pending.
+- `tests/`: coefficient, shared-stimulus, time-golden, frequency-golden, and vector-generator suites, plus an import smoke test. `test_fxp.py` holds the T20 directed arithmetic checks and the production gate preview; `test_sqnr.py` covers the SQNR formulas.
 
 ## Time-Golden Evidence
 
@@ -66,6 +67,20 @@ python sim/python/gen_vectors.py --output-dir sim/vectors \
 ```
 
 `--plots-dir` is optional and only valid for `--stage float_reference`; the default regeneration and the byte-identical check do not depend on matplotlib output. The directory contains one plot per frame (`canonical_none.png`, `sys_corners_corner_repeat.png`, `sys_corners_max_alternation.png`, `sys_corners_single_symbol_perturbation.png`), each with the input samples, the 2055-sample float reference, and a zoom on what the frame stresses. It also contains `time_frequency_agreement.png` (|time - frequency| per frame against `atol=1e-12`) and `evidence_manifest.json` (plot hashes, hashes of the vector payloads plotted, the maximum time/frequency error per frame, and tool versions). I and Q use the T11 colors, with Q drawn dashed on top because they coincide wherever a symbol is `+1+j` or `-1-j`. PNG bytes can vary across matplotlib versions, so the plot hashes are evidence of this run and are not compared in CI.
+
+## Integer FXP models (T20)
+
+Regenerate the T20 evidence with:
+
+```bash
+python sim/python/fxp.py --output-dir sim/python/artifacts/t20-fxp
+```
+
+The generator reads the F1 inputs and float references from `sim/vectors/float_reference/` and checks their hashes first. It writes `evidence_manifest.json` (schema section 2 policy fields, the frozen integer constants, per-frame SQNR/split-half/cross-domain SQNR, overflow and saturation counters, per-point ranges and rounding/tie counts) and `traces.json` (per-stage integer traces for stage-by-stage RTL comparison). `--width W` runs a diagnostic `Q2.(W-2)` width with the same rules; the sweep itself and numerical acceptance are T21 (#45), and expected-code vectors are T22 (#46). Nothing here writes to `sim/vectors/`.
+
+The arithmetic follows the production-A integer freeze amendment in `docs/contracts/fxp-policy-16.md`. All values are exact Python integers in NumPy `object` arrays, so nothing wraps silently. Additions and products are exact integer operations; the narrowing primitives (`quantize`, `round_shift`, `saturate`) use `fxpmath` with `rounding='around'` (RNE) and `overflow='saturate'`.
+
+`fxpmath` 0.4.10 rounds through float64, so it is exact only while the operand has at most 53 significant bits; its extended-precision path is not exact either and warns that rounding may be bypassed. The largest operand any narrowing receives on the canonical and `sys_corners` frames is an inverse-FFT twiddle product: 2^40.2 at W=14, 2^46.2 at W=16 and 2^52.2 at W=18. On these frames even a direct `fxpmath` narrowing is exact, with less than one bit of margin at W=18, but the declared containers of those products (52-55 bits at W=14, 58-61 at W=16, 64-67 at W=18) guarantee nothing below 2^53. `round_shift` therefore subtracts an even multiple of the rounding step first (ties-to-even does not change under even integer offsets) and lets `fxpmath` round the reduced operand, which lies in `[0, 2^(shift+1))`. `saturate` accepts at most 63-bit inputs (the `fxpmath` int64 path) and at most 53-bit outputs. Tests compare `round_shift` against exact `Fraction` rounding up to 90 bits. `test_fxp.py` checks that the committed evidence matches a regeneration (except `provenance`), so changing the model requires regenerating it.
 
 ## T03 transport fixtures (#42)
 
