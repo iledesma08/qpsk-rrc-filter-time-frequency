@@ -504,6 +504,10 @@ D2 and D3 are resolved naturally by later tickets.
 - **Status:** float convention accepted; the exact integer convention must be
   frozen by T20 before T21 accepts sweep rows (2026-10-02 amendment). T32 must
   implement that convention, not introduce a new scaling schedule after SQNR.
+  The T20 proposal is the production-A integer freeze amendment in
+  `fxp-policy-16.md` (#44): unscaled DIF forward and DIT inverse transforms,
+  standard bin numbering with bit-reversed storage, and one exact /16 before
+  the final cast.
 - **What is being chosen:** the numeric scaling of the forward and inverse transforms, both in the Python golden and in the RTL FFT core.
 - **Alternatives:** NumPy default (forward unscaled, inverse `1/N`) — recommended for the float golden; a per-stage scaled RTL core; any documented equivalent.
 - **Why it matters here:** a duplicated or missing `1/N` changes the output scale and breaks vector matching; it must be recorded once and compensated exactly once.

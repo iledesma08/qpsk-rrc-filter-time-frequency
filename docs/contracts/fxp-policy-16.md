@@ -6,7 +6,8 @@ Map: [#12](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/issues/1
 
 Date: 2026-09-22
 
-Updated: 2026-10-06 (cross-domain SQNR amendment, #74); 2026-10-02 (production
+Updated: 2026-10-07 (production-A integer freeze amendment proposed, #44);
+2026-10-06 (cross-domain SQNR amendment, #74); 2026-10-02 (production
 Q2.14, numeric freeze and base-scope amendments)
 
 Branch: `docs/16-fxp-policy`
@@ -481,14 +482,162 @@ rationale; this contract fixes how F2 measures it:
 - Per-domain SQNR, overflow/saturation gates and the rule that time and
   frequency codes need not be bit-identical are unchanged.
 
+## Production-A integer freeze amendment (proposed 2026-10-07, T20 #44)
+
+Status: proposed. It records the integer operations of the T20 FXP models
+(`sim/python/fxp.py`) and fills the "Frequency arithmetic freeze" list above.
+It becomes accepted when the frequency co-designer (@JRondon23, owner of the
+FFT schedule) signs off the frequency part and the time-arm review
+(@iledesma08) signs off the time part. Until then T21 does not accept sweep
+rows. It changes no accepted decision: production stays `Q2.14`, RNE,
+explicit saturation, the 35-bit time accumulator and frequency baseline A,
+with the widths of the Numeric Policy above.
+
+### Scope and common rules
+
+- One parameter, `W`, sets `F = W - 2` and every width below. Production is
+  `W=16`. The diagnostic sweep uses the same rules at each tested `W`.
+- **Constants follow the common width.** The RRC coefficients, the FFT
+  twiddles and the stored `H[k]` table all use signed `Q2.(W-2)` with RNE from
+  the exact value. A range violation in any constant is an error, never a
+  saturation. Each sweep row therefore describes a datapath whose stored
+  constants are all `W` bits wide, as in the time domain. Fixing the constants
+  at 16 bits instead would mix widths in the frontier and cap the `W=18` row.
+- Every reduction of fractional precision is an RNE right shift on the exact
+  integer. RNE is odd-symmetric (`RNE(-v) = -RNE(v)`).
+- Every listed width is checked on every value. A value outside it is an
+  internal overflow and fails the candidate.
+
+### Time domain
+
+1. Input codes `x[n]` and coefficient codes `c[k]`, both `Q2.(W-2)`. History
+   resets to zero; the full causal window is `y[0:2055]`.
+2. Products `x[n-k] * c[k]` at full precision: `2W` bits, `2F` fractional
+   bits (32/28 at `W=16`).
+3. Accumulation in ascending tap order `k = 0..7` in a `2W+3`-bit accumulator
+   (35 bits) with no intermediate rounding. Every partial sum is checked.
+4. One output cast: RNE right shift by `F`, then saturation to `W` bits.
+
+On the accepted stimulus every input component is `0` or `+/-2^F`, so every
+accumulator is a multiple of `2^F`. The output cast drops only zero bits and
+the time FXP output is the exact integer convolution. Its error is coefficient
+quantization alone. This is the arithmetic reason no RNE tie is reachable in
+the time domain (item 7 of Saturation and overflow).
+
+### Frequency domain (forced-50% OLS, #14 D1)
+
+1. **Framing.** Unchanged from #14: frame `b` is `x[8b-8 : 8b+8]` with eight
+   zero history samples before `x[0]`, 257 blocks, emit `z[8:16]`, trim to
+   2055 outputs. Frame components are `W` bits.
+2. **Forward FFT16.** Radix-2 decimation in frequency, unscaled, natural-order
+   input, four stages with spans `8, 4, 2, 1`. Butterfly on `a = x[j]`,
+   `b = x[j+span]` within each group: `u = a + b`, `v = RNE_F((a - b) * T[k])`
+   with `k = j * 16 / (2 * span)`. The output is in bit-reversed order.
+3. **Twiddles.** `T[k] = exp(-j 2 pi k / 16)`, `k = 0..7`, in `Q2.(W-2)`.
+   At `W=16`: real `[16384, 15137, 11585, 6270, 0, -6270, -11585, -15137]`,
+   imaginary `[0, -6270, -11585, -15137, -16384, -15137, -11585, -6270]`.
+   Products with `T[0] = 1` and `T[4] = -j` are exact, so an RTL may replace
+   those multipliers with wiring and negation without changing any code.
+4. **Forward widths.** Stage `s` values (`u`, `v`) fit `W + s` bits with `F`
+   fractional bits: `W, W+1, W+2, W+3, W+4` = `fft_stage_widths`. The twiddle
+   product is formed at full precision and narrowed by RNE (shift `F`) into
+   the stage width; these are the only forward narrowing points.
+5. **`H[k]`.** The exact DFT16 of the quantized coefficient codes zero-padded
+   to 16, then one RNE to `Q2.(W-2)`. Bin `k` keeps standard DFT numbering
+   (`k=0` is DC, #14 Complex FFT and Packing Contract). The table is stored at
+   bit-reversed addresses, matching the order in which the forward transform
+   delivers `X[k]`; this is an address mapping, not a different bin
+   definition. At `W=16`, natural order:
+   real `[22948, 4532, -21547, -11912, 11474, 7128, -685, 968, 0, 968, -685,
+   7128, 11474, -11912, -21547, 4532]`, imaginary `[0, -22783, -8925, 17827,
+   11474, -4763, -1653, -193, 0, 193, 1653, 4763, -11474, -17827, 8925,
+   22783]`.
+6. **Spectral product.** `Y[k] = X[k] * H[k]` at full precision with `2F`
+   fractional bits, declared `2(W+4)+1` bits (41 at `W=16`). No narrowing:
+   this is the full-precision product of baseline A.
+7. **Inverse FFT16.** Radix-2 decimation in time, unscaled, bit-reversed
+   input, natural-order output, four stages with spans `1, 2, 4, 8`. Butterfly:
+   `v = RNE_F(b * conj(T[k]))`, then `a + v` and `a - v`, with
+   `k = j * 16 / (2 * span)`. Stage `s` values, including `v`, fit
+   `2(W+4)+1+s` bits with `2F` fractional bits; the last stage width is
+   `W_acc_freq = 2(W+4)+5` (45 at `W=16`). The twiddle-product RNE is the only
+   inverse narrowing point.
+8. **Scale and output cast.** The forward transform has gain 1 and the
+   unscaled inverse has gain 16. The division by 16 is an exact move of the
+   binary point (`2F` to `2F+4` fractional bits), applied exactly once; then
+   one RNE right shift by `F+4` (18 at `W=16`) and saturation to `W` bits.
+   `ifft_scale = divide_by_16_then_cast_to_Q2.14`.
+
+The model implements the RNE narrowings and the explicit saturations with
+`fxpmath` (`rounding='around'`, `overflow='saturate'`). Because `fxpmath`
+rounds through float64, an integer narrowing first subtracts an even
+multiple of the rounding step so the rounded operand stays exact at every
+width. The integer results are the same as an exact RNE shift.
+
+`twiddle` and `H[k]` integers, all widths and per-stage ranges are also
+recorded machine-readably in `sim/python/artifacts/t20-fxp/evidence_manifest.json`.
+`traces.json` holds per-stage integer traces (time outputs 0, 7, 1024, 2054;
+frequency blocks 0, 1, 128, 256) for stage-by-stage RTL comparison.
+
+### Scope of the stage widths and directed checks
+
+The `W+s` stage widths bound the accepted stimulus alphabet (components in
+`{0, +/-1}`) with headroom: at `W=16` the forward stages need 17/18/19/19 bits
+against 17/18/19/20 declared, the spectral product 33 against 41 and the
+inverse stages at most 34 against 42-45. They are not a worst-case bound for
+arbitrary full-scale `Q2.14` complex frames: a complex twiddle rotation can
+grow one component by up to `sqrt(2)` (the first forward stage already
+reaches `2 sqrt(2)` with QPSK input). Therefore:
+
+- The canonical frame and the three `sys_corners` frames are the overflow
+  gate, as in the Acceptance rule.
+- Directed arithmetic checks with arbitrary full-scale values target the
+  quantizer, rounding and saturation primitives and the time MAC, where the
+  bound holds.
+- A full-scale adversarial FFT frame is a negative control that proves the
+  overflow detector fires. It is not a candidate gate.
+- Adding a guard bit per stage would change `fft_stage_widths` and requires
+  its own amendment.
+
+### RNE tie reachability
+
+Enumerated at `W=16` over the canonical frame and the three `sys_corners`
+frames, which are deterministic and form the reachable set item 7 defines:
+
+| Domain | Narrowing point | Operations | Inexact | Ties |
+| --- | --- | --- | --- | --- |
+| Time | output cast | 16440 | 0 | 0 |
+| Frequency | forward twiddle products | 65792 | 0 | 0 |
+| Frequency | inverse twiddle products | 65792 | 3706 | 0 |
+| Frequency | output cast | 16440 | 3653 | 0 |
+
+No tie is reachable, so no exact-tie MUST check applies to the frames. The
+time reason is arithmetic (above). In the frequency domain the
+zero-inserted input puts every nonzero sample on an even index, and every
+forward twiddle product is exact. The inverse and output ties are absent by
+enumeration. RNE tie behaviour stays covered by directed tests on the
+rounding primitive. A test re-enumerates the ties, so a schedule change that
+makes one reachable fails and turns its exact-rounding check into a MUST.
+
+### T20 measurement (production `W=16`, informational; T21 owns acceptance)
+
+| Frame | `sqnr_time_db` | `sqnr_freq_db` | `sqnr_cross_db` | Overflow | Output saturation |
+| --- | --- | --- | --- | --- | --- |
+| canonical | 91.16 | 88.95 | 89.29 | 0 | 0 |
+| corner_repeat | 93.46 | 93.46 | identical codes | 0 | 0 |
+| max_alternation | 93.44 | 93.44 | identical codes | 0 | 0 |
+| single_symbol_perturbation | 93.45 | 93.43 | 114.31 | 0 | 0 |
+
+Split halves of the canonical frame stay within 0.5 dB of the full-frame
+value in both domains.
+
 ## Open Items
 
 - The PPA ranking rule is deferred to #18 (D8).
 - Optional experiments have no blocking edges into the base phases. Any
   production adoption requires its own evidence and recorded policy decision.
-- T20 must complete the frequency arithmetic freeze before T21 accepts sweep
-  rows. The declared production format is not evidence that the still-future
-  frequency FXP model meets SQNR.
+- The frequency arithmetic freeze is proposed in the T20 amendment above. T21
+  accepts sweep rows only after its sign-off.
 
 ## References
 

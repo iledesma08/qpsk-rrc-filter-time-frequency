@@ -166,11 +166,14 @@ flowchart LR
   is divided by 16 and cast to `Q2.14`.
 - T20 freezes stage ordering, twiddle integers, the quantized `H[k]` table,
   every width and every narrowing point before T21 accepts results. A cast of
-  a float FFT output is not the FXP model.
+  a float FFT output is not the FXP model. Proposal: radix-2 DIF forward FFT
+  (bit-reversed bins), `H[k]` stored at bit-reversed addresses, radix-2 DIT
+  IFFT, `Q2.14` twiddles, and one RNE cast after an exact /16
+  (`fxp-policy-16.md` T20 freeze amendment, #44).
 - RTL versions: serial `F-serial` (`U=1`) and an optimized version whose
   parallelization degree is pending (section 5). All variants share one
   numeric policy and are bit-exact with the serial version.
-- Source: `fxp-policy-16.md` D5 and frequency arithmetic freeze;
+- Source: `fxp-policy-16.md` D5 and production-A integer freeze amendment;
   `frequency-block-contract-14.md` D3; T20, T32, T42.
 
 ### 4.9 Streaming interface
