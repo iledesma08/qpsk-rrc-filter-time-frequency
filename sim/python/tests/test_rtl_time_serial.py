@@ -1,9 +1,10 @@
 """T30 structural checks for the serial time-domain filter (S=1, P=1, SPC=1, II=8).
 
 Expected codes come from the exact integer reference of the accepted time
-policy in ``rtl_filter_fixture.py``, independent of the FXP model under review
-(T20). These checks are not T31 vector matching against ``sim/vectors`` and
-claim no timing or PPA result.
+policy in ``rtl_filter_fixture.py``, independent of the T20 FXP model
+(``fxp.py``); the T20 integration checks below require both to agree. These
+checks are not T31 vector matching against ``sim/vectors`` and claim no timing
+or PPA result.
 """
 
 from pathlib import Path
@@ -14,8 +15,10 @@ import subprocess
 import numpy as np
 import pytest
 
+import fxp
 import rtl_filter_fixture
 from rtl_filter_fixture import FRAC_BITS, MAX_CODE, MIN_CODE, W_ACC_TIME, W_PRODUCT, WIDTH
+from stimulus import CORNER_CASES, generate_canonical_samples, generate_corner_samples
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -91,9 +94,46 @@ def test_frames_exercise_rounding_saturation_and_the_impulse_response():
     assert not any(impulse.i_codes[8:]) and not any(impulse.q_codes[8:])
 
 
-def test_reference_coefficients_are_the_policy_q2_14_codes():
+def test_reference_policy_is_the_contract_and_t20_production_policy():
     # Integers listed by fxp-policy-16 (Numeric Policy) for the accepted coefficients.
     assert rtl_filter_fixture.coefficient_codes() == [179, -1818, 1818, 11295, 11295, 1818, -1818, 179]
+    assert rtl_filter_fixture.coefficient_codes() == [int(c) for c in fxp.quantize_coefficients()]
+    policy = fxp.PRODUCTION_POLICY.manifest_fields()
+    assert (WIDTH, FRAC_BITS, FRAC_BITS, W_PRODUCT, W_ACC_TIME) == (
+        policy["W_common"], policy["F_data"], policy["F_coeff"], policy["W_product"], policy["W_acc_time"])
+
+
+def structural_inputs(frame):
+    """Return the fixture input codes of ``frame`` and the samples the T20 model quantizes."""
+    if frame in CORNER_CASES:
+        samples = generate_corner_samples(frame)
+        codes = ([rtl_filter_fixture.to_code(v) for v in samples.real],
+                 [rtl_filter_fixture.to_code(v) for v in samples.imag])
+        return codes, samples
+    i_codes, q_codes = rtl_filter_fixture.frame_codes(frame)
+    if frame == "canonical":
+        return (i_codes, q_codes), generate_canonical_samples()
+    # Directed frames are defined by their codes; every Q2.14 code decodes exactly.
+    return (i_codes, q_codes), (np.array(i_codes) + 1j * np.array(q_codes)) / (1 << FRAC_BITS)
+
+
+@pytest.mark.parametrize("frame", (*rtl_filter_fixture.FRAMES, *CORNER_CASES))
+def test_reference_matches_the_t20_time_model(frame):
+    # T20 integration gate: the independent reference that drives the RTL
+    # fixtures and the accepted FXP model agree code for code and on every cast counter.
+    (i_codes, q_codes), samples = structural_inputs(frame)
+    model_i, model_q = fxp.quantize_samples(samples)
+    assert [int(v) for v in model_i] == i_codes and [int(v) for v in model_q] == q_codes
+    model = fxp.filter_time_fxp(samples)
+    reference = rtl_filter_fixture.filter_reference(i_codes, q_codes)
+    assert [int(v) for v in model.i_codes] == reference.i_codes
+    assert [int(v) for v in model.q_codes] == reference.q_codes
+    cast = model.monitor.rounding["output_cast"]
+    counters = reference.counters
+    assert (cast["operations"], cast["inexact"], cast["ties"]) == (
+        counters.operations, counters.inexact, counters.ties)
+    assert model.monitor.output_saturation_count == counters.saturated
+    assert model.monitor.internal_overflow_count == 0
 
 
 def test_fixture_refuses_the_protected_vector_directory():
@@ -122,7 +162,12 @@ endmodule
     assert result.returncode == 0, result.stdout + result.stderr
     coefficients = [int(m[1]) for m in re.finditer(r"COEF \d+ (-?\d+)", result.stdout)]
     assert coefficients == rtl_filter_fixture.coefficient_codes()
+    assert coefficients == [int(c) for c in fxp.quantize_coefficients()]
     assert f"WIDTHS {WIDTH} {FRAC_BITS} {W_PRODUCT} {W_ACC_TIME}" in result.stdout
+    policy = fxp.PRODUCTION_POLICY.manifest_fields()
+    widths = re.search(r"WIDTHS (\d+) (\d+) (\d+) (\d+)", result.stdout).groups()
+    assert tuple(map(int, widths)) == (
+        policy["W_common"], policy["F_data"], policy["W_product"], policy["W_acc_time"])
 
 
 @requires_icarus

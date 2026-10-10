@@ -3,8 +3,9 @@
 Expected codes come from an exact integer reference of the accepted time
 policy (fxp-policy-16, Numeric Policy): Q2.14 data and coefficients, products
 summed at full precision with no rounding between taps, one RNE cast and
-saturation to 16 bits. It is independent of the FXP model under review (T20) and
-never casts the float reference output. The frames check the datapath, its
+saturation to 16 bits. It is independent of the T20 FXP model (``fxp.py``),
+which test_rtl_time_serial.py requires it to match, and it never casts the
+float reference output. The frames check the datapath, its
 rounding/saturation, II and latency; exact matching against the T22 production
 vectors and the rtl_matching manifest binding belong to T31 (#48).
 """

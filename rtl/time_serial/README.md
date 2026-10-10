@@ -47,7 +47,7 @@ check rejects any width other than 16 or `SPC` other than 1.
 `sim/vectors/`, with expected codes from an exact integer reference of the
 accepted policy: Q2.14 codes of the frozen float taps, full-precision integer
 products and sums, and one RNE (`round` of a `Fraction`) plus saturation. It
-does not use the FXP model under review (T20) and never casts the float
+does not reuse the T20 FXP model (`fxp.py`) and never casts the float
 reference output. Frames: canonical
 (2048 + 7 flush zeros), impulse `1 - j` (`y[0:8] = c`), `+/-0.5` impulses
 (exact RNE ties in both directions), full-scale sign-aligned input (both
@@ -57,7 +57,12 @@ continuously (latency, `II`) and with bubbles, stalls and a mid-traffic reset.
 `test_rtl_time_serial.py` also checks:
 
 - the package cast against the exact reference on 2024 accumulator values;
-- the coefficient table and widths against the numeric policy;
+- the coefficient table and widths against the numeric policy and the T20
+  production policy (`fxp.quantize_coefficients`, `PRODUCTION_POLICY`);
+- the T20 integration gate: the reference and `fxp.filter_time_fxp` give the
+  same input codes, output codes, RNE operation/inexact/tie counts and
+  saturations, with no internal overflow, on the five structural frames and
+  the three `sys_corners` frames;
 - a 40-cycle sink stall: two inputs accepted, the second waits at tap 7;
 - no combinational path from `valid_i` or `ready_i` to the outputs;
 - synchronized reset release and history clearing mid-computation;
@@ -84,9 +89,9 @@ clear each makes at least one of these tests fail.
 ## Scope limits
 
 These are structural checks against an independent reference of the accepted
-policy; they need no T20 code. On 2026-10-08 the reference produced the same
-inputs, codes and rounding/saturation counts as the T20 model (PR #78) on all
-five frames. That cross-check is not part of the suite. Final integration with the T22 production artifacts (#46) is still
+policy. Its agreement with the T20 model (PR #78) is part of the suite, so the
+T20 integration is closed by test, not by a one-off comparison. Final
+integration with the T22 production artifacts (#46) is still
 open. Exact matching against `sim/vectors/`, measured `rtl_matching` metadata
 and the `sys_corners` sets are T31 (#48). SLOW 10 MHz main-target timing and PPA
 belong to T41 (#52). The OpenLane JSON's 10 ns setup is not timing evidence.
