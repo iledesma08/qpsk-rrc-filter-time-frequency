@@ -4043,6 +4043,7 @@
   "freeze": "production-A integer freeze accepted 2026-10-09 (fxp-policy-16.md T20 amendment, sign-offs on PR #78)",
   "frontier": {
     "both_domains_W": 10,
+    "both_domains_with_cross_gate_W": 10,
     "frequency_W": 10,
     "passes_at_every_wider_width": true,
     "rule": "smallest swept W whose row passes numerically; a measured frontier that never replaces production",
@@ -4093,13 +4094,13 @@
     "passed": true
   },
   "provenance": {
-    "git_commit": "d5ca0d62178fb493f51398b5f490e62ff5c0f4b8",
+    "git_commit": "ef7a82a9968d33111658fced42e3e808580f9531",
     "source_sha256": {
       "fxp.py": "ed0646a50c6921d6e456a1be76ee46701b34bf4bf8d941205bdbb001bb3e3336",
       "gen_vectors.py": "78138e806734e0b4220b73a99d344f07150599e90ce1a4b1e6fe748ce15f0232",
       "rrc_coefs.py": "5128ee400782bd990cfc474893928ec22694a2225539a7c7e96a1c386868742b",
       "sqnr.py": "aeb03aa6f579d8b67e096159e5a54351b0dddc19242e2b8ad2939aec15f2566d",
-      "sweep.py": "d58f99ad9f29e7405bfb4616d0c00dd243d6e02db592f9d680824ebf7ba2f5e1"
+      "sweep.py": "dc2867798a07b8bf6dd567dfe54be4db29c13f6d25b07fb2845d15cfabc4fdb5"
     },
     "versions": {
       "fxpmath": "0.4.10",
@@ -4108,6 +4109,7 @@
     }
   },
   "row_field_scope": {
+    "coefficient_sqnr_db": "stored Q2.(W-2) coefficients against the float rrc8-v1 taps; frame-independent",
     "internal_overflow_count": "sum over all frames and both domains",
     "max_abs_acc_freq": "largest |value| over every IFFT stage (rotated and butterfly outputs), all frames",
     "max_abs_acc_time": "largest |partial sum| of the time accumulator over all frames",
@@ -4124,6 +4126,7 @@
       "W_acc_time": 19,
       "W_common": 8,
       "W_product": 16,
+      "coefficient_sqnr_db": 42.14799383837493,
       "criteria": {
         "frequency": {
           "split_half_stable": true,
@@ -4181,6 +4184,7 @@
       "W_acc_time": 23,
       "W_common": 10,
       "W_product": 20,
+      "coefficient_sqnr_db": 47.36639463157397,
       "criteria": {
         "frequency": {
           "split_half_stable": true,
@@ -4238,6 +4242,7 @@
       "W_acc_time": 27,
       "W_common": 12,
       "W_product": 24,
+      "coefficient_sqnr_db": 61.91348734384627,
       "criteria": {
         "frequency": {
           "split_half_stable": true,
@@ -4295,6 +4300,7 @@
       "W_acc_time": 31,
       "W_common": 14,
       "W_product": 28,
+      "coefficient_sqnr_db": 71.84002052413098,
       "criteria": {
         "frequency": {
           "split_half_stable": true,
@@ -4352,6 +4358,7 @@
       "W_acc_time": 35,
       "W_common": 16,
       "W_product": 32,
+      "coefficient_sqnr_db": 91.08577019004825,
       "criteria": {
         "frequency": {
           "split_half_stable": true,
@@ -4409,6 +4416,7 @@
       "W_acc_time": 39,
       "W_common": 18,
       "W_product": 36,
+      "coefficient_sqnr_db": 97.3866643639494,
       "criteria": {
         "frequency": {
           "split_half_stable": true,

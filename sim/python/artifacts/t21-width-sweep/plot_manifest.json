@@ -1,7 +1,7 @@
 {
   "drawn_from": {
     "file": "evidence_manifest.json",
-    "sha256": "61435beb80527804557b0c6bd1ac9823fee42b72a4c8887480bde94c14bb0f67"
+    "sha256": "f84a81ee3129b21365cc56ad66c35b9c8839302a656ea96de1c3ea436ee57c01"
   },
   "evidence_for": "T21 (#45)",
   "frame": "canonical/none",
@@ -13,7 +13,7 @@
     "frequency": "#eb6834",
     "time": "#2a78d6"
   },
-  "source_sha256": "d58f99ad9f29e7405bfb4616d0c00dd243d6e02db592f9d680824ebf7ba2f5e1",
+  "source_sha256": "dc2867798a07b8bf6dd567dfe54be4db29c13f6d25b07fb2845d15cfabc4fdb5",
   "versions": {
     "matplotlib": "3.11.2",
     "numpy": "2.5.3"

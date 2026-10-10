@@ -36,9 +36,19 @@ from pathlib import Path
 import fxpmath
 import numpy as np
 
-from fxp import FFT_MODE, PRODUCTION_WIDTH, ROUNDING_MODE, SWEEP_WIDTHS, FxpPolicy, load_f1_frame, measure_frame
+from fxp import (
+    FFT_MODE,
+    PRODUCTION_WIDTH,
+    ROUNDING_MODE,
+    SWEEP_WIDTHS,
+    FxpPolicy,
+    load_f1_frame,
+    measure_frame,
+    quantize_coefficients,
+)
 from gen_vectors import iter_frames
-from sqnr import SPLIT_HALF_TOLERANCE_DB, SQNR_CROSS_MIN_DB, SQNR_MIN_DB, split_half_is_stable
+from rrc_coefs import load_rrc8_coefficients
+from sqnr import SPLIT_HALF_TOLERANCE_DB, SQNR_CROSS_MIN_DB, SQNR_MIN_DB, split_half_is_stable, sqnr_db
 
 
 ACCEPTANCE_FRAME = "canonical/none"
@@ -133,6 +143,18 @@ def measure_width(frames: dict, policy: FxpPolicy) -> dict:
     return measured
 
 
+def coefficient_sqnr_db(policy: FxpPolicy) -> float:
+    """SQNR of the stored coefficients alone, ``10 log10(sum h^2 / sum (h - h_q)^2)``.
+
+    The input codes are ``+/-1`` and ``0``, so the time accumulator holds
+    multiples of ``2^F`` and the output cast drops only zero bits: the time
+    output is exactly ``x * h_q``. Its SQNR follows this value, up to the
+    spectrum of the stimulus.
+    """
+    stored = np.asarray(quantize_coefficients(policy), dtype=np.float64) / (1 << policy.fraction_bits)
+    return sqnr_db(load_rrc8_coefficients(), stored)
+
+
 def _max_abs(frames: dict, domain: str, prefix: str) -> int:
     """Largest magnitude seen at the ``domain`` datapath points starting with ``prefix`` over all frames."""
     return max(
@@ -163,6 +185,7 @@ def build_row(policy: FxpPolicy, frames: dict) -> dict:
         "sqnr_time_db": canonical["time"]["sqnr_db"],
         "sqnr_freq_db": canonical["frequency"]["sqnr_db"],
         "sqnr_cross_db": cross,
+        "coefficient_sqnr_db": coefficient_sqnr_db(policy),
         "split_half_sqnr_time_db": canonical["time"]["split_half_sqnr_db"],
         "split_half_sqnr_freq_db": canonical["frequency"]["split_half_sqnr_db"],
         "max_abs_acc_time": _max_abs(frames, "time", "time_accumulator"),
@@ -195,6 +218,8 @@ def frontier(rows: list[dict]) -> dict:
         "both_domains_W": both,
         "time_W": smallest(lambda row: all(row["criteria"]["time"].values())),
         "frequency_W": smallest(lambda row: all(row["criteria"]["frequency"].values())),
+        # The cross-domain gate binds production only; this shows whether gating every row would move the frontier.
+        "both_domains_with_cross_gate_W": smallest(lambda row: row["numerically_passing"] and row["sqnr_cross_passed"]),
         "passes_at_every_wider_width": both is not None
         and all(row["numerically_passing"] for row in rows if row["W_common"] >= both),
     }
@@ -322,6 +347,7 @@ def generate_sweep_evidence(output_dir: Path = _DEFAULT_OUTPUT_DIR, vectors_dir:
         },
         "row_field_scope": {
             "sqnr_*_db, split_half_sqnr_*_db": ACCEPTANCE_FRAME,
+            "coefficient_sqnr_db": "stored Q2.(W-2) coefficients against the float rrc8-v1 taps; frame-independent",
             "internal_overflow_count": "sum over all frames and both domains",
             "output_saturation_count": f"sum over both domains on {ACCEPTANCE_FRAME}",
             "max_abs_acc_time": "largest |partial sum| of the time accumulator over all frames",

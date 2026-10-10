@@ -661,7 +661,12 @@ canonical frame, both canonical halves stay within 0.5 dB of the full-window
 value in each domain (D6), no internal overflow occurs on the canonical and the
 three `sys_corners` frames, and no output saturation occurs on the canonical
 frame. Production additionally needs `sqnr_cross_db >= 33.98` dB on the
-canonical frame; the other widths report it without a threshold.
+canonical frame; the other widths report it without a threshold. The
+Acceptance rule names the cross-domain gate for a candidate, and production is
+the only candidate, so the diagnostic rows carry it as a measurement. Gating
+every row on it would not move the frontier: the smallest canonical
+cross-domain value of the sweep is 39.19 dB (`W=8`), and the manifest's
+`frontier.both_domains_with_cross_gate_W` is also 10.
 
 ### Results
 
@@ -681,6 +686,19 @@ canonical frame; the other widths report it without a threshold.
   width, with zero overflow and zero output saturation. At `W=16` the
   cross-domain codes are identical on `corner_repeat` and `max_alternation`
   and reach 114.31 dB on `single_symbol_perturbation`.
+- The per-domain SQNR does not grow by a constant step per two bits (time:
+  +5.19, +14.57, +9.91, +19.28 and +6.27 dB from `W=8` to `W=18`). In the time
+  domain the error is exactly the coefficient quantization: the input codes are
+  `+/-1` and `0`, so the `2W+3` accumulator holds multiples of `2^F` and the
+  output cast drops only zero bits (`inexact = 0` at every width and frame),
+  which makes the time output exactly `x * h_q`. Its canonical SQNR stays
+  within 0.08 dB of the coefficient-only SQNR
+  `10 log10(sum h^2 / sum (h - h_q)^2)` (row field `coefficient_sqnr_db`:
+  42.15, 47.37, 61.91, 71.84, 91.09 and 97.39 dB). The step size depends on
+  where the eight taps land on each `2^-(W-2)` grid, not on a per-bit noise
+  model. The frequency domain adds the `H[k]`, twiddle and stage roundings on
+  top and stays at most 2.21 dB below the time domain from `W=10` up; at `W=8`
+  those roundings dominate (36.70 dB).
 - The cross-domain SQNR is not monotonic in `W` (76.33 dB at `W=12`, 74.61 dB
   at `W=14`): it measures the difference between the two FXP outputs, not the
   error of either domain.

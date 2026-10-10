@@ -187,6 +187,9 @@ def test_measured_frontier_does_not_replace_production(manifest):
     result = manifest["frontier"]
     assert (result["both_domains_W"], result["time_W"], result["frequency_W"]) == (10, 8, 10)
     assert result["passes_at_every_wider_width"] is True
+    # Gating every row on the cross-domain SQNR would not move the frontier.
+    assert result["both_domains_with_cross_gate_W"] == 10
+    assert min(row["sqnr_cross_db"] for row in manifest["rows"]) >= SQNR_CROSS_MIN_DB
     w8 = _rows(manifest)[8]
     failed = [(name, check) for name, checks in w8["criteria"].items() for check, ok in checks.items() if not ok]
     assert failed == [("frequency", "sqnr")]
@@ -206,13 +209,22 @@ def _synthetic_row(width: int, time_passes: bool, frequency_passes: bool) -> dic
         "W_common": width,
         "criteria": {"time": checks(time_passes), "frequency": checks(frequency_passes)},
         "numerically_passing": time_passes and frequency_passes,
+        "sqnr_cross_passed": True,
     }
 
 
 def test_frontier_reports_no_width_when_nothing_passes():
     result = frontier([_synthetic_row(width, False, False) for width in (8, 10)])
     assert (result["both_domains_W"], result["time_W"], result["frequency_W"]) == (None, None, None)
+    assert result["both_domains_with_cross_gate_W"] is None
     assert result["passes_at_every_wider_width"] is False
+
+
+def test_frontier_reports_the_cross_gated_width_separately():
+    rows = [_synthetic_row(width, True, True) for width in (8, 10, 12)]
+    rows[0]["sqnr_cross_passed"] = False
+    result = frontier(rows)
+    assert (result["both_domains_W"], result["both_domains_with_cross_gate_W"]) == (8, 10)
 
 
 def test_frontier_flags_a_non_monotonic_sweep():
@@ -225,6 +237,24 @@ def test_frontier_flags_a_non_monotonic_sweep():
     result = frontier(rows)
     assert (result["both_domains_W"], result["time_W"], result["frequency_W"]) == (10, 8, 10)
     assert result["passes_at_every_wider_width"] is False
+
+
+# Coefficient quantization --------------------------------------------------
+
+
+def test_time_error_is_the_coefficient_quantization(manifest):
+    # +/-1 and 0 input codes keep the time accumulator on multiples of 2^F, so
+    # the output cast never drops a nonzero bit and only the stored taps differ.
+    for width, frames in manifest["frames"].items():
+        for frame in frames.values():
+            assert frame["time"]["rounding"]["output_cast"]["inexact"] == 0, width
+    rows = _rows(manifest)
+    for row in rows.values():
+        assert abs(row["sqnr_time_db"] - row["coefficient_sqnr_db"]) < 0.1, row["W_common"]
+    # The uneven SQNR steps between widths come from where the eight taps land
+    # on each grid, not from a per-bit noise model.
+    steps = [rows[width + 2]["coefficient_sqnr_db"] - rows[width]["coefficient_sqnr_db"] for width in SWEEP_WIDTHS[:-1]]
+    assert max(steps) - min(steps) > 10
 
 
 # Evidence ------------------------------------------------------------------
