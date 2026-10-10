@@ -15,9 +15,10 @@ python -m pytest sim/python -v
 - `rrc_coefs.py` (T10): generates and validates the 8 RRC coefficients with α=0.5.
 - `fxp.py` (T20): integer FXP models of both domains (production `Q2.14`, sweep-parameterized `Q2.(W-2)`): the 35-bit time MAC and the integer FFT16 overlap-save path (DIF FFT, `H[k]`, DIT IFFT, one cast), with overflow/saturation/rounding counters and per-stage traces.
 - `sqnr.py` (T20): complex SQNR, cross-domain SQNR and the split-half check over the full causal window (ADR-0005).
+- `sweep.py` (T21): required RNE width sweep (`W = 8..18`) over the T20 integer models, precision frontier and production `Q2.14` numerical acceptance, with a bits-to-SQNR table and an SQNR-vs-width plot. Model-side evidence only; it never writes to `sim/vectors/`.
 - `plot_vectors.py` (T13): review-evidence plots of the F1 float references (imported lazily by `gen_vectors.py --plots-dir`). Plots are evidence under `artifacts/`, never vectors.
 - `gen_vectors.py` (T13): staged vector generator. It writes the F1 `float_reference` stage to `sim/vectors/` with `.sha256` sidecars and stage-validated manifests. The `fxp_expected` (T22) and `rtl_matching` (T31/T33) exports and the integer-only `{Q,I}` packer are interfaces for those later stages. Do not edit vectors by hand.
-- `tests/`: coefficient, shared-stimulus, time-golden, frequency-golden, and vector-generator suites, plus an import smoke test. `test_fxp.py` holds the T20 directed arithmetic checks and the production gate preview; `test_sqnr.py` covers the SQNR formulas.
+- `tests/`: coefficient, shared-stimulus, time-golden, frequency-golden, and vector-generator suites, plus an import smoke test. `test_fxp.py` holds the T20 directed arithmetic checks and the production gate preview; `test_sqnr.py` covers the SQNR formulas; `test_sweep.py` covers the T21 sweep rows, gates, frontier and evidence currency.
 
 ## Time-Golden Evidence
 
@@ -76,11 +77,25 @@ Regenerate the T20 evidence with:
 python sim/python/fxp.py --output-dir sim/python/artifacts/t20-fxp
 ```
 
-The generator reads the F1 inputs and float references from `sim/vectors/float_reference/` and checks their hashes first. It writes `evidence_manifest.json` (schema section 2 policy fields, the frozen integer constants, per-frame SQNR/split-half/cross-domain SQNR, overflow and saturation counters, per-point ranges and rounding/tie counts) and `traces.json` (per-stage integer traces for stage-by-stage RTL comparison). `--width W` runs a diagnostic `Q2.(W-2)` width with the same rules; the sweep itself and numerical acceptance are T21 (#45), and expected-code vectors are T22 (#46). Nothing here writes to `sim/vectors/`.
+The generator reads the F1 inputs and float references from `sim/vectors/float_reference/` and checks their hashes first. It writes `evidence_manifest.json` (schema section 2 policy fields, the frozen integer constants, per-frame SQNR/split-half/cross-domain SQNR, overflow and saturation counters, per-point ranges and rounding/tie counts) and `traces.json` (per-stage integer traces for stage-by-stage RTL comparison). `--width W` runs a diagnostic `Q2.(W-2)` width with the same rules; the sweep itself and numerical acceptance are T21 (#45, `sweep.py` below), and expected-code vectors are T22 (#46). Nothing here writes to `sim/vectors/`.
 
 The arithmetic follows the production-A integer freeze amendment in `docs/contracts/fxp-policy-16.md`. All values are exact Python integers in NumPy `object` arrays, so nothing wraps silently. Additions and products are exact integer operations; the narrowing primitives (`quantize`, `round_shift`, `saturate`) use `fxpmath` with `rounding='around'` (RNE) and `overflow='saturate'`.
 
 `fxpmath` 0.4.10 rounds through float64, so it is exact only while the operand has at most 53 significant bits; its extended-precision path is not exact either and warns that rounding may be bypassed. The largest operand any narrowing receives on the canonical and `sys_corners` frames is an inverse-FFT twiddle product: 2^40.2 at W=14, 2^46.2 at W=16 and 2^52.2 at W=18. On these frames even a direct `fxpmath` narrowing is exact, with less than one bit of margin at W=18, but the declared containers of those products (52-55 bits at W=14, 58-61 at W=16, 64-67 at W=18) guarantee nothing below 2^53. `round_shift` therefore subtracts an even multiple of the rounding step first (ties-to-even does not change under even integer offsets) and lets `fxpmath` round the reduced operand, which lies in `[0, 2^(shift+1))`. `saturate` accepts at most 63-bit inputs (the `fxpmath` int64 path) and at most 53-bit outputs. Tests compare `round_shift` against exact `Fraction` rounding up to 90 bits. `test_fxp.py` checks that the committed evidence matches a regeneration (except `provenance`), so changing the model requires regenerating it.
+
+## Width sweep and production acceptance (T21)
+
+Regenerate the T21 evidence and its plot with:
+
+```bash
+python sim/python/sweep.py --output-dir sim/python/artifacts/t21-width-sweep --plot
+```
+
+The sweep loads the four F1 frames once (hash-checked, as in T20) and runs both integer models at every required width `W = 8, 10, 12, 14, 16, 18` with `Q2.(W-2)`, RNE, the `2W+3` time accumulator and frequency baseline A. It writes `evidence_manifest.json` (one result row per width with the `fxp-policy-16.md` row fields, per-frame measurements, the frontier and the production acceptance record) and `sweep_table.csv` (one line per width and frame). `--plot` also draws `sqnr_vs_width.png` from the written manifest and records its hash in `plot_manifest.json`; PNG bytes can vary across matplotlib versions, so the plot is not compared in CI.
+
+A row passes numerically when both domains reach 40 dB on the canonical frame, both canonical halves stay within 0.5 dB of the full window (D6), no internal overflow occurs on any of the four frames and no output saturation occurs on the canonical frame. Only the production row (`W=16`) is also gated on the cross-domain SQNR (>= 33.98 dB). The `sys_corners` SQNR, split halves and output saturation are reported as diagnostics. The smallest passing width is reported as the frontier and never replaces production. Row fields that need later gates stay out of the rows: `vector_manifest_sha256` (T22), latencies (F3) and area/fmax (after matching); matching and power status are `not_run`.
+
+Results and the D6 scope are recorded in the T21 acceptance record of `docs/contracts/fxp-policy-16.md`. `test_sweep.py` checks that the committed manifest and table match a regeneration (except `provenance`, which holds the generating `git_commit`, source hashes and tool versions), so changing the model or the sweep requires regenerating them.
 
 ## T03 transport fixtures (#42)
 

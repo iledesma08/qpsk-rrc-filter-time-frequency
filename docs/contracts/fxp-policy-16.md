@@ -6,9 +6,10 @@ Map: [#12](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/issues/1
 
 Date: 2026-09-22
 
-Updated: 2026-10-07 (production-A integer freeze amendment proposed, #44);
-2026-10-06 (cross-domain SQNR amendment, #74); 2026-10-02 (production
-Q2.14, numeric freeze and base-scope amendments)
+Updated: 2026-10-10 (production-A freeze accepted 2026-10-09, #44; T21
+acceptance record, #45); 2026-10-07 (production-A integer freeze amendment
+proposed, #44); 2026-10-06 (cross-domain SQNR amendment, #74); 2026-10-02
+(production Q2.14, numeric freeze and base-scope amendments)
 
 Branch: `docs/16-fxp-policy`
 
@@ -482,16 +483,18 @@ rationale; this contract fixes how F2 measures it:
 - Per-domain SQNR, overflow/saturation gates and the rule that time and
   frequency codes need not be bit-identical are unchanged.
 
-## Production-A integer freeze amendment (proposed 2026-10-07, T20 #44)
+## Production-A integer freeze amendment (accepted 2026-10-09, T20 #44)
 
-Status: proposed. It records the integer operations of the T20 FXP models
-(`sim/python/fxp.py`) and fills the "Frequency arithmetic freeze" list above.
-It becomes accepted when the frequency co-designer (@JRondon23, owner of the
-FFT schedule) signs off the frequency part and the time-arm review
-(@iledesma08) signs off the time part. Until then T21 does not accept sweep
-rows. It changes no accepted decision: production stays `Q2.14`, RNE,
-explicit saturation, the 35-bit time accumulator and frequency baseline A,
-with the widths of the Numeric Policy above.
+Status: accepted 2026-10-09 (proposed 2026-10-07). It records the integer
+operations of the T20 FXP models (`sim/python/fxp.py`) and fills the
+"Frequency arithmetic freeze" list above. The time-arm review (@iledesma08)
+signed off the time part on 2026-10-08 and the frequency co-designer
+(@JRondon23, owner of the FFT schedule) signed off the frequency part on
+2026-10-09, both in the PR #78 reviews. T21 accepts sweep rows against this
+freeze (T21 acceptance record below). It changes no accepted decision:
+production stays `Q2.14`, RNE, explicit saturation, the 35-bit time
+accumulator and frequency baseline A, with the widths of the Numeric Policy
+above.
 
 ### Scope and common rules
 
@@ -631,13 +634,87 @@ makes one reachable fails and turns its exact-rounding check into a MUST.
 Split halves of the canonical frame stay within 0.5 dB of the full-frame
 value in both domains.
 
+## T21 acceptance record (2026-10-10, #45)
+
+Status: production `Q2.14` is numerically accepted. Evidence lives in
+`sim/python/artifacts/t21-width-sweep/` (`evidence_manifest.json`,
+`sweep_table.csv`, `sqnr_vs_width.png`) and is regenerated with
+`python sim/python/sweep.py --output-dir sim/python/artifacts/t21-width-sweep --plot`.
+Every row runs the accepted production-A freeze at `Q2.(W-2)` with RNE, the
+`2W+3` time accumulator and frequency baseline A, on the F1 frames after their
+hash check. The rows are model-side evidence; production expected codes remain
+T22 (#46).
+
+### Required RNE width sweep (canonical frame)
+
+| `W` | Format | `sqnr_time_db` | `sqnr_freq_db` | `sqnr_cross_db` | Split-half max deviation (dB) | Internal overflow (4 frames) | Canonical output saturation | Frequency RNE ties | Passes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 8 | `Q2.6` | 42.21 | 36.70 | 39.19 | 0.13 | 0 | 0 | 725 | no (frequency SQNR) |
+| 10 | `Q2.8` | 47.40 | 47.35 | 60.83 | 0.03 | 0 | 0 | 29 | yes (frontier) |
+| 12 | `Q2.10` | 61.97 | 61.69 | 76.33 | 0.02 | 0 | 0 | 576 | yes |
+| 14 | `Q2.12` | 71.88 | 69.68 | 74.61 | 0.01 | 0 | 0 | 468 | yes |
+| 16 | `Q2.14` | 91.16 | 88.95 | 89.29 | 0.15 | 0 | 0 | 0 | yes (production) |
+| 18 | `Q2.16` | 97.43 | 96.18 | 102.96 | 0.04 | 0 | 0 | 0 | yes |
+
+A row passes numerically when the per-domain SQNR is at least 40 dB on the
+canonical frame, both canonical halves stay within 0.5 dB of the full-window
+value in each domain (D6), no internal overflow occurs on the canonical and the
+three `sys_corners` frames, and no output saturation occurs on the canonical
+frame. Production additionally needs `sqnr_cross_db >= 33.98` dB on the
+canonical frame; the other widths report it without a threshold.
+
+### Results
+
+- **Production `W=16`** passes every gate. Its largest time partial sum is
+  247562240 (29 signed bits of the 35 declared) and its largest IFFT value is
+  5231420176 (34 signed bits of the 42-45 declared). The `sys_corners` frames
+  also show zero overflow and zero output saturation. The canonical output-code
+  hashes (`<i8`, columns `[I, Q]`) are time
+  `874198a244236c4c48cc9aa26103254576203904f2c202074217d210c6dd9750` and
+  frequency `202312fc748c3a77c27fa31f89f7f85d9d725c41a521afefcd0e994714e80752`;
+  T22 exports these codes.
+- **Frontier:** the smallest width passing both domains is `W=10` (`Q2.8`).
+  The time domain already passes at `W=8` (42.21 dB); `W=8` fails only the
+  frequency SQNR gate (36.70 dB). Every wider width passes. The frontier is a
+  measured result and does not replace production (D2, ADR-0005).
+- **`sys_corners` diagnostics:** per-domain SQNR is at least 47.72 dB at every
+  width, with zero overflow and zero output saturation. At `W=16` the
+  cross-domain codes are identical on `corner_repeat` and `max_alternation`
+  and reach 114.31 dB on `single_symbol_perturbation`.
+- The cross-domain SQNR is not monotonic in `W` (76.33 dB at `W=12`, 74.61 dB
+  at `W=14`): it measures the difference between the two FXP outputs, not the
+  error of either domain.
+- RNE ties are reachable in the frequency path at the diagnostic widths
+  `W=8..14` (inverse twiddle products and the output cast) and at no point at
+  `W=16` or `W=18`, consistent with the T20 enumeration. Item 7 of Saturation
+  and overflow binds only the accepted width, so no exact-tie MUST check is
+  added; diagnostic ties go through the same tested RNE primitive.
+
+### Split-half scope (D6)
+
+T21 applies D6 to the canonical frame, the acceptance frame, at every width.
+All canonical halves stay within 0.15 dB, so no row triggers the 4096-symbol
+extension. The `sys_corners` halves are diagnostics, like their SQNR. Their
+only deviation above 0.5 dB is `W=18` `single_symbol_perturbation` in the
+frequency domain (1.09 dB at 118.00 dB): the constant background quantizes
+almost exactly at that width, so about two thirds of the error sits in the
+outputs around the perturbed symbol (sample 1024), which straddle the half
+boundary at output 1027. At `W=16` the same outputs carry about 2% of the error
+and the halves agree. If a canonical row ever becomes unstable, the sweep
+fails that row and leaves the frame extension to a recorded decision instead
+of changing the frame.
+
+Optional experiments (truncation/wrap controls, 33/34-bit accumulators and
+frequency B) were not run; Q1 sensitivity remains outside base.
+
 ## Open Items
 
 - The PPA ranking rule is deferred to #18 (D8).
 - Optional experiments have no blocking edges into the base phases. Any
   production adoption requires its own evidence and recorded policy decision.
-- The frequency arithmetic freeze is proposed in the T20 amendment above. T21
-  accepts sweep rows only after its sign-off.
+- The frequency arithmetic freeze was accepted on 2026-10-09 and T21 accepted
+  production `Q2.14` against it on 2026-10-10 (records above). T22 (#46)
+  exports the production coefficients and expected codes.
 
 ## References
 
