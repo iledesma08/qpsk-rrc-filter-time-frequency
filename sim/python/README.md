@@ -17,7 +17,7 @@ python -m pytest sim/python -v
 - `sqnr.py` (T20): complex SQNR, cross-domain SQNR and the split-half check over the full causal window (ADR-0005).
 - `sweep.py` (T21): required RNE width sweep (`W = 8..18`) over the T20 integer models, precision frontier and production `Q2.14` numerical acceptance, with a bits-to-SQNR table and an SQNR-vs-width plot. Model-side evidence only; it never writes to `sim/vectors/`.
 - `plot_vectors.py` (T13): review-evidence plots of the F1 float references (imported lazily by `gen_vectors.py --plots-dir`). Plots are evidence under `artifacts/`, never vectors.
-- `gen_vectors.py` (T13): staged vector generator. It writes the F1 `float_reference` stage to `sim/vectors/` with `.sha256` sidecars and stage-validated manifests. The `fxp_expected` (T22) and `rtl_matching` (T31/T33) exports and the integer-only `{Q,I}` packer are interfaces for those later stages. Do not edit vectors by hand.
+- `gen_vectors.py` (T13, T22): staged vector generator. It writes the F1 `float_reference` stage and the F2 `fxp_expected` stage (production `Q2.14` coefficient table plus per-domain input/expected `.hex` codes from the accepted integer models, bound to the T21 acceptance) to `sim/vectors/` with `.sha256` sidecars and stage-validated manifests; see `sim/vectors/README.md`. The `rtl_matching` (T31/T33) export is an interface for that later stage. Do not edit vectors by hand.
 - `tests/`: coefficient, shared-stimulus, time-golden, frequency-golden, and vector-generator suites, plus an import smoke test. `test_fxp.py` holds the T20 directed arithmetic checks and the production gate preview; `test_sqnr.py` covers the SQNR formulas; `test_sweep.py` covers the T21 sweep rows, gates, frontier and evidence currency.
 
 ## Time-Golden Evidence
