@@ -1,0 +1,21 @@
+{
+  "drawn_from": {
+    "file": "evidence_manifest.json",
+    "sha256": "f84a81ee3129b21365cc56ad66c35b9c8839302a656ea96de1c3ea436ee57c01"
+  },
+  "evidence_for": "T21 (#45)",
+  "frame": "canonical/none",
+  "note": "PNG bytes can vary across matplotlib versions; the plot hash is evidence of this run, not a CI check",
+  "plot": "sqnr_vs_width.png",
+  "plot_sha256": "ac092d8be6874fce0b754ddf7b269cdc9dfd4e33b25d940fb0cfc5b9746bcaa5",
+  "series_colors": {
+    "cross-domain": "#1baf7a",
+    "frequency": "#eb6834",
+    "time": "#2a78d6"
+  },
+  "source_sha256": "dc2867798a07b8bf6dd567dfe54be4db29c13f6d25b07fb2845d15cfabc4fdb5",
+  "versions": {
+    "matplotlib": "3.11.2",
+    "numpy": "2.5.3"
+  }
+}
