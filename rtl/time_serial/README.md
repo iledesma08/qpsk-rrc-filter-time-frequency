@@ -63,6 +63,13 @@ continuously (latency, `II`) and with bubbles, stalls and a mid-traffic reset.
   same input codes, output codes, RNE operation/inexact/tie counts and
   saturations, with no internal overflow, on the five structural frames and
   the three `sys_corners` frames;
+- the T22 integration gate: the committed export in `sim/vectors/fxp_expected/`
+  (each file checked against its `.sha256` sidecar) holds the same coefficient
+  codes as the reference and `RRC_COEFS`, derived from the same float golden,
+  and the reference turns each exported `input.hex` into the exported
+  `expected_time.hex` (canonical and the three `sys_corners`, 2055 codes each).
+  The canonical structural fixture is that same frame, so the RTL's canonical
+  run produces the T22 time codes;
 - a 40-cycle sink stall: two inputs accepted, the second waits at tap 7;
 - no combinational path from `valid_i` or `ready_i` to the outputs;
 - synchronized reset release and history clearing mid-computation;
@@ -89,9 +96,11 @@ clear each makes at least one of these tests fail.
 ## Scope limits
 
 These are structural checks against an independent reference of the accepted
-policy. Its agreement with the T20 model (PR #78) is part of the suite, so the
-T20 integration is closed by test, not by a one-off comparison. Final
-integration with the T22 production artifacts (#46) is still
-open. Exact matching against `sim/vectors/`, measured `rtl_matching` metadata
-and the `sys_corners` sets are T31 (#48). SLOW 10 MHz main-target timing and PPA
-belong to T41 (#52). The OpenLane JSON's 10 ns setup is not timing evidence.
+policy. Its agreement with the T20 model (PR #78) and with the T22 production
+export (PR #81) is part of the suite, so both integration gates are closed by
+test, not by a one-off comparison. The T22 `.hex` frames are QPSK, so they do
+not exercise rounding or saturation; the directed frames and the T20 gate
+cover that. The TB does not read `sim/vectors/` yet: RTL vector matching against
+it, measured `rtl_matching` metadata and the RTL runs of the `sys_corners` sets
+are T31 (#48). SLOW 10 MHz main-target timing and PPA belong to T41 (#52). The
+OpenLane JSON's 10 ns setup is not timing evidence.
