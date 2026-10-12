@@ -1,0 +1,108 @@
+{
+  "F_coeff": 14,
+  "F_data": 14,
+  "W_acc_freq": 45,
+  "W_acc_time": 35,
+  "W_common": 16,
+  "W_product": 32,
+  "acceptance": {
+    "cross_domain": "gated on the canonical frame by the T21 production acceptance; per-domain manifests do not carry sqnr_cross_db",
+    "evidence_file": "sim/python/artifacts/t21-width-sweep/evidence_manifest.json",
+    "output_codes_match_t21": true,
+    "production_acceptance_passed": true,
+    "record": "fxp-policy-16.md T21 acceptance record (#45)"
+  },
+  "artifact_stage": "fxp_expected",
+  "component_sign_extension": "sign_extend_to_16",
+  "edge_pattern_symbols": 40,
+  "fft_mode": "baseline_A_grow_by_stage",
+  "fft_stage_widths": [
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "fxp_evidence": {
+    "frame_role": "acceptance",
+    "gates": {
+      "split_half_stable": true,
+      "sqnr_at_least_40_db": true,
+      "zero_internal_overflow": true,
+      "zero_output_saturation": true
+    },
+    "internal_overflow_count": 0,
+    "model": "fxp.py production-A integer model, run by this export",
+    "output_saturation_count": 0,
+    "split_half_sqnr_db": [
+      91.13070545989954,
+      91.1812369588159
+    ],
+    "sqnr_db": 91.1559059199376,
+    "sqnr_reference": "this domain's F1 float reference over the full causal window"
+  },
+  "hash_serialization": {
+    "algorithm": "SHA-256",
+    "array_order": "C",
+    "byte_order": "little-endian",
+    "codes_dtype": "<i8",
+    "codes_layout": "shape (samples, 2), columns [I, Q]",
+    "coefficients_dtype": "<f8",
+    "samples_dtype": "<c16"
+  },
+  "hashes": {
+    "coefficient_table_sha256": "30b913cc13e6ebf9a918e01b05bebc1ba99da511c255aec41f1230dfc6e1566d",
+    "expected_hex_sha256": "a1899d85e2d999e511070587d8135af350e1712f9b8acc0b4ff5e3f966d04d0c",
+    "f1_manifest_sha256": "6f7ec11a50c04713ba42d5b9f4732a114bd262b9a393f693637f282723199d2d",
+    "input_codes_sha256": "68e95c6b8d6a79013cf88e4a57a5fb5cce741d6b4b161c2d7b8396bf58759fb9",
+    "input_hex_sha256": "20944e8726af4412334af3f52c84414b29372a8cff4e57f18cd4580d9e6077ee",
+    "output_codes_sha256": "874198a244236c4c48cc9aa26103254576203904f2c202074217d210c6dd9750",
+    "rrc8_manifest_sha256": "9cc340c2ec210ec2648231f365a664bdafcb4ea1d3dde4c63bb735fa6e0e7a22",
+    "t21_evidence_sha256": "a25be4f5628c2f4939883a53d38beea09b24fee640811039bd03320f8da3f087"
+  },
+  "ifft_scale": "divide_by_16_then_cast_to_Q2.14",
+  "input_samples": 2048,
+  "model_domain": "time",
+  "output_samples": 2055,
+  "overflow_mode": "saturating_narrowing_with_fail_on_internal_overflow",
+  "payload": {
+    "coefficient_file": "../../rrc8_q2.14_coefficients.json",
+    "encoding": "one 32-bit {Q[15:0], I[15:0]} record per line, 8 lowercase hex digits, read with $readmemh",
+    "expected_count": 2055,
+    "expected_file": "expected_time.hex",
+    "input_count": 2048,
+    "input_file": "input.hex"
+  },
+  "prng": "numpy.random.default_rng (PCG64)",
+  "provenance": {
+    "coefficient_artifact": "rrc8-v1",
+    "generator": "sim/python/gen_vectors.py",
+    "model": "sim/python/fxp.py production-A integer models (fxp-policy-16 T20 freeze)",
+    "source_sha256": {
+      "fxp.py": "ed0646a50c6921d6e456a1be76ee46701b34bf4bf8d941205bdbb001bb3e3336",
+      "gen_vectors.py": "91b1cd85545caad34839e334e4d359311dd23e2e4861c54142d52153318676fd",
+      "rrc_coefs.py": "5128ee400782bd990cfc474893928ec22694a2225539a7c7e96a1c386868742b",
+      "sqnr.py": "aeb03aa6f579d8b67e096159e5a54351b0dddc19242e2b8ad2939aec15f2566d",
+      "stimulus.py": "e1d285ecd2c5c257bed947f6c5c9751b53527959e41cc8b69840a04f3b82716e"
+    },
+    "versions": {
+      "fxpmath": "0.4.10",
+      "numpy": "2.5.3",
+      "python": "3.12.14"
+    }
+  },
+  "random_seed": 2026,
+  "rounding_mode": "RNE",
+  "samples_per_symbol": 2,
+  "stimulus_version": "qpsk-stim-15-v1",
+  "symbol_center_offset_samples": 3.5,
+  "symbol_count": 1024,
+  "symbol_energy": 2,
+  "symbol_map": "0=+1+j, 1=+1-j, 2=-1+j, 3=-1-j",
+  "symbol_map_coding": "gray",
+  "upsampling": "zero_insertion",
+  "valid_len": 2055,
+  "valid_start": 0,
+  "vector_case": "none",
+  "vector_set": "canonical"
+}

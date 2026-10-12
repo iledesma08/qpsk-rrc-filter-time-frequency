@@ -1,6 +1,6 @@
 # sim/vectors — golden vectors (DO NOT edit by hand)
 
-Generated only by `sim/python/gen_vectors.py` (T13), according to
+Generated only by `sim/python/gen_vectors.py` (T13, T22), according to
 `docs/adr/0004-packed-external-vectors.md`.
 
 The generator has three stages: T13 creates F1 float references, T22 exports
@@ -11,9 +11,9 @@ must not invent future RTL latency. See the normative lifecycle in the schema.
 
 - Each complex sample is a packed 32-bit `{Q[15:0], I[15:0]}` record in the
   input or expected-output `.hex` file.
-- The generator also writes `vector_manifest.svh` with the vector count and
-  packing metadata. Normative manifest schema:
-  `docs/contracts/vector-manifest-schema.md`.
+- The `rtl_matching` stage (T31/T33) also writes `vector_manifest.svh` with the
+  vector count, packing and measured per-variant metadata. Normative manifest
+  schema: `docs/contracts/vector-manifest-schema.md`.
 - RTL vector-matches against these files.
 - Every generated vector must have a matching `<vector>.sha256` sidecar; CI verifies it.
 - Generated SystemVerilog is metadata only; vectors are not compiled into the DUT.
@@ -42,7 +42,51 @@ The `.c16.bin` payloads are raw C-order little-endian complex128 (`<c16`) with
 no header, so each file's SHA-256 equals the array hash recorded by the T11/T12
 evidence manifests. They are Python-side references for F2. They are not packed
 `.hex` records and are never RTL expected codes. F1 writes no `.hex` and no
-`vector_manifest.svh`. Those arrive with `fxp_expected` (T22) and
-`rtl_matching` (T31/T33).
+`vector_manifest.svh`. The `.hex` files arrive with `fxp_expected` (T22) and
+`vector_manifest.svh` with `rtl_matching` (T31/T33).
 
 Review plots of these vectors are separate evidence in `sim/python/artifacts/t13-reference-vectors/` (`gen_vectors.py --plots-dir`). They are never written here: this folder holds only generated payloads, manifests, and sidecars.
+
+## F2 integer expected codes (T22)
+
+Regenerate after F1, with the F1 frames already in the output directory
+(Matias is the sole regenerator):
+
+```bash
+python sim/python/gen_vectors.py --stage fxp_expected --output-dir sim/vectors
+```
+
+The export reads each F1 frame after its hash check and runs the production
+integer models of `sim/python/fxp.py` (`Q2.14`, RNE, 35-bit time accumulator,
+FFT baseline A). Expected codes are never a cast of the float references. It
+refuses to write anything unless the T21 evidence
+(`sim/python/artifacts/t21-width-sweep/evidence_manifest.json`) accepts
+production `Q2.14` on these same F1 manifests, every frame reproduces the output
+codes T21 accepted, and every acceptance gate passes: SQNR >= 40 dB, a stable
+split half and zero output saturation on `canonical`, the cross-domain gate on
+`canonical`, and zero internal overflow on all four frames.
+
+Layout: `fxp_expected/`, mirroring F1:
+
+- `rrc8_q2.14_coefficients.json`: the production coefficient table. It keeps the
+  `rrc8-v1` float64 golden beside the eight `Q2.14` codes
+  `[179, -1818, 1818, 11295, 11295, 1818, -1818, 179]`, with hashes and
+  provenance. A coefficient outside the 16-bit range is an error, never a
+  saturation.
+- `<vector_set>/<vector_case>/input.hex`: the 2048 `Q2.14` input codes, shared by
+  both domains.
+- `<vector_set>/<vector_case>/expected_time.hex`, `expected_freq.hex`: the 2055
+  expected codes of each domain over the full causal window.
+- `<vector_set>/<vector_case>/manifest_time.json`, `manifest_freq.json`:
+  `artifact_stage: fxp_expected`, `model_domain`, schema sections 1, 2 and 4, the
+  per-domain SQNR, split halves, overflow and saturation counts with the gates
+  that apply to the frame, the T21 acceptance binding, and hashes of the F1
+  manifest, coefficient table, T21 evidence, `.hex` files and codes (`<i8`,
+  columns `[I, Q]`, as in the T20/T21 evidence).
+- A `<file>.sha256` sidecar for every file above.
+
+Each `.hex` line is one 32-bit `{Q[15:0], I[15:0]}` record (8 lowercase hex
+digits) for `$readmemh`; at `W=16` the components are packed directly. F2
+carries no RTL latency, transport counts or `vector_manifest.svh`, and the
+per-domain manifests do not carry `sqnr_cross_db`. T31/T33 bind these payloads
+by hash and add the measured per-variant metadata.

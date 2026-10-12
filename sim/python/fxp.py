@@ -658,7 +658,7 @@ def _json_db(value: float) -> float | None:
     return None if math.isinf(value) else value
 
 
-def _load_f1_frame(vectors_dir: Path, vector_set: str, vector_case: str) -> dict:
+def load_f1_frame(vectors_dir: Path, vector_set: str, vector_case: str) -> dict:
     """Read and hash-check the F1 input and float references of one frame."""
     from gen_vectors import INPUT_FILE, MANIFEST_FILE, REFERENCE_FILE, read_samples
 
@@ -706,7 +706,7 @@ def _freeze_record(policy: FxpPolicy) -> dict:
     twiddle_real, twiddle_imag = twiddle_codes(policy)
     h_real, h_imag = h_spectrum_codes(policy)
     return {
-        "status": "proposed in the fxp-policy-16.md T20 amendment, pending frequency co-design sign-off",
+        "status": "accepted 2026-10-09 in the fxp-policy-16.md T20 amendment (sign-offs on PR #78)",
         "format": f"Q2.{policy.fraction_bits}",
         "narrowing_implementation": (
             "fxpmath rounding='around' (RNE) and overflow='saturate'; integer RNE narrowing reduces "
@@ -782,7 +782,7 @@ def generate_fxp_evidence(
     traces = {}
     for vector_set, vector_case in iter_frames():
         key = f"{vector_set}/{vector_case}"
-        frame = _load_f1_frame(Path(vectors_dir), vector_set, vector_case)
+        frame = load_f1_frame(Path(vectors_dir), vector_set, vector_case)
         canonical = vector_set == "canonical"
         measured = measure_frame(frame["samples"], frame["reference"], policy, trace=canonical)
         frames[key] = {"f1_manifest_sha256": frame["manifest_sha256"], **measured["measurement"]}
