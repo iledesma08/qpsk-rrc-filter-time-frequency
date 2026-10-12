@@ -2,11 +2,14 @@
 
 Expected codes come from the exact integer reference of the accepted time
 policy in ``rtl_filter_fixture.py``, independent of the T20 FXP model
-(``fxp.py``); the T20 integration checks below require both to agree. These
-checks are not T31 vector matching against ``sim/vectors`` and claim no timing
-or PPA result.
+(``fxp.py``); the integration checks below require it to agree with the T20
+model and with the T22 production export in ``sim/vectors/fxp_expected``.
+They read that export but are not T31 RTL vector matching against
+``sim/vectors`` and claim no timing or PPA result.
 """
 
+import hashlib
+import json
 from pathlib import Path
 import re
 import shutil
@@ -16,12 +19,15 @@ import numpy as np
 import pytest
 
 import fxp
+import gen_vectors
 import rtl_filter_fixture
+from rrc_coefs import load_rrc8_coefficients
 from rtl_filter_fixture import FRAC_BITS, MAX_CODE, MIN_CODE, W_ACC_TIME, W_PRODUCT, WIDTH
 from stimulus import CORNER_CASES, generate_canonical_samples, generate_corner_samples
 
 
 ROOT = Path(__file__).resolve().parents[3]
+T22_DIR = ROOT / "sim/vectors/fxp_expected"
 DUT_SOURCES = [
     ROOT / "rtl/common/rrc_pkg.sv",
     ROOT / "rtl/common/rrc_reset_sync.sv",
@@ -56,6 +62,28 @@ def simulate(tmp_path, source, top="tb", plusargs=()):
 
 def packed(i_code, q_code):
     return f"{int(q_code) & 0xffff:04x}{int(i_code) & 0xffff:04x}"
+
+
+def t22_artifact(path):
+    """Return a committed T22 file after checking its SHA-256 sidecar."""
+    data = path.read_bytes()
+    sidecar = path.with_name(path.name + ".sha256").read_text(encoding="ascii").split()
+    assert sidecar == [hashlib.sha256(data).hexdigest(), path.name]
+    return data
+
+
+def t22_coefficient_table():
+    return json.loads(t22_artifact(T22_DIR / gen_vectors.COEFFICIENT_FILE))
+
+
+def t22_codes(path):
+    """Decode the packed ``{Q[15:0], I[15:0]}`` records of a T22 .hex file into signed I/Q codes."""
+    words = [int(line, 16) for line in t22_artifact(path).decode("ascii").split()]
+
+    def signed(field):
+        return field - (1 << WIDTH) if field > MAX_CODE else field
+
+    return [signed(w & 0xffff) for w in words], [signed(w >> WIDTH) for w in words]
 
 
 @pytest.mark.parametrize("frame", rtl_filter_fixture.FRAMES)
@@ -136,6 +164,35 @@ def test_reference_matches_the_t20_time_model(frame):
     assert model.monitor.internal_overflow_count == 0
 
 
+def test_reference_coefficients_are_the_t22_export():
+    # T22 integration gate: the frozen production table (#46) holds the codes the
+    # reference and rrc_pkg use, derived from the same float golden.
+    table = t22_coefficient_table()
+    assert table["artifact_stage"] == "fxp_expected"
+    assert table["acceptance"]["production_acceptance_passed"] is True
+    assert table["coefficient_codes"] == rtl_filter_fixture.coefficient_codes()
+    assert table["coefficients_float64"] == load_rrc8_coefficients().tolist()
+    assert (table["format"], table["W_common"], table["F_coeff"], table["rounding_mode"], table["ordering"]) == (
+        f"Q2.{FRAC_BITS}", WIDTH, FRAC_BITS, "RNE", "ascending_time")
+    assert table["range_violation_count"] == 0
+
+
+@pytest.mark.parametrize("vector_set,vector_case", gen_vectors.iter_frames())
+def test_reference_reproduces_the_t22_time_vectors(vector_set, vector_case):
+    # T22 integration gate on the expected codes: from the exported input codes,
+    # the reference that drives the RTL fixtures gives the exported time codes
+    # over the full causal window. This is not T31 RTL matching.
+    frame_dir = T22_DIR / vector_set / vector_case
+    i_codes, q_codes = t22_codes(frame_dir / gen_vectors.INPUT_HEX_FILE)
+    expected_i, expected_q = t22_codes(frame_dir / gen_vectors.EXPECTED_HEX_FILE.format(tag="time"))
+    assert len(expected_i) == len(i_codes) + rtl_filter_fixture.FLUSH_SAMPLES
+    reference = rtl_filter_fixture.filter_reference(i_codes, q_codes)
+    assert (reference.i_codes, reference.q_codes) == (expected_i, expected_q)
+    if vector_set == "canonical":
+        # The RTL runs this same frame as its canonical structural fixture.
+        assert rtl_filter_fixture.frame_codes("canonical") == (i_codes, q_codes)
+
+
 def test_fixture_refuses_the_protected_vector_directory():
     target = ROOT / "sim/vectors/t30-structural-fixture"
     with pytest.raises(ValueError, match="must not be written into sim/vectors"):
@@ -163,6 +220,7 @@ endmodule
     coefficients = [int(m[1]) for m in re.finditer(r"COEF \d+ (-?\d+)", result.stdout)]
     assert coefficients == rtl_filter_fixture.coefficient_codes()
     assert coefficients == [int(c) for c in fxp.quantize_coefficients()]
+    assert coefficients == t22_coefficient_table()["coefficient_codes"]
     assert f"WIDTHS {WIDTH} {FRAC_BITS} {W_PRODUCT} {W_ACC_TIME}" in result.stdout
     policy = fxp.PRODUCTION_POLICY.manifest_fields()
     widths = re.search(r"WIDTHS (\d+) (\d+) (\d+) (\d+)", result.stdout).groups()
