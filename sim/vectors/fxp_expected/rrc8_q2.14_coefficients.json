@@ -1,0 +1,65 @@
+{
+  "F_coeff": 14,
+  "W_common": 16,
+  "acceptance": {
+    "evidence_file": "sim/python/artifacts/t21-width-sweep/evidence_manifest.json",
+    "production_acceptance_passed": true,
+    "record": "fxp-policy-16.md T21 acceptance record (#45)"
+  },
+  "artifact": "rrc8-v1-q2.14",
+  "artifact_stage": "fxp_expected",
+  "coefficient_artifact": "rrc8-v1",
+  "coefficient_codes": [
+    179,
+    -1818,
+    1818,
+    11295,
+    11295,
+    1818,
+    -1818,
+    179
+  ],
+  "coefficients_float64": [
+    0.010942691568693055,
+    -0.11095557645481882,
+    0.11095557645481889,
+    0.6893895688276623,
+    0.6893895688276623,
+    0.11095557645481889,
+    -0.11095557645481882,
+    0.010942691568693055
+  ],
+  "delay_samples": 3.5,
+  "format": "Q2.14",
+  "hash_serialization": {
+    "algorithm": "SHA-256",
+    "array_order": "C",
+    "byte_order": "little-endian",
+    "codes_dtype": "<i8",
+    "codes_layout": "shape (samples, 2), columns [I, Q]",
+    "coefficients_dtype": "<f8",
+    "samples_dtype": "<c16"
+  },
+  "hashes": {
+    "coefficient_codes_sha256": "d7d5d6a6caf087aa70622c3149cd50c9bf9ce85f09faa871361469243c03b68e",
+    "coefficients_sha256": "7747ce687f02603cb7aefe2192e796b7ae9acea6a5861fc1b76bfd2f8c3301ba",
+    "rrc8_manifest_sha256": "9cc340c2ec210ec2648231f365a664bdafcb4ea1d3dde4c63bb735fa6e0e7a22",
+    "t21_evidence_sha256": "a25be4f5628c2f4939883a53d38beea09b24fee640811039bd03320f8da3f087"
+  },
+  "num_coefficients": 8,
+  "ordering": "ascending_time",
+  "provenance": {
+    "generator": "sim/python/gen_vectors.py",
+    "source_sha256": {
+      "fxp.py": "ed0646a50c6921d6e456a1be76ee46701b34bf4bf8d941205bdbb001bb3e3336",
+      "gen_vectors.py": "91b1cd85545caad34839e334e4d359311dd23e2e4861c54142d52153318676fd",
+      "rrc_coefs.py": "5128ee400782bd990cfc474893928ec22694a2225539a7c7e96a1c386868742b",
+      "sqnr.py": "aeb03aa6f579d8b67e096159e5a54351b0dddc19242e2b8ad2939aec15f2566d",
+      "stimulus.py": "e1d285ecd2c5c257bed947f6c5c9751b53527959e41cc8b69840a04f3b82716e"
+    }
+  },
+  "quantization": "code = RNE(h * 2^14); a code outside the signed 16-bit range is an error, never a saturation",
+  "range_violation_count": 0,
+  "rounding_mode": "RNE",
+  "status": "frozen production coefficients, exported after the T21 numerical acceptance"
+}

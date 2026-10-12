@@ -1,9 +1,10 @@
-"""Staged golden-vector generator (T13 F1 float references).
+"""Staged golden-vector generator (T13 F1 float references, T22 F2 expected codes).
 
 Only this generator may write to ``sim/vectors/``. Normative schema:
 ``docs/contracts/vector-manifest-schema.md``. T13 implements the
-``float_reference`` stage; ``fxp_expected`` (T22, #46) and ``rtl_matching``
-(T31 #48 / T33 #50) are reserved interfaces that refuse to guess their data.
+``float_reference`` stage and T22 (#46) the ``fxp_expected`` stage;
+``rtl_matching`` (T31 #48 / T33 #50) is a reserved interface that refuses to
+guess its data.
 """
 
 import argparse
@@ -12,16 +13,21 @@ import json
 import platform
 from pathlib import Path
 
+import fxpmath
 import numpy as np
 
+import fxp
 from golden_freq import filter_frequency_domain
 from golden_time import _filter_time_domain
 from rrc_coefs import _ARTIFACT_PATH, load_rrc8_coefficients
+from sqnr import SQNR_CROSS_MIN_DB, SQNR_MIN_DB, split_half_is_stable
 from stimulus import CORNER_CASES, generate_canonical_samples, generate_corner_samples
 
 
 _SIM_DIR = Path(__file__).resolve().parent
+_REPO_DIR = _SIM_DIR.parents[1]
 _DEFAULT_OUTPUT_DIR = _SIM_DIR.parent / "vectors"
+_T21_EVIDENCE_PATH = _SIM_DIR / "artifacts" / "t21-width-sweep" / "evidence_manifest.json"
 _RTOL = 1e-10
 _ATOL = 1e-12
 _HASH_SERIALIZATION = {
@@ -32,6 +38,12 @@ _HASH_SERIALIZATION = {
     "coefficients_dtype": "<f8",
 }
 _SOURCE_FILES = ("gen_vectors.py", "stimulus.py", "rrc_coefs.py", "golden_time.py", "golden_freq.py")
+_FXP_SOURCE_FILES = ("gen_vectors.py", "fxp.py", "sqnr.py", "rrc_coefs.py", "stimulus.py")
+_FXP_HASH_SERIALIZATION = {
+    **_HASH_SERIALIZATION,
+    "codes_dtype": "<i8",
+    "codes_layout": "shape (samples, 2), columns [I, Q]",
+}
 
 STAGES = ("float_reference", "fxp_expected", "rtl_matching")
 DOMAINS = ("time", "frequency")
@@ -39,6 +51,13 @@ _DOMAIN_FILE_TAG = {"time": "time", "frequency": "freq"}
 INPUT_FILE = "input_samples.c16.bin"
 REFERENCE_FILE = "reference_{tag}.c16.bin"
 MANIFEST_FILE = "manifest_{tag}.json"
+# F2 layout mirrors F1: fxp_expected/<vector_set>/<vector_case>/ holds the
+# shared input codes and one expected file and manifest per domain.
+INPUT_HEX_FILE = "input.hex"
+EXPECTED_HEX_FILE = "expected_{tag}.hex"
+COEFFICIENT_FILE = "rrc8_q2.14_coefficients.json"
+_HEX_ENCODING = "one 32-bit {Q[15:0], I[15:0]} record per line, 8 lowercase hex digits, read with $readmemh"
+_ACCEPTANCE_FRAME = ("canonical", "none")
 
 # Schema section 1 (qpsk-stimulus-15.md). Contract constants of qpsk-stim-15-v1;
 # vector_set/vector_case say which frame content a manifest describes.
@@ -83,10 +102,13 @@ _REQUIRED_FIELDS = {
     "fxp_expected": (*STIMULUS_FIELDS, *FXP_FIELDS, *PACKING_FIELDS),
     "rtl_matching": (*STIMULUS_FIELDS, *FXP_FIELDS, *RTL_FIELDS, *RTL_MATCHING_FIELDS, *PACKING_FIELDS),
 }
+# The cross-domain SQNR compares two domains, so per-domain vector manifests
+# never carry it (fxp-policy-16 cross-domain amendment).
+CROSS_DOMAIN_FIELDS = ("sqnr_cross_db",)
 _FORBIDDEN_FIELDS = {
     "float_reference": (*FXP_FIELDS, *RTL_FIELDS, *RTL_MATCHING_FIELDS, "component_sign_extension", *LEGACY_ALIASES),
-    "fxp_expected": (*RTL_FIELDS, *RTL_MATCHING_FIELDS, *LEGACY_ALIASES),
-    "rtl_matching": LEGACY_ALIASES,
+    "fxp_expected": (*RTL_FIELDS, *RTL_MATCHING_FIELDS, *LEGACY_ALIASES, *CROSS_DOMAIN_FIELDS),
+    "rtl_matching": (*LEGACY_ALIASES, *CROSS_DOMAIN_FIELDS),
 }
 _RTL_CONSTANTS = {"FFT_LEN": 16, "HOP": 8, "DISCARD_PREFIX": 8, "EMIT_START": 8, "EMIT_LEN": 8, "block_cadence": 8}
 
@@ -201,6 +223,11 @@ def validate_manifest(manifest: dict) -> None:
     if stage in ("fxp_expected", "rtl_matching"):
         if manifest["W_common"] != 16 or manifest["F_data"] != 14 or manifest["F_coeff"] != 14:
             raise ValueError("production numeric invariant: W_common=16, F_data=F_coeff=14 (Q2.14)")
+        for field, expected in fxp.PRODUCTION_POLICY.manifest_fields().items():
+            if manifest[field] != expected:
+                raise ValueError(f"{field}: expected the frozen production value {expected!r}")
+        if manifest["component_sign_extension"] != "sign_extend_to_16":
+            raise ValueError("component_sign_extension: expected 'sign_extend_to_16'")
     if stage == "rtl_matching":
         if manifest["DATA_WIDTH"] != manifest["W_common"]:
             raise ValueError("DATA_WIDTH: must equal W_common")
@@ -307,15 +334,240 @@ def pack_qi_records(i_codes: np.ndarray, q_codes: np.ndarray, width: int = 16) -
     return [f"{(int(q) << 16) | int(i):08x}" for i, q in zip(i_fields, q_fields, strict=True)]
 
 
-def export_fxp_expected(output_dir: Path) -> list[Path]:
-    """Write F2 ``fxp_expected`` sets (owned by T22, #46).
+def _codes_sha256(i_codes: np.ndarray, q_codes: np.ndarray) -> str:
+    """Hash I/Q codes as ``<i8`` with columns ``[I, Q]``, the T20/T21 serialization."""
+    codes = np.stack((np.asarray(i_codes), np.asarray(q_codes)), axis=1)
+    return _sha256_bytes(codes.astype(_FXP_HASH_SERIALIZATION["codes_dtype"]).tobytes(order="C"))
 
-    Must regenerate Q2.14 input and per-domain expected codes from the accepted
-    FXP models (never from a cast of the float references), pack them with
-    ``pack_qi_records``, and declare sections 1, 2 and 4 of the schema, binding
-    the F1 manifest hashes. No RTL latency or transport counts.
+
+def _hex_bytes(records: list[str]) -> bytes:
+    return ("\n".join(records) + "\n").encode("ascii")
+
+
+def _repo_relative(path: Path) -> str:
+    resolved = Path(path).resolve()
+    return str(resolved.relative_to(_REPO_DIR)) if resolved.is_relative_to(_REPO_DIR) else resolved.name
+
+
+def _load_t21_acceptance(path: Path) -> tuple[dict, str]:
+    """Read the T21 sweep evidence; refuse unless it accepts production Q2.14."""
+    data = Path(path).read_bytes()
+    evidence = json.loads(data)
+    acceptance = evidence.get("production_acceptance") or {}
+    if acceptance.get("passed") is not True or acceptance.get("W_common") != fxp.PRODUCTION_WIDTH:
+        raise ValueError(f"{path}: production Q2.14 is not numerically accepted by T21")
+    return evidence, _sha256_bytes(data)
+
+
+def _accepted_frame(evidence: dict, key: str) -> dict:
+    """Return the T21 production measurement of one frame."""
+    try:
+        return evidence["frames"][str(fxp.PRODUCTION_WIDTH)][key]
+    except KeyError as exc:
+        raise ValueError(f"{key}: T21 evidence has no production measurement for this frame") from exc
+
+
+def _frame_gates(frame: dict, run: dict, acceptance_frame: bool) -> dict[str, dict[str, bool]]:
+    """Return the fxp-policy-16 acceptance gates that apply to one frame, per domain.
+
+    Every frame is an internal-overflow gate. SQNR, the D6 split-half check and
+    output saturation are gated on the canonical frame and diagnostics elsewhere.
     """
-    raise NotImplementedError("fxp_expected export is owned by T22 (#46) after FXP acceptance")
+    gates = {}
+    for domain in DOMAINS:
+        entry = run["measurement"][domain]
+        checks = {"zero_internal_overflow": entry["internal_overflow_count"] == 0}
+        if acceptance_frame:
+            decoded = run["results"][domain].decoded()
+            checks["sqnr_at_least_40_db"] = entry["sqnr_db"] is None or entry["sqnr_db"] >= SQNR_MIN_DB
+            checks["split_half_stable"] = split_half_is_stable(frame["reference"][domain], decoded)
+            checks["zero_output_saturation"] = entry["output_saturation_count"] == 0
+        gates[domain] = checks
+    return gates
+
+
+def _coefficient_table(policy: fxp.FxpPolicy, acceptance: dict, hashes: dict, sources: dict) -> dict:
+    """Return the production coefficient table: the float golden beside its stored codes.
+
+    ``fxp.quantize_coefficients`` raises on a range violation, so no coefficient
+    is ever saturated silently into the table. The table carries no tool
+    versions, so its hash does not depend on the host that generated it.
+    """
+    coefficients = load_rrc8_coefficients()
+    codes = fxp.quantize_coefficients(policy, coefficients)
+    if list(codes) != list(fxp.quantize_coefficients(policy)):
+        raise AssertionError("coefficient codes differ from the codes of the FXP model")
+    code_bytes = np.asarray(codes, dtype=_FXP_HASH_SERIALIZATION["codes_dtype"]).tobytes(order="C")
+    return {
+        "artifact": "rrc8-v1-q2.14",
+        "artifact_stage": "fxp_expected",
+        "status": "frozen production coefficients, exported after the T21 numerical acceptance",
+        "coefficient_artifact": "rrc8-v1",
+        "num_coefficients": fxp.FILTER_LENGTH,
+        "ordering": "ascending_time",
+        "delay_samples": 3.5,
+        "format": f"Q2.{policy.fraction_bits}",
+        "W_common": policy.width,
+        "F_coeff": policy.fraction_bits,
+        "rounding_mode": fxp.ROUNDING_MODE,
+        "quantization": (
+            f"code = RNE(h * 2^{policy.fraction_bits}); a code outside the signed {policy.width}-bit range "
+            "is an error, never a saturation"
+        ),
+        "range_violation_count": 0,
+        "coefficients_float64": coefficients.tolist(),
+        "coefficient_codes": [int(code) for code in codes],
+        "acceptance": acceptance,
+        "hash_serialization": _FXP_HASH_SERIALIZATION,
+        "hashes": {
+            **hashes,
+            "coefficients_sha256": _sha256_bytes(
+                np.asarray(coefficients, dtype=_HASH_SERIALIZATION["coefficients_dtype"]).tobytes(order="C")
+            ),
+            "coefficient_codes_sha256": _sha256_bytes(code_bytes),
+        },
+        "provenance": {"generator": "sim/python/gen_vectors.py", "source_sha256": sources},
+    }
+
+
+def export_fxp_expected(
+    output_dir: Path,
+    vectors_dir: Path | None = None,
+    acceptance_path: Path = _T21_EVIDENCE_PATH,
+) -> list[Path]:
+    """Write the F2 ``fxp_expected`` sets (T22, #46); return the coefficient table and manifest paths.
+
+    The F1 frames are read from ``vectors_dir`` (default ``output_dir``) after
+    their hash check, and the production integer models of ``fxp.py`` run on
+    them. Expected codes are never a cast of the float references. The export
+    refuses unless T21 accepts production Q2.14 on these same F1 frames, every
+    frame reproduces the output codes T21 accepted, and every acceptance gate
+    passes. Everything is built and validated before the first file is written.
+    No RTL latency, transport count or ``vector_manifest.svh`` is emitted.
+    """
+    output_dir = Path(output_dir)
+    vectors_dir = output_dir if vectors_dir is None else Path(vectors_dir)
+    policy = fxp.PRODUCTION_POLICY
+    _assert_stimulus_consistency()
+    evidence, t21_sha256 = _load_t21_acceptance(acceptance_path)
+    sources = {name: _sha256_bytes((_SIM_DIR / name).read_bytes()) for name in _FXP_SOURCE_FILES}
+    upstream = {
+        "rrc8_manifest_sha256": _sha256_bytes(_ARTIFACT_PATH.read_bytes()),
+        "t21_evidence_sha256": t21_sha256,
+    }
+    acceptance = {
+        "record": "fxp-policy-16.md T21 acceptance record (#45)",
+        "evidence_file": _repo_relative(acceptance_path),
+        "production_acceptance_passed": True,
+    }
+    provenance = {
+        "generator": "sim/python/gen_vectors.py",
+        "model": "sim/python/fxp.py production-A integer models (fxp-policy-16 T20 freeze)",
+        "coefficient_artifact": "rrc8-v1",
+        "source_sha256": sources,
+        "versions": {"python": platform.python_version(), "numpy": np.__version__, "fxpmath": fxpmath.__version__},
+    }
+
+    stage_dir = output_dir / "fxp_expected"
+    coefficient_path = stage_dir / COEFFICIENT_FILE
+    table = _coefficient_table(policy, acceptance, upstream, sources)
+    table_bytes = (json.dumps(table, sort_keys=True, indent=2, allow_nan=False) + "\n").encode("utf-8")
+    files = [(coefficient_path, table_bytes)]
+    manifest_paths = []
+
+    for vector_set, vector_case in iter_frames():
+        key = f"{vector_set}/{vector_case}"
+        frame = fxp.load_f1_frame(vectors_dir, vector_set, vector_case)
+        if frame["manifest_sha256"] != evidence["f1_manifest_sha256"].get(key):
+            raise ValueError(f"{key}: F1 manifests differ from the frames T21 accepted")
+        _assert_frame(frame["samples"])
+        run = fxp.measure_frame(frame["samples"], frame["reference"], policy)
+        accepted = _accepted_frame(evidence, key)
+        for domain in DOMAINS:
+            if run["measurement"][domain]["output_codes_sha256"] != accepted[domain]["output_codes_sha256"]:
+                raise ValueError(f"{key}: {domain} output codes differ from the codes T21 accepted")
+        acceptance_frame = (vector_set, vector_case) == _ACCEPTANCE_FRAME
+        gates = _frame_gates(frame, run, acceptance_frame)
+        failed = [f"{domain}.{name}" for domain, checks in gates.items() for name, ok in checks.items() if not ok]
+        cross = run["measurement"]["sqnr_cross_db"]
+        if acceptance_frame and cross is not None and cross < SQNR_CROSS_MIN_DB:
+            failed.append("sqnr_cross")
+        if failed:
+            raise ValueError(f"{key}: FXP acceptance gates failed {failed}")
+
+        frame_dir = stage_dir / vector_set / vector_case
+        input_i, input_q = (codes.astype(np.int64) for codes in fxp.quantize_samples(frame["samples"], policy))
+        input_bytes = _hex_bytes(pack_qi_records(input_i, input_q))
+        files.append((frame_dir / INPUT_HEX_FILE, input_bytes))
+
+        for domain in DOMAINS:
+            tag = _DOMAIN_FILE_TAG[domain]
+            result = run["results"][domain]
+            entry = run["measurement"][domain]
+            expected_file = EXPECTED_HEX_FILE.format(tag=tag)
+            expected_bytes = _hex_bytes(pack_qi_records(result.i_codes, result.q_codes))
+            fxp_evidence = {
+                "model": "fxp.py production-A integer model, run by this export",
+                "sqnr_reference": "this domain's F1 float reference over the full causal window",
+                "frame_role": "acceptance" if acceptance_frame else "diagnostic",
+                "sqnr_db": entry["sqnr_db"],
+                "split_half_sqnr_db": entry["split_half_sqnr_db"],
+                "internal_overflow_count": entry["internal_overflow_count"],
+                "output_saturation_count": entry["output_saturation_count"],
+                "gates": gates[domain],
+            }
+            if not acceptance_frame:
+                fxp_evidence["reported_without_threshold"] = ["sqnr_db", "split_half_sqnr_db", "output_saturation_count"]
+            manifest = {
+                "artifact_stage": "fxp_expected",
+                "model_domain": domain,
+                **_STIMULUS_CONSTANTS,
+                "vector_set": vector_set,
+                "vector_case": vector_case,
+                **policy.manifest_fields(),
+                "component_sign_extension": "sign_extend_to_16",
+                "payload": {
+                    "input_file": INPUT_HEX_FILE,
+                    "expected_file": expected_file,
+                    "coefficient_file": f"../../{COEFFICIENT_FILE}",
+                    "encoding": _HEX_ENCODING,
+                    "input_count": int(input_i.size),
+                    "expected_count": int(result.i_codes.size),
+                },
+                "fxp_evidence": fxp_evidence,
+                "acceptance": {
+                    **acceptance,
+                    "output_codes_match_t21": True,
+                    "cross_domain": "gated on the canonical frame by the T21 production acceptance; "
+                    "per-domain manifests do not carry sqnr_cross_db",
+                },
+                "hash_serialization": _FXP_HASH_SERIALIZATION,
+                "hashes": {
+                    **upstream,
+                    "f1_manifest_sha256": frame["manifest_sha256"][domain],
+                    "coefficient_table_sha256": _sha256_bytes(table_bytes),
+                    "input_hex_sha256": _sha256_bytes(input_bytes),
+                    "expected_hex_sha256": _sha256_bytes(expected_bytes),
+                    "input_codes_sha256": _codes_sha256(input_i, input_q),
+                    "output_codes_sha256": entry["output_codes_sha256"],
+                },
+                "provenance": provenance,
+            }
+            if manifest["payload"]["input_count"] != manifest["input_samples"]:
+                raise AssertionError("input_samples: input codes are not 2048 samples")
+            if manifest["payload"]["expected_count"] != manifest["output_samples"]:
+                raise AssertionError("output_samples: expected codes are not 2055 samples")
+            validate_manifest(manifest)
+            manifest_path = frame_dir / MANIFEST_FILE.format(tag=tag)
+            text = json.dumps(manifest, sort_keys=True, indent=2, allow_nan=False) + "\n"
+            files.append((frame_dir / expected_file, expected_bytes))
+            files.append((manifest_path, text.encode("utf-8")))
+            manifest_paths.append(manifest_path)
+
+    for path, data in files:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        _write_with_sidecar(path, data)
+    return [coefficient_path, *manifest_paths]
 
 
 def export_rtl_matching(output_dir: Path, variant_id: str) -> list[Path]:
@@ -328,7 +580,9 @@ def export_rtl_matching(output_dir: Path, variant_id: str) -> list[Path]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate staged golden vectors (T13: float_reference)")
+    parser = argparse.ArgumentParser(
+        description="Generate staged golden vectors (T13: float_reference, T22: fxp_expected)"
+    )
     parser.add_argument("--stage", choices=STAGES, default="float_reference")
     parser.add_argument("--output-dir", type=Path, default=_DEFAULT_OUTPUT_DIR)
     parser.add_argument(
@@ -347,7 +601,8 @@ def main() -> None:
 
             print(generate_vector_plots(args.output_dir, args.plots_dir))
     elif args.stage == "fxp_expected":
-        export_fxp_expected(args.output_dir)
+        for path in export_fxp_expected(args.output_dir):
+            print(path)
     else:
         export_rtl_matching(args.output_dir, variant_id="")
 
