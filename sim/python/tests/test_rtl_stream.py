@@ -24,7 +24,8 @@ def run_variant(variant="time_serial", *arguments):
     )
 
 
-@pytest.mark.parametrize("variant", ["time_serial", "freq_serial", "time_opt", "freq_opt"])
+# freq_serial carries the T32 engine; the shell fixtures apply to the transport wrappers.
+@pytest.mark.parametrize("variant", ["time_serial", "time_opt", "freq_opt"])
 @pytest.mark.parametrize("width,spc,accepted,padding", [(8, 1, 33, 0), (12, 2, 34, 1), (16, 4, 36, 3)])
 def test_shell_preserves_codes_under_reset_bubbles_and_stalls(variant, width, spc, accepted, padding):
     result = run_variant(variant, "--data-width", str(width), "--spc", str(spc))

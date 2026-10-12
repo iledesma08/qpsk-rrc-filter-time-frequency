@@ -32,6 +32,22 @@ if [[ -n "$vector_dir" && "$override" == 1 ]]; then
   exit 2
 fi
 mkdir -p "$BUILD_DIR"
+if [[ "$variant" == freq_serial ]]; then
+  # T32: the real datapath replaces the transport shell, so the identity shell
+  # fixtures no longer apply. Matching against the expected codes needs the T22
+  # vectors and the per-variant metadata (T33), which are not connected yet:
+  # this only elaborates the DUT. It is not a functional check.
+  if [[ -n "$vector_dir" || "$override" == 1 ]]; then
+    printf 'freq_serial has no vector matching yet (T33); it only elaborates, without options\n' >&2
+    exit 2
+  fi
+  iverilog -g2012 -Wall -s freq_serial_filter -o "$BUILD_DIR/elab.out" \
+    "$ROOT/rtl/common/rrc_pkg.sv" "$ROOT/rtl/common/rrc_reset_sync.sv" \
+    "$ROOT/rtl/common/rrc_freq_pkg.sv" "$ROOT/rtl/common/rrc_freq_engine.sv" \
+    "$ROOT/rtl/freq_serial/freq_serial_filter.sv"
+  printf 'ELABORATED: freq_serial_filter (no functional check; vector matching is T33)\n'
+  exit 0
+fi
 if [[ -z "$vector_dir" ]]; then
   vector_dir="$BUILD_DIR/fixture-w${width}-spc${spc}"
   "${PYTHON:-python3}" "$ROOT/sim/python/tests/rtl_shell_fixture.py" \

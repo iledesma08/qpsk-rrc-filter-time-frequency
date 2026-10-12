@@ -53,6 +53,18 @@ F3 chooses ready-path cuts/skid buffering using its actual timing and PPA needs.
   shell, wrapper, then TB; OpenLane includes DUT/shared RTL only, never TB
   metadata or vectors.
 
+## Frequency engine (T32, #49)
+
+`rrc_freq_pkg.sv` holds the frozen production-A frequency arithmetic: the
+twiddle and `H[k]` tables (generated from `sim/python/fxp.py`; `H[k]` is read
+through a bit-reversed address), the container widths and the two shared
+narrowing functions (RNE shift by F, and the final cast with saturation).
+`rrc_freq_engine.sv` is the `U`-parameterized engine of the frequency lane;
+only `U=1` elaborates, and `rtl/freq_serial/` wraps it. They live here so that
+T42 (F-U4/F-U8) reuses one source instead of copying it. They are listed after
+`rrc_pkg.sv`/`rrc_reset_sync.sv` in every source list; `rrc_stream_shell.sv` is
+no longer used by `freq_serial`. See `rtl/freq_serial/README.md`.
+
 ## Physical-target boundary
 
 Serial main targets are SLOW 10 MHz (100 ns), with FAST 100 MHz (10 ns)

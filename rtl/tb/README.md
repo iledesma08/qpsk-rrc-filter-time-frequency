@@ -28,6 +28,11 @@ be combined with `--vectors`: the manifest owns those values. T03 runners
 reject metadata without `RRC_SHELL_FIXTURE`; real RRC manifests are connected
 only after the wrappers contain real datapaths.
 
+`freq_serial` carries the T32 datapath and no longer uses the identity shell
+fixtures: `bash rtl/freq_serial/run.sh` only elaborates it (it rejects
+`--vectors` and the width/SPC overrides) until the T22 vectors and the T33
+metadata are connected.
+
 ## Scoreboard and coverage
 
 The `.svh` supplies compile-time localparams for widths/SPC, source/expected file

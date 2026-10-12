@@ -11,6 +11,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[3]
 VARIANTS = ("time_serial", "time_opt", "freq_serial", "freq_opt")
 FREQUENCY = ("freq_serial", "freq_opt")
+# freq_serial carries the T32 engine, not the T03 transport shell.
+TRANSPORT_VARIANTS = ("time_serial", "time_opt", "freq_opt")
 
 
 def simulate(tmp_path, body, variant=None, sources=None):
@@ -19,7 +21,11 @@ def simulate(tmp_path, body, variant=None, sources=None):
     tb = tmp_path / "config_tb.sv"
     tb.write_text("`timescale 1ns/1ps\nmodule config_tb;\n" + body + "\nendmodule\n")
     if sources is None:
-        sources = sorted((ROOT / "rtl/common").glob("rrc_*.sv"))
+        # Packages first; the T32 engine files are only for freq_serial.
+        names = ["rrc_pkg", "rrc_reset_sync", "rrc_stream_shell"]
+        if variant == "freq_serial":
+            names = ["rrc_pkg", "rrc_reset_sync", "rrc_freq_pkg", "rrc_freq_engine"]
+        sources = [ROOT / f"rtl/common/{name}.sv" for name in names]
         if variant:
             sources.append(ROOT / f"rtl/{variant}/{variant}_filter.sv")
     binary = tmp_path / "sim.out"
@@ -33,7 +39,7 @@ def simulate(tmp_path, body, variant=None, sources=None):
     )
 
 
-@pytest.mark.parametrize("variant", (*VARIANTS, "direct"))
+@pytest.mark.parametrize("variant", (*TRANSPORT_VARIANTS, "direct"))
 def test_distributed_reset_and_elastic_hold(tmp_path, variant):
     if variant == "direct":
         instance = """
@@ -124,6 +130,8 @@ def test_distributed_reset_and_elastic_hold(tmp_path, variant):
     (".FFT_LEN(16), .HOP(16), .DISCARD_PREFIX(0)", 0, 16),
 ])
 def test_valid_frequency_tuple(tmp_path, variant, overrides, start, length):
+    if variant == "freq_serial" and (start < 7 or "FFT_LEN(32)" in overrides):
+        pytest.skip("freq_serial is FFT16 and needs at least 7 discarded outputs")
     params = f"#({overrides})" if overrides else ""
     result = simulate(tmp_path, f"""
   {variant}_filter {params} dut (
