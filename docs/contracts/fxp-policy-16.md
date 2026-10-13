@@ -732,7 +732,9 @@ frequency B) were not run; Q1 sensitivity remains outside base.
   production adoption requires its own evidence and recorded policy decision.
 - The frequency arithmetic freeze was accepted on 2026-10-09 and T21 accepted
   production `Q2.14` against it on 2026-10-10 (records above). T22 (#46)
-  exports the production coefficients and expected codes.
+  exports the production coefficients and per-domain expected codes as the
+  `fxp_expected` stage in `sim/vectors/fxp_expected/` (`gen_vectors.py --stage
+  fxp_expected`), bound by hash to the T21 evidence; see `sim/vectors/README.md`.
 
 ## References
 
