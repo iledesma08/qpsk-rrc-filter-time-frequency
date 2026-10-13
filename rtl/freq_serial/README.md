@@ -13,12 +13,16 @@ bash rtl/freq_serial/run.sh      # elaborates the DUT; it is NOT a functional ch
 
 ## Status
 
-- Elaborates with Icarus (`-g2012 -Wall`) and passes the structural parameter
-  tests. Verilator lint has only width/unused-bit warnings.
-- **Not functionally verified.** Matching against expected codes needs the T22
-  vectors (#46) and the per-variant metadata (T33, #50), so the runner does not
-  simulate yet. The 257-block schedule, latency and `II` are not measured. The
-  tables were generated from the frozen model (`fxp.py`), not retyped.
+- Elaborates with Icarus (`-g2012 -Wall`, no warnings) and passes the structural
+  parameter tests, including the parameter-override check:
+  `test_freq_serial_rejects_what_its_datapath_does_not_implement` fails any
+  `FFT_LEN`, `DISCARD_PREFIX`, `DATA_WIDTH` or `SPC` the datapath does not
+  implement at time zero. Verilator lint has only width/unused-bit warnings.
+- Checked locally against the T22 vectors (canonical and the three `sys_corners`
+  frames, 2055 exact codes each, continuous and robust runs with bubbles, stalls
+  and a reset in mid traffic) with the shared testbench and a temporary manifest
+  that is not in the repo. The committed `rtl_matching` metadata and the formal
+  matching report are T33 (#50), so `run.sh` still only elaborates.
 - Not synthesized: no Yosys/OpenLane run, no timing or PPA (T43, #54).
 
 ## What this filter does
@@ -89,9 +93,10 @@ cycle at the end of each pass makes the next pass read fully written values.
 | EMIT | `z[8:16]` out through one output register | 8 |
 | DRAIN | last output waits for its consumer | 1 |
 
-That is about 107 cycles per block (an estimate; not measured yet), about 27
-thousand for the canonical frame, against 8 cycles per sample for the serial
-time-domain filter.
+Measured with the testbench on the canonical frame: the first output appears 99
+cycles after the first accepted sample, and the whole frame (2056 accepted
+samples, 257 blocks, 2056 raw outputs) takes 27499 cycles, i.e. 107 cycles per
+block, against 8 cycles per sample for the serial time-domain filter.
 
 `ready_o` is high only in ACCEPT (gated by the synchronized reset) and is low
 while computing and emitting. `valid_o`, `sample_o` and `ready_o` never depend
@@ -116,9 +121,12 @@ supported or verified configurations.
 
 ## Open items
 
-- Integration gate (#49): the T22 export (#46) and the T20 policy must be
-  checked against the tables in `rrc_freq_pkg.sv` (twiddles, `H[k]`) before
-  closing; the matching and metadata are T33.
+- Integration gate (#49), checked on 2026-10-13: the twiddle and `H[k]` tables of
+  `rrc_freq_pkg.sv` equal the T20 freeze, and `H[k]` recomputed from the T22
+  coefficient codes (`[179, -1818, 1818, 11295, 11295, 1818, -1818, 179]`) with
+  the frozen rule (DFT16 of the zero-padded codes, one RNE) is identical too. The
+  committed matching and the `rtl_matching` metadata are T33 (#50), including
+  the value to record for `fft_pipeline_cycles`.
 - `U` is a parameter of the engine for the F-U4/F-U8 rows (T42); only `U=1`
   elaborates.
 
