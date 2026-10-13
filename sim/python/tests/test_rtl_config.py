@@ -171,6 +171,29 @@ def test_invalid_frequency_tuple_fails_at_time_zero(tmp_path, variant, overrides
     assert "INVALID TUPLE SURVIVED" not in result.stdout
 
 
+# T32 (#49) param-override check: freq_serial is an FFT16 engine for the
+# production Q2.14 interface, so anything else must fail at time zero.
+@pytest.mark.parametrize("overrides,message", [
+    (".FFT_LEN(32), .HOP(24)", "Invalid frequency parameters"),
+    (".FFT_LEN(16), .HOP(16), .DISCARD_PREFIX(0)", "Invalid frequency parameters"),
+    (".HOP(10), .DISCARD_PREFIX(6)", "Invalid frequency parameters"),
+    (".DATA_WIDTH(12)", "implements only production DATA_WIDTH=16 at SPC=1"),
+    (".DATA_WIDTH(8)", "implements only production DATA_WIDTH=16 at SPC=1"),
+    (".SAMPLES_PER_CLOCK(2)", "implements only production DATA_WIDTH=16 at SPC=1"),
+])
+def test_freq_serial_rejects_what_its_datapath_does_not_implement(tmp_path, overrides, message):
+    result = simulate(tmp_path, f"""
+  freq_serial_filter #({overrides}) dut (
+    .clk(1'b0), .rst_n(1'b0), .valid_i(1'b0), .ready_o(),
+    .sample_i('0), .valid_o(), .ready_i(1'b0), .sample_o());
+  initial begin #1; $display("UNSUPPORTED CONFIGURATION SURVIVED"); $finish; end
+""", "freq_serial")
+    assert result.returncode != 0, "configuration survived: " + result.stdout
+    assert message in result.stdout
+    assert "Time: 0" in result.stdout
+    assert "UNSUPPORTED CONFIGURATION SURVIVED" not in result.stdout
+
+
 def test_unknown_runner_variant_reports_error(tmp_path):
     result = subprocess.run(
         ["bash", str(ROOT / "rtl/run_variant.sh"), "unknown_config_variant"],
