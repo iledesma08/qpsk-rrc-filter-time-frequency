@@ -122,16 +122,22 @@ def test_distributed_reset_and_elastic_hold(tmp_path, variant):
 
 
 # Literal expectations catch stale package defaults under local overrides.
-@pytest.mark.parametrize("variant", FREQUENCY)
-@pytest.mark.parametrize("overrides,start,length", [
+# freq_serial is an FFT16 engine with at least 7 discarded outputs; the two
+# tuples it rejects are covered by test_freq_serial_rejects_what_its_datapath_does_not_implement.
+ENGINE_TUPLES = [
     ("", 8, 8),
     (".HOP(9), .DISCARD_PREFIX(7)", 7, 9),
+]
+TRANSPORT_ONLY_TUPLES = [
     (".FFT_LEN(32), .HOP(24)", 8, 24),
     (".FFT_LEN(16), .HOP(16), .DISCARD_PREFIX(0)", 0, 16),
-])
+]
+VALID_TUPLES = [("freq_serial", *entry) for entry in ENGINE_TUPLES] + [
+    ("freq_opt", *entry) for entry in ENGINE_TUPLES + TRANSPORT_ONLY_TUPLES]
+
+
+@pytest.mark.parametrize("variant,overrides,start,length", VALID_TUPLES)
 def test_valid_frequency_tuple(tmp_path, variant, overrides, start, length):
-    if variant == "freq_serial" and (start < 7 or "FFT_LEN(32)" in overrides):
-        pytest.skip("freq_serial is FFT16 and needs at least 7 discarded outputs")
     params = f"#({overrides})" if overrides else ""
     result = simulate(tmp_path, f"""
   {variant}_filter {params} dut (
