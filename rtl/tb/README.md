@@ -3,15 +3,17 @@
 ## T03 shell tests (#42)
 
 `rrc_stream_tb.sv` is the shared manifest-driven family for all four wrappers.
-It replaces `rrc_placeholder_tb.sv`. Current runs test transport, **not RRC
-vector matching**. The filter impulse check (`x[0] => y[0:8] = h`) belongs to
-the real datapaths in F3.
+It replaces `rrc_placeholder_tb.sv`. Runs of the transport wrappers test
+transport, **not RRC vector matching**. Since T30 (#47), `time_serial` runs real
+filter arithmetic against structural fixtures from an exact integer reference
+of the accepted time policy (including the impulse check `x[0] => y[0:8] = h`); see
+`rtl/time_serial/README.md`. Matching against `sim/vectors/` is still T31/T33.
 
 From the repository root:
 
 ```bash
 bash rtl/run.sh
-bash rtl/time_serial/run.sh --data-width 8 --spc 4
+bash rtl/time_opt/run.sh --data-width 8 --spc 4
 python -m pytest sim/python/tests/test_rtl_stream.py -v
 ```
 
@@ -22,11 +24,14 @@ metadata-only `vector_manifest.svh`, and SHA-256 sidecars. Expected output is
 identity transport, not filtered QPSK. Python 3 is needed for generation.
 
 To consume an existing **shell fixture**, use
-`bash rtl/time_serial/run.sh --vectors /path/to/fixture`. Files and sidecars
+`bash rtl/time_opt/run.sh --vectors /path/to/fixture`. Files and sidecars
 must exist and hashes must pass before compilation. Width/SPC overrides cannot
-be combined with `--vectors`: the manifest owns those values. T03 runners
-reject metadata without `RRC_SHELL_FIXTURE`; real RRC manifests are connected
-only after the wrappers contain real datapaths.
+be combined with `--vectors`: the manifest owns those values. Transport
+wrappers reject metadata without `RRC_SHELL_FIXTURE`; real RRC manifests are
+connected only after a wrapper contains a real datapath. `time_serial` no
+longer declares `RRC_TRANSPORT_DUT`, accepts only `DATA_WIDTH=16` and `SPC=1`,
+and by default generates the canonical structural fixture
+(`rtl_filter_fixture.py`, which needs the pinned simulator requirements).
 
 ## Scoreboard and coverage
 

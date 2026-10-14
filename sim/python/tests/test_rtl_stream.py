@@ -11,20 +11,24 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[3]
+# Wrappers that still forward codes through the T03 shell. time_serial carries
+# the T30 filter (see test_rtl_time_serial.py); TB mechanics use a transport DUT.
+TRANSPORT_VARIANTS = ["freq_serial", "time_opt", "freq_opt"]
+TRANSPORT_VARIANT = "time_opt"
 pytestmark = pytest.mark.skipif(
     not shutil.which("iverilog") or not shutil.which("vvp"),
     reason="Icarus/vvp checks run in the required RTL CI job",
 )
 
 
-def run_variant(variant="time_serial", *arguments):
+def run_variant(variant=TRANSPORT_VARIANT, *arguments):
     return subprocess.run(
         ["bash", str(ROOT / f"rtl/{variant}/run.sh"), *arguments],
         cwd=ROOT, capture_output=True, text=True, timeout=30, check=False,
     )
 
 
-@pytest.mark.parametrize("variant", ["time_serial", "freq_serial", "time_opt", "freq_opt"])
+@pytest.mark.parametrize("variant", TRANSPORT_VARIANTS)
 @pytest.mark.parametrize("width,spc,accepted,padding", [(8, 1, 33, 0), (12, 2, 34, 1), (16, 4, 36, 3)])
 def test_shell_preserves_codes_under_reset_bubbles_and_stalls(variant, width, spc, accepted, padding):
     result = run_variant(variant, "--data-width", str(width), "--spc", str(spc))
@@ -199,7 +203,7 @@ endmodule
 @pytest.mark.parametrize("count,intervals,ii", [(1, 0, "undefined"), (5, 4, "1"), (33, 32, "1")])
 def test_tb_reports_only_continuous_accepted_input_intervals(tmp_path, count, intervals, ii):
     fixture(tmp_path, "--count", str(count))
-    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    result = run_variant(TRANSPORT_VARIANT, "--vectors", str(tmp_path))
     assert result.returncode == 0, result.stdout + result.stderr
     frames = [line for line in result.stdout.splitlines() if line.startswith("Frame robustness=")]
     bound = ii if intervals else "-1"
@@ -211,7 +215,7 @@ def test_tb_reports_only_continuous_accepted_input_intervals(tmp_path, count, in
 @pytest.mark.parametrize("count", [1, 5, 33])
 def test_tb_guarantees_a_valid_tail_stall_even_for_one_beat(tmp_path, count):
     fixture(tmp_path, "--count", str(count))
-    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    result = run_variant(TRANSPORT_VARIANT, "--vectors", str(tmp_path))
     assert result.returncode == 0, result.stdout + result.stderr
     frames = [line for line in result.stdout.splitlines() if line.startswith("Frame robustness=")]
     assert "tail_stalls=0" in frames[0]
@@ -221,7 +225,7 @@ def test_tb_guarantees_a_valid_tail_stall_even_for_one_beat(tmp_path, count):
 @pytest.mark.parametrize("count,prefix", [(1, 0), (2, 1), (33, 2)])
 def test_tb_resets_an_accepted_prefix_and_restarts_at_record_zero(tmp_path, count, prefix):
     fixture(tmp_path, "--count", str(count))
-    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    result = run_variant(TRANSPORT_VARIANT, "--vectors", str(tmp_path))
     assert result.returncode == 0, result.stdout + result.stderr
     assert f"Midtraffic reset prefix_accepted={prefix} restart_index=0" in result.stdout
     assert result.stdout.count(f"compared={count} accepted_beats={count} emitted_beats={count}") == 2
@@ -237,7 +241,7 @@ def test_tb_accepts_declared_flush_and_captures_raw_padding_without_expected_cod
     expected.write_text("\n".join(expected.read_text().splitlines()[:-1]) + "\n")
     rehash(expected)
     update_manifest(tmp_path, output_samples=compared, valid_len=compared)
-    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    result = run_variant(TRANSPORT_VARIANT, "--vectors", str(tmp_path))
     assert result.returncode == 0, result.stdout + result.stderr
     for robustness in (0, 1):
         assert (f"Frame robustness={robustness} compared={compared} "
@@ -253,7 +257,7 @@ def test_tb_counts_zero_source_flush_and_padding_lanes_on_handshakes(tmp_path):
         vector = tmp_path / name
         vector.write_text(vector.read_text().replace("FFFF0001", "00000000", 1))
         rehash(vector)
-    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    result = run_variant(TRANSPORT_VARIANT, "--vectors", str(tmp_path))
     assert result.returncode == 0, result.stdout + result.stderr
     for robustness in (0, 1):
         assert (f"Frame robustness={robustness} compared=35 accepted_beats=9 emitted_beats=9") in result.stdout
@@ -275,7 +279,7 @@ def test_tb_accepts_short_frames_with_bubbles_and_minimal_beat_padding(
             "--flush-samples", str(flush))
     assert (tmp_path / "input.hex").read_text().splitlines() == codes[:source]
     assert (tmp_path / "expected.hex").read_text().splitlines() == codes
-    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    result = run_variant(TRANSPORT_VARIANT, "--vectors", str(tmp_path))
     assert result.returncode == 0, result.stdout + result.stderr
     assert "PASS: shell stream W=8 SPC=4" in result.stdout
     for robustness in (0, 1):
@@ -303,13 +307,13 @@ def test_tb_accepts_short_frames_with_bubbles_and_minimal_beat_padding(
 def test_tb_rejects_invalid_transport_counts(tmp_path, spc, fields):
     fixture(tmp_path, "--spc", str(spc))
     update_manifest(tmp_path, **fields)
-    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    result = run_variant(TRANSPORT_VARIANT, "--vectors", str(tmp_path))
     assert result.returncode != 0
     assert "Invalid manifest transport counts" in result.stdout
 
 
 def test_runner_rejects_missing_manifest(tmp_path):
-    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    result = run_variant(TRANSPORT_VARIANT, "--vectors", str(tmp_path))
     assert result.returncode != 0
     assert "Missing vector file" in result.stderr
 
@@ -317,7 +321,7 @@ def test_runner_rejects_missing_manifest(tmp_path):
 def test_runner_rejects_bad_checksum(tmp_path):
     fixture(tmp_path)
     (tmp_path / "expected.hex").write_text("00000000\n")
-    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    result = run_variant(TRANSPORT_VARIANT, "--vectors", str(tmp_path))
     assert result.returncode != 0
     assert "Checksum mismatch" in result.stderr
 
@@ -327,7 +331,7 @@ def test_comparator_rejects_wrong_expected_integer_code(tmp_path):
     expected = tmp_path / "expected.hex"
     expected.write_text(expected.read_text().replace("FFFF0001", "FFFF0002", 1))
     rehash(expected)
-    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    result = run_variant(TRANSPORT_VARIANT, "--vectors", str(tmp_path))
     assert result.returncode != 0
     assert "Mismatch index=0" in result.stdout
     assert "expected=ffff0002 got=ffff0001" in result.stdout
@@ -343,7 +347,7 @@ def test_tb_rejects_invalid_metadata(tmp_path, old, new):
     manifest = tmp_path / "vector_manifest.svh"
     manifest.write_text(manifest.read_text().replace(old, new))
     rehash(manifest)
-    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    result = run_variant(TRANSPORT_VARIANT, "--vectors", str(tmp_path))
     assert result.returncode != 0
     assert "FATAL" in result.stdout
 
@@ -354,7 +358,7 @@ def test_tb_rejects_extra_vector_records(tmp_path, name):
     vector = tmp_path / name
     vector.write_text(vector.read_text() + "00000000\n")
     rehash(vector)
-    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    result = run_variant(TRANSPORT_VARIANT, "--vectors", str(tmp_path))
     assert result.returncode != 0
     assert "Vector count mismatch" in result.stdout
 
@@ -368,7 +372,7 @@ def test_tb_compares_only_the_manifest_window(tmp_path):
     expected = tmp_path / "expected.hex"
     expected.write_text(expected.read_text().replace("FFFF0001", "00000000", 1))
     rehash(expected)
-    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    result = run_variant(TRANSPORT_VARIANT, "--vectors", str(tmp_path))
     assert result.returncode == 0, result.stdout + result.stderr
     assert "compared=29" in result.stdout
 
@@ -380,14 +384,14 @@ def test_tb_validates_sign_extension_even_outside_comparison_window(tmp_path, na
     vector = tmp_path / name
     vector.write_text(vector.read_text().replace("FFFF0001", "00000080", 1))
     rehash(vector)
-    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    result = run_variant(TRANSPORT_VARIANT, "--vectors", str(tmp_path))
     assert result.returncode != 0
     assert f"Invalid {name.removesuffix('.hex')} code/sign extension index=0" in result.stdout
 
 
 def test_runner_rejects_width_override_for_an_existing_manifest(tmp_path):
     fixture(tmp_path)
-    result = run_variant("time_serial", "--vectors", str(tmp_path), "--data-width", "8")
+    result = run_variant(TRANSPORT_VARIANT, "--vectors", str(tmp_path), "--data-width", "8")
     assert result.returncode != 0
     assert "manifest owns" in result.stderr
 
@@ -397,7 +401,7 @@ def test_shell_cannot_claim_a_non_fixture_vector_pass(tmp_path):
     manifest = tmp_path / "vector_manifest.svh"
     manifest.write_text(manifest.read_text().replace("`define RRC_SHELL_FIXTURE\n", ""))
     rehash(manifest)
-    result = run_variant("time_serial", "--vectors", str(tmp_path))
+    result = run_variant(TRANSPORT_VARIANT, "--vectors", str(tmp_path))
     assert result.returncode != 0
     assert "T03 transport DUT requires a shell fixture" in result.stdout
 
