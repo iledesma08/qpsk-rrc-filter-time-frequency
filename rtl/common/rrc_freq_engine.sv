@@ -20,9 +20,17 @@
 //   EMIT    EMIT_LEN outputs z[EMIT_START +: EMIT_LEN] leave through one output
 //           register, one cast per component, held while ready_i is low.
 //   DRAIN   the last output waits for its consumer, then ACCEPT starts again.
+//
+// Reset (rtl-streaming-17, "Reset behavior"): the control state, the frame
+// history (zero), valid_o and sample_o are reset. The work buffer and the
+// operand registers are NOT reset. This is an explicit interpretation of "all
+// internal history, accumulators and valid pipelines are cleared": LOAD writes
+// every work-buffer entry before anything reads it, no output is valid before
+// that, and reset flops are larger in sky130. A reset in RUN, EMIT or DRAIN is
+// covered by a directed test (sim/python/tests/test_rtl_freq_serial.py).
 module rrc_freq_engine #(
   parameter integer U = 1,
-  parameter integer FFT_LEN = rrc_freq_pkg::FREQ_FFT_LEN,
+  parameter integer FFT_LEN = rrc_pkg::FFT_LEN,
   parameter integer HOP = rrc_pkg::HOP,
   parameter integer DISCARD_PREFIX = rrc_pkg::DISCARD_PREFIX,
   parameter integer EMIT_START = DISCARD_PREFIX,
@@ -32,27 +40,44 @@ module rrc_freq_engine #(
   input  logic        rst_sync_n,
   input  logic        valid_i,
   output logic        ready_o,
-  input  logic [31:0] sample_i,   // {Q[15:0], I[15:0]}
+  input  logic [2*rrc_freq_pkg::FREQ_IN_W-1:0] sample_i,   // {Q, I}
   output logic        valid_o,
   input  logic        ready_i,
-  output logic [31:0] sample_o    // {Q[15:0], I[15:0]}
+  output logic [2*rrc_freq_pkg::FREQ_IN_W-1:0] sample_o    // {Q, I}
 );
-  import rrc_freq_pkg::*;
+  localparam integer IW = rrc_freq_pkg::FREQ_IN_W;   // Q2.14 word
+  localparam integer CW = rrc_freq_pkg::FREQ_CW;     // work-buffer container
+  localparam integer PW = rrc_freq_pkg::FREQ_PW;     // complex-multiply sum
+  localparam integer HIST = FFT_LEN - HOP;
+
+  // No-wrap argument for the container, checked at elaboration instead of with
+  // an overflow port (ports are fixed by rtl-streaming-17). For any full-scale
+  // Q2.14 frame, |x| < 2^IW (components are at most 2^(IW-1), so |x| is
+  // below sqrt(2)*2^(IW-1)); the forward FFT gains at most 16 (2^4) in
+  // magnitude; |H[k]| <= |re|+|im| <= FREQ_H_L1_MAX < 2^clog2(FREQ_H_L1_MAX+1);
+  // the product keeps full precision; the unscaled IFFT gains 16 again.
+  // Adversarial full-scale frames in the T20 model reach about 2^34.1.
+  // Unlike the T20 model, which flags any value above its stage widths (W..W+4,
+  // 2(W+4)+1.., declared for the accepted stimulus), the RTL computes every
+  // stage in the CW-bit container and never wraps.
+  localparam integer BOUND_BITS = IW + 4 + $clog2(rrc_freq_pkg::FREQ_H_L1_MAX + 1) + 4;
 
   generate
     if (U != 1) begin : invalid_lanes
       initial $fatal(1, "rrc_freq_engine: only U=1 is implemented");
     end
-    // The 8-tap filter needs at least FILTER_TAPS-1 = 7 discarded outputs.
-    if (FFT_LEN != FREQ_FFT_LEN || HOP <= 0 || HOP > FFT_LEN ||
-        DISCARD_PREFIX < FREQ_FILTER_TAPS - 1 || DISCARD_PREFIX >= FFT_LEN ||
-        EMIT_START != DISCARD_PREFIX || EMIT_LEN != FFT_LEN - DISCARD_PREFIX ||
-        EMIT_LEN != HOP) begin : invalid_params
+    // rrc_freq_pkg repeats the transform length and the word width of its tables
+    // (see there); they must not drift from the shared rrc_pkg.
+    if (rrc_pkg::FFT_LEN != rrc_freq_pkg::FREQ_FFT_LEN || rrc_pkg::DATA_WIDTH != rrc_freq_pkg::FREQ_IN_W) begin : package_drift
+      initial $fatal(1, "rrc_freq_pkg disagrees with rrc_pkg on FFT_LEN or DATA_WIDTH");
+    end
+    if (!rrc_freq_pkg::valid_framing(FFT_LEN, HOP, DISCARD_PREFIX, EMIT_START, EMIT_LEN)) begin : invalid_params
       initial $fatal(1, "Invalid frequency parameters");
     end
+    if (BOUND_BITS >= CW) begin : container_can_wrap
+      initial $fatal(1, "rrc_freq_engine: the work-buffer container can wrap");
+    end
   endgenerate
-
-  localparam integer HIST = FFT_LEN - HOP;
 
   localparam logic [2:0] S_ACCEPT = 3'd0;
   localparam logic [2:0] S_LOAD   = 3'd1;
@@ -73,15 +98,14 @@ module rrc_freq_engine #(
   logic       ex_v;       // the operand registers hold a butterfly to execute
 
   // Input frame: [0, HIST) is history (zero after reset), [HIST, FFT_LEN) is new.
-  logic signed [FREQ_IN_W-1:0] frame_re [0:FFT_LEN-1];
-  logic signed [FREQ_IN_W-1:0] frame_im [0:FFT_LEN-1];
+  logic signed [IW-1:0] frame_re [0:FFT_LEN-1];
+  logic signed [IW-1:0] frame_im [0:FFT_LEN-1];
 
-  // Work buffer and operand registers carry no reset: every entry is written by
-  // LOAD before it is read, and no output is valid before that.
-  logic signed [FREQ_CW-1:0] wr_re [0:FFT_LEN-1];
-  logic signed [FREQ_CW-1:0] wr_im [0:FFT_LEN-1];
-  logic signed [FREQ_CW-1:0] a_re_q, a_im_q, b_re_q, b_im_q;
-  logic signed [FREQ_TW-1:0] t_re_q, t_im_q;
+  // Work buffer and operand registers carry no reset (see the header).
+  logic signed [CW-1:0] wr_re [0:FFT_LEN-1];
+  logic signed [CW-1:0] wr_im [0:FFT_LEN-1];
+  logic signed [CW-1:0] a_re_q, a_im_q, b_re_q, b_im_q;
+  logic signed [IW-1:0] t_re_q, t_im_q;
   logic [3:0] ia_q, ib_q;
   logic [1:0] mode_q;
 
@@ -107,14 +131,14 @@ module rrc_freq_engine #(
   wire fetch_en = (state == S_RUN) && (is_prod ? (step < 5'd16) : (step < 5'd8));
   wire last_step = (step == (is_prod ? 5'd16 : 5'd8));
 
-  wire signed [15:0] tw_r = tw_re(k_idx);
-  wire signed [15:0] tw_i = tw_im(k_idx);
-  wire signed [15:0] hh_r = h_store_re(step[3:0]);
-  wire signed [15:0] hh_i = h_store_im(step[3:0]);
+  wire signed [IW-1:0] tw_r = rrc_freq_pkg::tw_re(k_idx);
+  wire signed [IW-1:0] tw_i = rrc_freq_pkg::tw_im(k_idx);
+  wire signed [IW-1:0] hh_r = rrc_freq_pkg::h_store_re(step[3:0]);
+  wire signed [IW-1:0] hh_i = rrc_freq_pkg::h_store_im(step[3:0]);
   // Inverse butterflies multiply by conj(T[k]); the product pass uses H[k].
-  wire [FREQ_TW-1:0] fetch_tr = is_prod ? {hh_r[15], hh_r} : {tw_r[15], tw_r};
-  wire [FREQ_TW-1:0] fetch_ti = is_prod ? {hh_i[15], hh_i} :
-                                (is_ifft ? -{tw_i[15], tw_i} : {tw_i[15], tw_i});
+  // |tw_i| <= 2^14, so -tw_i fits the 16-bit word.
+  wire [IW-1:0] fetch_tr = is_prod ? hh_r : tw_r;
+  wire [IW-1:0] fetch_ti = is_prod ? hh_i : (is_ifft ? -tw_i : tw_i);
 
   always_ff @(posedge clk) begin
     if (fetch_en) begin
@@ -131,47 +155,39 @@ module rrc_freq_engine #(
   end
 
   // ---- Execute: one shared complex multiplier ---------------------------
-  wire signed [FREQ_MW-1:0] ae_re = {a_re_q[FREQ_CW-1], a_re_q};
-  wire signed [FREQ_MW-1:0] ae_im = {a_im_q[FREQ_CW-1], a_im_q};
-  wire signed [FREQ_MW-1:0] be_re = {b_re_q[FREQ_CW-1], b_re_q};
-  wire signed [FREQ_MW-1:0] be_im = {b_im_q[FREQ_CW-1], b_im_q};
-  wire signed [FREQ_MW-1:0] d_re = ae_re - be_re;
-  wire signed [FREQ_MW-1:0] d_im = ae_im - be_im;
-  wire signed [FREQ_MW-1:0] s_re = ae_re + be_re;
-  wire signed [FREQ_MW-1:0] s_im = ae_im + be_im;
+  wire signed [CW-1:0] d_re = a_re_q - b_re_q;
+  wire signed [CW-1:0] d_im = a_im_q - b_im_q;
+  wire signed [CW-1:0] s_re = a_re_q + b_re_q;
+  wire signed [CW-1:0] s_im = a_im_q + b_im_q;
 
   // Multiplier operand: (a-b) for the forward butterfly, b for the inverse
   // butterfly, X[k] for the spectral product.
-  wire signed [FREQ_MW-1:0] m_re = (mode_q == M_FFT) ? d_re : ((mode_q == M_IFFT) ? be_re : ae_re);
-  wire signed [FREQ_MW-1:0] m_im = (mode_q == M_FFT) ? d_im : ((mode_q == M_IFFT) ? be_im : ae_im);
-  wire signed [FREQ_PW-1:0] p_re = m_re * t_re_q - m_im * t_im_q;
-  wire signed [FREQ_PW-1:0] p_im = m_re * t_im_q + m_im * t_re_q;
+  wire signed [CW-1:0] m_re = (mode_q == M_FFT) ? d_re : ((mode_q == M_IFFT) ? b_re_q : a_re_q);
+  wire signed [CW-1:0] m_im = (mode_q == M_FFT) ? d_im : ((mode_q == M_IFFT) ? b_im_q : a_im_q);
+  wire signed [PW-1:0] p_re = m_re * t_re_q - m_im * t_im_q;
+  wire signed [PW-1:0] p_im = m_re * t_im_q + m_im * t_re_q;
 
   // Butterfly twiddle product narrowed by one RNE shift by F; the spectral
   // product keeps its full precision (2F fractional bits) and is not rounded.
-  wire signed [FREQ_CW-1:0] v_re = rne_shift_frac(p_re);
-  wire signed [FREQ_CW-1:0] v_im = rne_shift_frac(p_im);
-  wire signed [FREQ_MW-1:0] ve_re = {v_re[FREQ_CW-1], v_re};
-  wire signed [FREQ_MW-1:0] ve_im = {v_im[FREQ_CW-1], v_im};
-  wire signed [FREQ_MW-1:0] ps_re = ae_re + ve_re;
-  wire signed [FREQ_MW-1:0] ps_im = ae_im + ve_im;
-  wire signed [FREQ_MW-1:0] pd_re = ae_re - ve_re;
-  wire signed [FREQ_MW-1:0] pd_im = ae_im - ve_im;
+  wire signed [CW-1:0] v_re = rrc_freq_pkg::rne_shift_frac(p_re);
+  wire signed [CW-1:0] v_im = rrc_freq_pkg::rne_shift_frac(p_im);
+  wire signed [CW-1:0] ps_re = a_re_q + v_re;
+  wire signed [CW-1:0] ps_im = a_im_q + v_im;
+  wire signed [CW-1:0] pd_re = a_re_q - v_re;
+  wire signed [CW-1:0] pd_im = a_im_q - v_im;
 
   // Forward: a <- a+b, b <- RNE((a-b)T). Inverse: a <- a+v, b <- a-v, v = RNE(b conj(T)).
-  // Product: a <- X*H. The stored values fit the container (see rrc_freq_pkg).
-  wire [FREQ_CW-1:0] wa_re = (mode_q == M_FFT) ? s_re[FREQ_CW-1:0] :
-                             ((mode_q == M_IFFT) ? ps_re[FREQ_CW-1:0] : p_re[FREQ_CW-1:0]);
-  wire [FREQ_CW-1:0] wa_im = (mode_q == M_FFT) ? s_im[FREQ_CW-1:0] :
-                             ((mode_q == M_IFFT) ? ps_im[FREQ_CW-1:0] : p_im[FREQ_CW-1:0]);
-  wire [FREQ_CW-1:0] wb_re = (mode_q == M_FFT) ? v_re : pd_re[FREQ_CW-1:0];
-  wire [FREQ_CW-1:0] wb_im = (mode_q == M_FFT) ? v_im : pd_im[FREQ_CW-1:0];
+  // Product: a <- X*H. Every stored value fits the container (BOUND_BITS above).
+  wire [CW-1:0] wa_re = (mode_q == M_FFT) ? s_re : ((mode_q == M_IFFT) ? ps_re : p_re[CW-1:0]);
+  wire [CW-1:0] wa_im = (mode_q == M_FFT) ? s_im : ((mode_q == M_IFFT) ? ps_im : p_im[CW-1:0]);
+  wire [CW-1:0] wb_re = (mode_q == M_FFT) ? v_re : pd_re;
+  wire [CW-1:0] wb_im = (mode_q == M_FFT) ? v_im : pd_im;
 
   always_ff @(posedge clk) begin
     if (state == S_LOAD) begin
       for (integer i = 0; i < FFT_LEN; i = i + 1) begin
-        wr_re[i] <= {{(FREQ_CW - FREQ_IN_W){frame_re[i][FREQ_IN_W-1]}}, frame_re[i]};
-        wr_im[i] <= {{(FREQ_CW - FREQ_IN_W){frame_im[i][FREQ_IN_W-1]}}, frame_im[i]};
+        wr_re[i] <= {{(CW - IW){frame_re[i][IW-1]}}, frame_re[i]};
+        wr_im[i] <= {{(CW - IW){frame_im[i][IW-1]}}, frame_im[i]};
       end
     end else if (ex_v) begin
       wr_re[ia_q] <= wa_re;
@@ -193,7 +209,7 @@ module rrc_freq_engine #(
       emit_idx <= 4'd0;
       ex_v <= 1'b0;
       valid_o <= 1'b0;
-      sample_o <= 32'd0;
+      sample_o <= '0;
       for (integer i = 0; i < FFT_LEN; i = i + 1) begin
         frame_re[i] <= '0;
         frame_im[i] <= '0;
@@ -204,8 +220,8 @@ module rrc_freq_engine #(
         S_ACCEPT: begin
           // ready_o is high in this state, so valid_i is an accepted transfer.
           if (valid_i) begin
-            frame_re[HIST + cnt] <= sample_i[FREQ_IN_W-1:0];
-            frame_im[HIST + cnt] <= sample_i[2*FREQ_IN_W-1:FREQ_IN_W];
+            frame_re[HIST + cnt] <= sample_i[IW-1:0];
+            frame_im[HIST + cnt] <= sample_i[2*IW-1:IW];
             if (cnt == HOP - 1) begin
               cnt <= 4'd0;
               state <= S_LOAD;
@@ -241,8 +257,8 @@ module rrc_freq_engine #(
           // Load the output register when it is empty or being consumed now.
           if (!valid_o || ready_i) begin
             valid_o <= 1'b1;
-            sample_o <= {output_cast(wr_im[EMIT_START + emit_idx]),
-                         output_cast(wr_re[EMIT_START + emit_idx])};
+            sample_o <= {rrc_freq_pkg::output_cast(wr_im[EMIT_START + emit_idx]),
+                         rrc_freq_pkg::output_cast(wr_re[EMIT_START + emit_idx])};
             if (emit_idx == EMIT_LEN - 1) state <= S_DRAIN;
             else emit_idx <= emit_idx + 4'd1;
           end

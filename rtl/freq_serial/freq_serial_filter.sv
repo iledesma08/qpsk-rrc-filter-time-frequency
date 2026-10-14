@@ -23,13 +23,12 @@ module freq_serial_filter #(
 );
   // Production Q2.14 interface only (fxp-policy-16.md): narrower widths and
   // wider beats belong to transport fixtures, not to this datapath.
+  // The tuple predicate is the engine's: one definition, rrc_freq_pkg::valid_framing.
   localparam bit VALID_FRAMING =
-      FFT_LEN == rrc_freq_pkg::FREQ_FFT_LEN && HOP > 0 && HOP <= FFT_LEN &&
-      DISCARD_PREFIX >= rrc_freq_pkg::FREQ_FILTER_TAPS - 1 && DISCARD_PREFIX < FFT_LEN &&
-      EMIT_START == DISCARD_PREFIX && EMIT_LEN == FFT_LEN - DISCARD_PREFIX && EMIT_LEN == HOP;
+      rrc_freq_pkg::valid_framing(FFT_LEN, HOP, DISCARD_PREFIX, EMIT_START, EMIT_LEN);
 
   generate
-    if (DATA_WIDTH != 16 || SAMPLES_PER_CLOCK != 1) begin : invalid_interface
+    if (DATA_WIDTH != rrc_freq_pkg::FREQ_IN_W || SAMPLES_PER_CLOCK != 1) begin : invalid_interface
       initial $fatal(1, "freq_serial_filter implements only production DATA_WIDTH=16 at SPC=1");
     end
     if (!VALID_FRAMING) begin : invalid_params
