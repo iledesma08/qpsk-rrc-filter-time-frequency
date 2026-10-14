@@ -63,7 +63,9 @@ narrowing functions (RNE shift by F, and the final cast with saturation).
 only `U=1` elaborates, and `rtl/freq_serial/` wraps it. They live here so that
 T42 (F-U4/F-U8) reuses one source instead of copying it. They are listed after
 `rrc_pkg.sv`/`rrc_reset_sync.sv` in every source list; `rrc_stream_shell.sv` is
-no longer used by `freq_serial`. See `rtl/freq_serial/README.md`.
+no longer used by `freq_serial`. `rrc_freq_pkg` repeats `FFT_LEN` and `DATA_WIDTH` (the
+Yosys of OpenLane cannot cross-reference packages); the engine checks them against
+`rrc_pkg`. See `rtl/freq_serial/README.md`.
 
 ## Physical-target boundary
 

@@ -29,9 +29,10 @@ reject metadata without `RRC_SHELL_FIXTURE`; real RRC manifests are connected
 only after the wrappers contain real datapaths.
 
 `freq_serial` carries the T32 datapath and no longer uses the identity shell
-fixtures: `bash rtl/freq_serial/run.sh` only elaborates it (it rejects
-`--vectors` and the width/SPC overrides) until the T22 vectors and the T33
-metadata are connected.
+fixtures. `bash rtl/freq_serial/run.sh` builds a structural fixture from the T22
+vectors on `main` (`sim/python/tests/rtl_freq_fixture.py`, written under `.build/`)
+and runs this testbench on it; it rejects the width/SPC overrides. The committed
+`rtl_matching` manifest and the formal matching report are T33.
 
 ## Scoreboard and coverage
 

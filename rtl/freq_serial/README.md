@@ -8,22 +8,35 @@ T03 transport shell (T32, #49). The datapath is the shared
 synchronizer and the interface and parameter checks.
 
 ```bash
-bash rtl/freq_serial/run.sh      # elaborates the DUT; it is NOT a functional check
+bash rtl/freq_serial/run.sh      # canonical T22 codes through rrc_stream_tb (structural fixture)
 ```
 
 ## Status
 
-- Elaborates with Icarus (`-g2012 -Wall`, no warnings) and passes the structural
-  parameter tests, including the parameter-override check:
-  `test_freq_serial_rejects_what_its_datapath_does_not_implement` fails any
-  `FFT_LEN`, `DISCARD_PREFIX`, `DATA_WIDTH` or `SPC` the datapath does not
-  implement at time zero. Verilator lint has only width/unused-bit warnings.
-- Checked locally against the T22 vectors (canonical and the three `sys_corners`
-  frames, 2055 exact codes each, continuous and robust runs with bubbles, stalls
-  and a reset in mid traffic) with the shared testbench and a temporary manifest
-  that is not in the repo. The committed `rtl_matching` metadata and the formal
-  matching report are T33 (#50), so `run.sh` still only elaborates.
-- Not synthesized: no Yosys/OpenLane run, no timing or PPA (T43, #54).
+- CI runs `freq_serial` through the shared testbench `rrc_stream_tb` with a
+  structural fixture built in `.build/` from the committed T22 vectors
+  (`sim/python/tests/rtl_freq_fixture.py`; nothing is written to `sim/vectors/`).
+  `bash rtl/freq_serial/run.sh` passes the canonical frame, and
+  `sim/python/tests/test_rtl_freq_serial.py` passes all four frames (canonical
+  and the three `sys_corners`, 2055 exact codes each, 257 blocks, 2056 raw
+  outputs). Each run has a continuous pass (latency, `II` accounting) and a
+  robust pass (bubbles, stalls, a reset after two accepted samples).
+- The same test file checks the rounding and saturation primitives against an
+  exact reference (the vectors reach no RNE tie and no output saturation), a
+  reset in the middle of RUN, EMIT and DRAIN, the runner limits and a latency
+  change. `test_rtl_freq_tables.py` compares the tables and widths with the T20
+  freeze and the T22 coefficient export. `test_rtl_config.py` holds the
+  parameter-override check.
+- Elaborates with Icarus (`-g2012 -Wall`, no warnings). It synthesizes with the
+  Yosys 0.46 of OpenLane 2.3.10 (synthesis step only: 30896 cells, 331821 um^2 of
+  cell area). Verilator lint has only width/unused-bit warnings.
+- The committed `rtl_matching` manifest, its hashes and the formal matching
+  report (VCD coverage, steady-state `II`) are T33 (#50). The structural fixture
+  does not replace them.
+- Not placed and routed: the committed floorplan (`DIE_AREA` 200 x 200 um) is the
+  T02 skeleton and is far too small for this design (about 331821 um^2 of cells),
+  so the full flow stops at global placement. Sizing, timing and PPA are T43
+  (#54).
 
 ## What this filter does
 
@@ -76,7 +89,8 @@ One butterfly unit (one complex multiplier plus an adder and a subtractor) is
 reused for the forward FFT, the spectral product and the IFFT. This is the
 serial baseline; "folded" is a different architecture of the extension scope.
 All storage is internal registers: a 16 × 16-bit input frame (history + new
-samples) and a 16-entry work buffer with 45-bit `I` and `Q`. There is no external
+samples) and a 16-entry work buffer with 45-bit `I` and `Q`. The multiplier takes
+45-bit by 16-bit operands (61-bit products, 62-bit sum). There is no external
 memory, and the bins only ever live in the work buffer. The output is 8
 time-domain samples per block, and whoever receives them concatenates the blocks.
 
@@ -93,7 +107,7 @@ cycle at the end of each pass makes the next pass read fully written values.
 | EMIT | `z[8:16]` out through one output register | 8 |
 | DRAIN | last output waits for its consumer | 1 |
 
-Measured with the testbench on the canonical frame: the first output appears 99
+Measured with the testbench on the canonical frame (the fixture pins the 99): the first output appears 99
 cycles after the first accepted sample, and the whole frame (2056 accepted
 samples, 257 blocks, 2056 raw outputs) takes 27499 cycles, i.e. 107 cycles per
 block, against 8 cycles per sample for the serial time-domain filter.
@@ -102,9 +116,26 @@ block, against 8 cycles per sample for the serial time-domain filter.
 while computing and emitting. `valid_o`, `sample_o` and `ready_o` never depend
 combinationally on `ready_i` or `valid_i`; the output register holds under
 `ready_i = 0`. The work buffer is a uniform 45-bit container: every stage width
-of the freeze fits it, and the largest value reachable is far below its limit
-(analytic bound about 2^38.4; adversarial full-scale frames in the T20 model reach
-2^34.1), so the hardware cannot wrap and no overflow port is needed.
+of the freeze fits it, and the engine checks at elaboration that no full-scale
+frame can wrap it (`BOUND_BITS`, no port needed): `|x| < 2^16`, the unscaled FFT
+gains at most 16, `|H[k]| <= |re|+|im| <= 30472 < 2^15` (`FREQ_H_L1_MAX`, tied to
+the table by a test), the product keeps full precision and the unscaled IFFT gains
+16 again, so every value is below 2^39 against a limit of 2^44. Adversarial
+full-scale frames in the T20 model reach 2^34.1.
+
+**Model/RTL difference.** The T20 model flags any value above its stage widths
+(16..20 and 41..45), which only bound the accepted stimulus; on a full-scale frame
+it would report overflow where the RTL silently computes in 45 bits. The RTL never
+wraps, so it needs no overflow flag, and its results on the accepted frames are
+bit-exact with the model.
+
+**Reset.** The control state, the frame history (zero), `valid_o` and `sample_o`
+are reset. The work buffer and the operand registers are not: this is an explicit
+interpretation of "all internal history, accumulators and valid pipelines are
+cleared" (`rtl-streaming-17`), because LOAD writes every entry before anything
+reads it, no output is valid before that, and reset flops are larger in sky130. A
+reset in RUN, EMIT or DRAIN is covered by a test. `ex_v` could also go unreset: it
+clears itself in the first cycle.
 
 ## Parameters
 
@@ -112,8 +143,9 @@ of the freeze fits it, and the largest value reachable is far below its limit
 parameters: the history depth (`FFT_LEN - HOP`), the block counter and the
 emission window derive from them. The transform and its tables are fixed at 16
 points, `DISCARD_PREFIX` must be at least 7 (an 8-tap filter), `EMIT_START` must
-equal `DISCARD_PREFIX` and `EMIT_LEN` must equal `HOP`. Violations, and
-`DATA_WIDTH != 16` or `SPC != 1`, fail at time zero. **Only the baseline tuple
+equal `DISCARD_PREFIX` and `EMIT_LEN` must equal `HOP`; one function,
+`rrc_freq_pkg::valid_framing`, is the predicate for the engine and the wrapper.
+Violations, and `DATA_WIDTH != 16` or `SPC != 1`, fail at time zero. **Only the baseline tuple
 (16, 8, 8, 8, 8) is a contract configuration**: the revised assignment fixes
 hop 8 and no alternative schedule is planned (`frequency-block-contract-14.md`),
 so other structurally legal tuples such as `HOP=9` are elaboration checks, not
@@ -129,6 +161,12 @@ supported or verified configurations.
   the value to record for `fft_pipeline_cycles`.
 - `U` is a parameter of the engine for the F-U4/F-U8 rows (T42); only `U=1`
   elaborates.
+- Declared deviation from "no duplicated constants" (`rtl-streaming-17` D8,
+  CONTRIBUTING section 7): `rrc_freq_pkg` repeats `FREQ_FFT_LEN` and `FREQ_IN_W`
+  because the Yosys of OpenLane 0.46 cannot parse a package parameter that refers
+  to another package; the engine checks them against `rrc_pkg` at elaboration and a
+  test checks them too. `FREQ_FILTER_TAPS` and `FREQ_FRAC` wait for T30 (#79) to
+  add `RRC_TAPS` and `FRAC_BITS` to `rrc_pkg`.
 
 ## Learning
 
