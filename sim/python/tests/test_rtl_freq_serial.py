@@ -117,13 +117,14 @@ def test_runner_rejects_diagnostic_width_or_spc_for_freq_serial(option):
     assert not result.stdout
 
 
-def test_top_level_runner_skips_freq_serial_for_diagnostic_options():
+def test_top_level_runner_skips_the_serial_filters_for_diagnostic_options():
     result = subprocess.run(
         ["bash", str(ROOT / "rtl/run.sh"), "--data-width", "8"],
         cwd=ROOT, capture_output=True, text=True, timeout=120, check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "skipping freq_serial: it implements only production DATA_WIDTH=16 at SPC=1" in result.stdout
+    for variant in ("time_serial", "freq_serial"):
+        assert f"skipping {variant}: it implements only production DATA_WIDTH=16 at SPC=1" in result.stdout
 
 
 def test_fixture_never_writes_into_sim_vectors():

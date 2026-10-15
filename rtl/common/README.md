@@ -14,11 +14,23 @@ Data width 16 and SPC 1 are interface defaults,
 and width/SPC remain module parameters. Production `W_common=16` and
 `F_data=F_coeff=14` (`Q2.14`) are already mandated by contract #16, not a future
 width-selection decision. Widths such as 8 and 12 exercise diagnostic transport
-fixtures, not production formats. T03 has no fractional arithmetic; numerical
-acceptance and the frozen production coefficient export in T22 remain pending.
+fixtures, not production formats. T03 has no fractional arithmetic; the
+numerical acceptance (T21) and the frozen production coefficient export (T22)
+came later.
+
+T30 (#47) adds the time-domain numeric policy to the package: `RRC_TAPS`,
+`FRAC_BITS`, `W_PRODUCT=32`, `W_ACC_TIME=35`, the `Q2.14` coefficient table
+(`RRC_COEFS`, read through `rrc_coef(k)`) and the single RNE/saturating output
+cast `time_output_cast`. The table holds the Q2.14 integers listed in
+`fxp-policy-16.md`, and `test_rtl_time_serial.py` checks it against the frozen
+T22 export (`sim/vectors/fxp_expected/rrc8_q2.14_coefficients.json`). The
+serial filter and the future optimized time variants share these definitions,
+so their arithmetic stays bit-exact by construction.
 
 `rrc_stream_shell.sv` replaces the inactive toolchain placeholder with a
-one-stage elastic **transport-only** register. All four wrappers share it.
+one-stage elastic **transport-only** register. The two wrappers without a
+datapath (`time_opt`, `freq_opt`) share it; `time_serial` replaced it with the T30
+filter and `freq_serial` with the T32 engine.
 It forwards each accepted `{Q,I}` beat unchanged, with no FIR or FFT arithmetic.
 The packed bus is `[SAMPLES_PER_CLOCK-1:0][2*DATA_WIDTH-1:0]`, with I in the low
 bits, Q in the high bits, and lane 0 first.

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Shared compile/run path. Generated fixtures are not RRC golden vectors: the
-# transport wrappers use identity shell fixtures, and freq_serial (T32) uses a
-# structural fixture built from the T22 vectors (see rtl_freq_fixture.py).
+# transport wrappers use identity shell fixtures, time_serial (T30) uses
+# structural frames from an exact integer reference of the accepted policy, and
+# freq_serial (T32) uses a structural fixture built from the T22 vectors (see
+# rtl_freq_fixture.py).
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -33,12 +35,20 @@ if [[ -n "$vector_dir" && "$override" == 1 ]]; then
   printf 'The manifest owns DATA_WIDTH/SPC; --vectors cannot use width/SPC overrides\n' >&2
   exit 2
 fi
+if [[ "$variant" == time_serial && ( "$width" != 16 || "$spc" != 1 ) ]]; then
+  printf 'time_serial implements only production DATA_WIDTH=16 at SPC=1\n' >&2
+  exit 2
+fi
 if [[ "$variant" == freq_serial && "$override" == 1 ]]; then
   printf 'freq_serial implements only production DATA_WIDTH=16 at SPC=1\n' >&2
   exit 2
 fi
 mkdir -p "$BUILD_DIR"
-if [[ -z "$vector_dir" && "$variant" == freq_serial ]]; then
+if [[ -z "$vector_dir" && "$variant" == time_serial ]]; then
+  vector_dir="$BUILD_DIR/fixture-canonical"
+  "${PYTHON:-python3}" "$ROOT/sim/python/tests/rtl_filter_fixture.py" \
+    --output "$vector_dir" --frame canonical
+elif [[ -z "$vector_dir" && "$variant" == freq_serial ]]; then
   vector_dir="$BUILD_DIR/fixture-canonical"
   "${PYTHON:-python3}" "$ROOT/sim/python/tests/rtl_freq_fixture.py" \
     --output "$vector_dir" --frame canonical
@@ -59,7 +69,7 @@ defines=(-D "DUT_MODULE=${variant}_filter")
 sources=("$ROOT/rtl/common/rrc_pkg.sv" "$ROOT/rtl/common/rrc_reset_sync.sv")
 if [[ "$variant" == freq_serial ]]; then
   sources+=("$ROOT/rtl/common/rrc_freq_pkg.sv" "$ROOT/rtl/common/rrc_freq_engine.sv")
-else
+elif [[ "$variant" != time_serial ]]; then
   defines+=(-D RRC_TRANSPORT_DUT)
   sources+=("$ROOT/rtl/common/rrc_stream_shell.sv")
 fi
