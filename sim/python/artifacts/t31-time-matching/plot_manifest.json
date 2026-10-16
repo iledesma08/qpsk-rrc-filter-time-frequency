@@ -1,0 +1,48 @@
+{
+  "drawn_from": {
+    "captured_output_sha256": {
+      "canonical/none": "a1899d85e2d999e511070587d8135af350e1712f9b8acc0b4ff5e3f966d04d0c",
+      "sys_corners/corner_repeat": "9e3d7feed45fc7dadc296dcfd754ea246f3658bba248270f85bbdedbd44f9e45",
+      "sys_corners/max_alternation": "1cc5f72876e559a8de4b69457ab83aa9da9f67caf96696441b74c21ce6633ec6",
+      "sys_corners/single_symbol_perturbation": "23827c4c1c5e8ff4c233b504824fa6b885b58490280978e6a63e34290363e4c2"
+    },
+    "file": "evidence_manifest.json",
+    "sha256": "007c297b2f8aa73739d64d0c537643e782533a288197d847db34fe439e6b79fd"
+  },
+  "evidence_for": "T31 (#48)",
+  "exact_codes": {
+    "canonical/none": 2055,
+    "sys_corners/corner_repeat": 2055,
+    "sys_corners/max_alternation": 2055,
+    "sys_corners/single_symbol_perturbation": 2055
+  },
+  "max_abs_error_lsb": {
+    "canonical/none": 0,
+    "sys_corners/corner_repeat": 0,
+    "sys_corners/max_alternation": 0,
+    "sys_corners/single_symbol_perturbation": 0
+  },
+  "note": "PNG bytes can vary across matplotlib versions; the plot hash is evidence of this run, not a CI check",
+  "plot_sha256": {
+    "canonical_none.png": "205ec852ac67a3518fd8faf35c1408b51b0632d5578fdc86ae0c523d623d47be",
+    "sys_corners_corner_repeat.png": "22d8390e02eff0ea712c70f64f87e8977da611ed5ae111ab4ee6f0b09b432960",
+    "sys_corners_max_alternation.png": "8d541ae2fb1b82b8b2fe62f5ea5f58b1903c7a9662b5f63782ba7212283fd591",
+    "sys_corners_single_symbol_perturbation.png": "18f9cf8ea4f882e3fd8ada60efa0f3880c1493e9c0eaec0af820c1a24338e877"
+  },
+  "plots": [
+    "canonical_none.png",
+    "sys_corners_corner_repeat.png",
+    "sys_corners_max_alternation.png",
+    "sys_corners_single_symbol_perturbation.png"
+  ],
+  "series_colors": {
+    "I": "#0057B8",
+    "Q": "#E65100"
+  },
+  "source_sha256": "200cb7d9ce6c33b1567cf63535d04e908501913ffb754cf6abf4f4803f532ad5",
+  "variant_id": "T-serial",
+  "versions": {
+    "matplotlib": "3.11.2",
+    "numpy": "2.5.3"
+  }
+}
