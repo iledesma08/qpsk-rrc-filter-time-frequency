@@ -15,15 +15,17 @@ case "$variant" in
 esac
 BUILD_DIR="$ROOT/.build/rtl/$variant"
 vector_dir=""
+capture=""
 width=16
 spc=1
 override=0
 while (($#)); do
   case "$1" in
-    --vectors|--data-width|--spc)
+    --vectors|--data-width|--spc|--capture)
       if (($# < 2)); then printf 'Missing value for %s\n' "$1" >&2; exit 2; fi
       case "$1" in
         --vectors) vector_dir="$2" ;;
+        --capture) capture="$2" ;;
         --data-width) width="$2"; override=1 ;;
         --spc) spc="$2"; override=1 ;;
       esac
@@ -77,4 +79,7 @@ if [[ "$variant" == freq_* ]]; then defines+=(-D FREQ_DUT); fi
 iverilog -g2012 -Wall "${defines[@]}" -I "$vector_dir" \
   -s rrc_stream_tb -o "$BUILD_DIR/sim.out" \
   "${sources[@]}" "$ROOT/rtl/$variant/${variant}_filter.sv" "$ROOT/rtl/tb/rrc_stream_tb.sv"
-vvp "$BUILD_DIR/sim.out" "+vector_dir=$vector_dir"
+# --capture <file>: the TB writes the continuous run's captured outputs there.
+plusargs=("+vector_dir=$vector_dir")
+if [[ -n "$capture" ]]; then plusargs+=("+capture_file=$(realpath -m "$capture")"); fi
+vvp "$BUILD_DIR/sim.out" "${plusargs[@]}"
