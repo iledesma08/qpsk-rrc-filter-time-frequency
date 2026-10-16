@@ -28,8 +28,9 @@ serial filter and the future optimized time variants share these definitions,
 so their arithmetic stays bit-exact by construction.
 
 `rrc_stream_shell.sv` replaces the inactive toolchain placeholder with a
-one-stage elastic **transport-only** register. The three wrappers without a
-datapath share it; `time_serial` replaced it with the T30 filter.
+one-stage elastic **transport-only** register. The two wrappers without a
+datapath (`time_opt`, `freq_opt`) share it; `time_serial` replaced it with the T30
+filter and `freq_serial` with the T32 engine.
 It forwards each accepted `{Q,I}` beat unchanged, with no FIR or FFT arithmetic.
 The packed bus is `[SAMPLES_PER_CLOCK-1:0][2*DATA_WIDTH-1:0]`, with I in the low
 bits, Q in the high bits, and lane 0 first.
@@ -63,6 +64,20 @@ F3 chooses ready-path cuts/skid buffering using its actual timing and PPA needs.
   source lists use that order. Simulation compiles package, reset synchronizer,
   shell, wrapper, then TB; OpenLane includes DUT/shared RTL only, never TB
   metadata or vectors.
+
+## Frequency engine (T32, #49)
+
+`rrc_freq_pkg.sv` holds the frozen production-A frequency arithmetic: the
+twiddle and `H[k]` tables (generated from `sim/python/fxp.py`; `H[k]` is read
+through a bit-reversed address), the container widths and the two shared
+narrowing functions (RNE shift by F, and the final cast with saturation).
+`rrc_freq_engine.sv` is the `U`-parameterized engine of the frequency lane;
+only `U=1` elaborates, and `rtl/freq_serial/` wraps it. They live here so that
+T42 (F-U4/F-U8) reuses one source instead of copying it. They are listed after
+`rrc_pkg.sv`/`rrc_reset_sync.sv` in every source list; `rrc_stream_shell.sv` is
+no longer used by `freq_serial`. `rrc_freq_pkg` repeats `FFT_LEN` and `DATA_WIDTH` (the
+Yosys of OpenLane cannot cross-reference packages); the engine checks them against
+`rrc_pkg`. See `rtl/freq_serial/README.md`.
 
 ## Physical-target boundary
 

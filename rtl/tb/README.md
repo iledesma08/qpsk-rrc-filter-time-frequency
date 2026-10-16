@@ -33,6 +33,12 @@ longer declares `RRC_TRANSPORT_DUT`, accepts only `DATA_WIDTH=16` and `SPC=1`,
 and by default generates the canonical structural fixture
 (`rtl_filter_fixture.py`, which needs the pinned simulator requirements).
 
+`freq_serial` carries the T32 datapath and no longer uses the identity shell
+fixtures. `bash rtl/freq_serial/run.sh` builds a structural fixture from the T22
+vectors on `main` (`sim/python/tests/rtl_freq_fixture.py`, written under `.build/`)
+and runs this testbench on it; it rejects the width/SPC overrides. The committed
+`rtl_matching` manifest and the formal matching report are T33.
+
 ## Scoreboard and coverage
 
 The `.svh` supplies compile-time localparams for widths/SPC, source/expected file

@@ -10,8 +10,9 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
 VARIANTS = ("time_serial", "time_opt", "freq_serial", "freq_opt")
-# time_serial carries the T30 filter; its reset test is in test_rtl_time_serial.py.
-TRANSPORT_VARIANTS = ("time_opt", "freq_serial", "freq_opt")
+# time_serial carries the T30 filter (its reset test is in test_rtl_time_serial.py)
+# and freq_serial the T32 engine (test_rtl_freq_serial.py): neither is a T03 transport shell.
+TRANSPORT_VARIANTS = ("time_opt", "freq_opt")
 FREQUENCY = ("freq_serial", "freq_opt")
 
 
@@ -21,7 +22,11 @@ def simulate(tmp_path, body, variant=None, sources=None):
     tb = tmp_path / "config_tb.sv"
     tb.write_text("`timescale 1ns/1ps\nmodule config_tb;\n" + body + "\nendmodule\n")
     if sources is None:
-        sources = sorted((ROOT / "rtl/common").glob("rrc_*.sv"))
+        # Packages first; the T32 engine files are only for freq_serial.
+        names = ["rrc_pkg", "rrc_reset_sync", "rrc_stream_shell"]
+        if variant == "freq_serial":
+            names = ["rrc_pkg", "rrc_reset_sync", "rrc_freq_pkg", "rrc_freq_engine"]
+        sources = [ROOT / f"rtl/common/{name}.sv" for name in names]
         if variant:
             sources.append(ROOT / f"rtl/{variant}/{variant}_filter.sv")
     binary = tmp_path / "sim.out"
@@ -118,13 +123,21 @@ def test_distributed_reset_and_elastic_hold(tmp_path, variant):
 
 
 # Literal expectations catch stale package defaults under local overrides.
-@pytest.mark.parametrize("variant", FREQUENCY)
-@pytest.mark.parametrize("overrides,start,length", [
+# freq_serial is an FFT16 engine with at least 7 discarded outputs; the two
+# tuples it rejects are covered by test_freq_serial_rejects_what_its_datapath_does_not_implement.
+ENGINE_TUPLES = [
     ("", 8, 8),
     (".HOP(9), .DISCARD_PREFIX(7)", 7, 9),
+]
+TRANSPORT_ONLY_TUPLES = [
     (".FFT_LEN(32), .HOP(24)", 8, 24),
     (".FFT_LEN(16), .HOP(16), .DISCARD_PREFIX(0)", 0, 16),
-])
+]
+VALID_TUPLES = [("freq_serial", *entry) for entry in ENGINE_TUPLES] + [
+    ("freq_opt", *entry) for entry in ENGINE_TUPLES + TRANSPORT_ONLY_TUPLES]
+
+
+@pytest.mark.parametrize("variant,overrides,start,length", VALID_TUPLES)
 def test_valid_frequency_tuple(tmp_path, variant, overrides, start, length):
     params = f"#({overrides})" if overrides else ""
     result = simulate(tmp_path, f"""
@@ -163,6 +176,29 @@ def test_invalid_frequency_tuple_fails_at_time_zero(tmp_path, variant, overrides
     assert "Invalid frequency parameters" in result.stdout
     assert "Time: 0" in result.stdout
     assert "INVALID TUPLE SURVIVED" not in result.stdout
+
+
+# T32 (#49) param-override check: freq_serial is an FFT16 engine for the
+# production Q2.14 interface, so anything else must fail at time zero.
+@pytest.mark.parametrize("overrides,message", [
+    (".FFT_LEN(32), .HOP(24)", "Invalid frequency parameters"),
+    (".FFT_LEN(16), .HOP(16), .DISCARD_PREFIX(0)", "Invalid frequency parameters"),
+    (".HOP(10), .DISCARD_PREFIX(6)", "Invalid frequency parameters"),
+    (".DATA_WIDTH(12)", "implements only production DATA_WIDTH=16 at SPC=1"),
+    (".DATA_WIDTH(8)", "implements only production DATA_WIDTH=16 at SPC=1"),
+    (".SAMPLES_PER_CLOCK(2)", "implements only production DATA_WIDTH=16 at SPC=1"),
+])
+def test_freq_serial_rejects_what_its_datapath_does_not_implement(tmp_path, overrides, message):
+    result = simulate(tmp_path, f"""
+  freq_serial_filter #({overrides}) dut (
+    .clk(1'b0), .rst_n(1'b0), .valid_i(1'b0), .ready_o(),
+    .sample_i('0), .valid_o(), .ready_i(1'b0), .sample_o());
+  initial begin #1; $display("UNSUPPORTED CONFIGURATION SURVIVED"); $finish; end
+""", "freq_serial")
+    assert result.returncode != 0, "configuration survived: " + result.stdout
+    assert message in result.stdout
+    assert "Time: 0" in result.stdout
+    assert "UNSUPPORTED CONFIGURATION SURVIVED" not in result.stdout
 
 
 def test_unknown_runner_variant_reports_error(tmp_path):
