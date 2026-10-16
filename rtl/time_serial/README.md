@@ -8,6 +8,19 @@ bash rtl/time_serial/run.sh
 python -m pytest sim/python/tests/test_rtl_time_serial.py -v
 ```
 
+T31 (#48) vector matching against the committed `rtl_matching` vectors
+(canonical and the three `sys_corners`, see [Vector matching](#vector-matching-t31)):
+
+```bash
+python sim/python/tests/rtl_matching_stage.py --variant T-serial
+bash rtl/time_serial/run.sh --vectors .build/rtl/matching/T-serial/canonical-none
+python -m pytest sim/python/tests/test_rtl_time_matching.py -v
+# Evidence: run every frame with capture, then draw the plots from the captures
+python sim/python/tests/rtl_matching_stage.py --variant T-serial \
+  --evidence-dir sim/python/artifacts/t31-time-matching
+python sim/python/plot_matching.py
+```
+
 ## Design
 
 `time_serial_filter.sv` computes `y[n] = sum_k c[k] * x[n-k]` for `k = 0..7`
@@ -93,6 +106,68 @@ clear each makes at least one of these tests fail.
   calls inside constant functions, hence the flat coefficient vector and the
   direct slices in the bound check.
 
+## Vector matching (T31)
+
+T31 closes the time lane's F3 gate: the RTL reproduces, bit for bit, the T22
+production time codes of all four frames over the full causal window. Nothing
+in the datapath changed for it; T31 adds the metadata that binds those codes to
+this variant and the runs that prove the match.
+
+- **Metadata:** `gen_vectors.py --stage rtl_matching --variant T-serial` writes
+  `sim/vectors/rtl_matching/T-serial/<set>/<case>/` with a JSON manifest and
+  the `vector_manifest.svh` the TB includes. It declares `SPC=1`,
+  `latency_samples=0`, `latency_cycles=9` (the T30 design latency), 7 flush
+  zeros and 2055 accepted and raw samples. The `.hex` payloads stay in
+  `sim/vectors/fxp_expected/` and are bound by hash, not copied.
+- **Staging:** `sim/python/tests/rtl_matching_stage.py` checks every sidecar,
+  every bound hash and that the `.svh` localparams equal the manifest, then
+  copies `input.hex`, `expected.hex` (`expected_time.hex`) and the `.svh` into
+  `.build/`. The runner checks the sidecars again before compiling.
+- **What one run proves:** the continuous run (`valid_i` and `ready_i` held
+  high) asserts the declared 9-cycle latency, measures `II=8` over 2054
+  intervals and compares all 2055 codes from `y[0]`. The robust run repeats the
+  comparison with source bubbles, sink stalls, DUT `ready_o` backpressure and a
+  tail stall, after a reset that aborts an accepted prefix. Both runs count
+  2048 source plus 7 flush samples in and 2055 samples out, and the drain check
+  fails on any undeclared extra output.
+- **Evidence:** `sim/python/artifacts/t31-time-matching/evidence_manifest.json`
+  (written by `rtl_matching_stage.py --evidence-dir`): 4/4 frames PASS, 8220
+  compared codes, measured latency 9 and II 8 on every frame, plus the hashes
+  of the `.svh` and payloads each run consumed. Each continuous run also
+  captures its RTL outputs (`--capture`); the SHA-256 of every capture equals
+  the bound `expected_time.hex`, which proves the match without relying on the
+  TB comparator. The per-frame logs it writes next to it are git-ignored
+  (`*.log`) and are attached to the PR.
+- **Plots:** `sim/python/plot_matching.py` draws one PNG per frame in the same
+  folder from those captures, after checking their hashes against the
+  evidence: the RTL output over the full window, a zoom with the float
+  reference, the expected codes (rings) and the RTL output (dots), and the RTL
+  minus expected error, 0 LSB on all 2055 samples of every frame.
+  `plot_manifest.json` binds the plots to the evidence they were drawn from.
+
+`test_rtl_time_matching.py` runs the four frames and the failure cases: a wrong
+code at the first, a middle and the last flush index reports that absolute
+index with the expected and captured codes; a declared latency of 8 or 10
+fails the unstalled run; one undeclared output more times out; an extra flush
+zero fails the drain check; staging refuses a broken sidecar, a payload or
+`.svh` the manifest does not bind, and any output inside `sim/vectors/`. A
+scratch run with one coefficient changed (179 to 178) failed at index 7, the
+first output that tap reaches.
+
+Learning:
+
+- The time lane needed no new TB logic: T03 already built the finite-frame
+  scoreboard, so T31 is mostly provenance. The hard part is keeping the
+  binding honest (payload hashes, `.svh` against the manifest), not the
+  comparison.
+- "Measured" latency is declared and then asserted: the TB cannot place
+  outputs without a manifest, so the value comes from the design and the
+  unstalled run turns it into a measurement (a wrong value fails). The log
+  prints it as `measured_latency_cycles`.
+- Every edit to `gen_vectors.py` changes the source hash recorded in the F1
+  and F2 manifests and in the T20/T21 evidence, so adding this stage meant
+  regenerating them (provenance only; payloads, metrics and plots unchanged).
+
 ## Scope limits
 
 These are structural checks against an independent reference of the accepted
@@ -100,7 +175,8 @@ policy. Its agreement with the T20 model (PR #78) and with the T22 production
 export (PR #81) is part of the suite, so both integration gates are closed by
 test, not by a one-off comparison. The T22 `.hex` frames are QPSK, so they do
 not exercise rounding or saturation; the directed frames and the T20 gate
-cover that. The TB does not read `sim/vectors/` yet: RTL vector matching against
-it, measured `rtl_matching` metadata and the RTL runs of the `sys_corners` sets
-are T31 (#48). SLOW 10 MHz main-target timing and PPA belong to T41 (#52). The
-OpenLane JSON's 10 ns setup is not timing evidence.
+cover that, and the T31 match on those frames says nothing new about that
+hardware. The robust matching run's sink stalls stay below eight cycles, so it
+never reaches the tap-7 hold; the directed 40-cycle stall in
+`test_rtl_time_serial.py` covers it. SLOW 10 MHz main-target timing and PPA
+belong to T41 (#52). The OpenLane JSON's 10 ns setup is not timing evidence.

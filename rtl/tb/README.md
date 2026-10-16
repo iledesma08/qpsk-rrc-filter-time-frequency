@@ -7,7 +7,9 @@ It replaces `rrc_placeholder_tb.sv`. Runs of the transport wrappers test
 transport, **not RRC vector matching**. Since T30 (#47), `time_serial` runs real
 filter arithmetic against structural fixtures from an exact integer reference
 of the accepted time policy (including the impulse check `x[0] => y[0:8] = h`); see
-`rtl/time_serial/README.md`. Matching against `sim/vectors/` is still T31/T33.
+`rtl/time_serial/README.md`. Since T31 (#48), `time_serial` also matches the
+committed `sim/vectors/rtl_matching/T-serial` vectors (see below); frequency
+matching against `sim/vectors/` is T33 (#50).
 
 From the repository root:
 
@@ -38,6 +40,31 @@ fixtures. `bash rtl/freq_serial/run.sh` builds a structural fixture from the T22
 vectors on `main` (`sim/python/tests/rtl_freq_fixture.py`, written under `.build/`)
 and runs this testbench on it; it rejects the width/SPC overrides. The committed
 `rtl_matching` manifest and the formal matching report are T33.
+
+## T31 vector matching (#48)
+
+The `rtl_matching` stage of `gen_vectors.py` writes, per variant and frame, a
+JSON manifest and the `vector_manifest.svh` this TB includes; the `.hex`
+payloads stay in `sim/vectors/fxp_expected/` and the manifest binds them by
+hash. `sim/python/tests/rtl_matching_stage.py` checks every sidecar, every bound
+hash and that the `.svh` localparams equal the manifest, then stages
+`input.hex`, `expected.hex` and the `.svh` under `.build/` for `--vectors`:
+
+```bash
+python sim/python/tests/rtl_matching_stage.py --variant T-serial
+bash rtl/time_serial/run.sh --vectors .build/rtl/matching/T-serial/canonical-none
+python -m pytest sim/python/tests/test_rtl_time_matching.py -v
+```
+
+The `.svh` defines `RRC_RTL_MATCHING` as a marker; the TB logic is the same as
+for fixtures. `run.sh --capture <file>` passes `+capture_file`: the continuous
+run then writes every captured output lane there in the `.hex` record format,
+so the evidence can compare it with the expected file by hash, independently of
+this comparator. Without it the TB writes nothing. Each `Frame` line ends with `measured_latency_cycles`: the cycles
+from the first accepted input to the first valid output in the continuous run,
+where the TB has just asserted them against `latency_cycles`, and `undefined`
+in the robust run, whose stalls are not part of the latency. Evidence and
+results are in `rtl/time_serial/README.md`.
 
 ## Scoreboard and coverage
 

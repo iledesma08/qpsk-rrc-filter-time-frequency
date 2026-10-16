@@ -90,3 +90,40 @@ digits) for `$readmemh`; at `W=16` the components are packed directly. F2
 carries no RTL latency, transport counts or `vector_manifest.svh`, and the
 per-domain manifests do not carry `sqnr_cross_db`. T31/T33 bind these payloads
 by hash and add the measured per-variant metadata.
+
+## F3 RTL matching metadata (T31)
+
+Regenerate after F2, with the F2 frames already in the output directory
+(Matias is the sole regenerator):
+
+```bash
+python sim/python/gen_vectors.py --stage rtl_matching --variant T-serial --output-dir sim/vectors
+```
+
+Only `T-serial` (T31, #48) is implemented. `F-serial` belongs to T33 (#50) and
+the optimized variants to T40/T42; they refuse instead of guessing their data.
+
+Layout: `rtl_matching/<variant_id>/<vector_set>/<vector_case>/`, metadata only:
+
+- `manifest_time.json`: `artifact_stage: rtl_matching`, `variant_id`,
+  `rtl_variant`, schema sections 1-4 copied from the F2 manifest, the section 3
+  streaming fields (`DATA_WIDTH`, `SPC`, block constants, `latency_samples`,
+  `latency_cycles`, `fft_pipeline_cycles`) and the section 7 transport counts
+  (`flush_samples`, `transport_padding_samples`, `accepted_input_samples`,
+  `raw_output_samples`). For `T-serial`: `SPC=1`, latency 0 samples / 9 cycles,
+  7 flush zeros, 2055 accepted and raw samples.
+- `vector_manifest.svh`: the integer localparams the testbench includes, the
+  same values as the JSON manifest. Generated SystemVerilog is metadata only.
+- A `<file>.sha256` sidecar for each.
+
+F3 never copies or rewrites the `.hex` payloads: the manifest points at
+`fxp_expected/<vector_set>/<vector_case>/` with relative paths and binds the F2
+manifest, `input.hex`, `expected_<tag>.hex` and the coefficient table by hash,
+plus the `.svh` it describes. The export checks every F2 file against its
+sidecar and its F2 manifest before writing anything. `latency_cycles` is the
+variant's declared design latency; the matching run asserts it in the unstalled
+run, and its evidence is
+`sim/python/artifacts/t31-time-matching/evidence_manifest.json`. The manifests
+carry no host tool versions, so a fresh export is byte-identical to the
+committed one. `sim/python/tests/rtl_matching_stage.py` stages a frame for the
+testbench after checking every binding; see `rtl/tb/README.md`.
