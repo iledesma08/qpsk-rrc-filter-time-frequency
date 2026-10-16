@@ -35,7 +35,7 @@
     "coefficient_artifact": "rrc8-v1",
     "generator": "sim/python/gen_vectors.py",
     "source_sha256": {
-      "gen_vectors.py": "91b1cd85545caad34839e334e4d359311dd23e2e4861c54142d52153318676fd",
+      "gen_vectors.py": "ef5754716374ce94a7e16897a4bd01b297896e5335c70357a711b87047ca33b6",
       "golden_freq.py": "d4c07702ee11bf5cd10f85992af64fd7c3deab33e79843c44456af35b197e7cf",
       "golden_time.py": "91616464f7516077500c5c9e8b241dce667de105cbdafce02f3dbbf4c7d2a6ac",
       "rrc_coefs.py": "5128ee400782bd990cfc474893928ec22694a2225539a7c7e96a1c386868742b",

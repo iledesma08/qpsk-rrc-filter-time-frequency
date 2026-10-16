@@ -1,10 +1,10 @@
-"""Staged golden-vector generator (T13 F1 float references, T22 F2 expected codes).
+"""Staged golden-vector generator (T13 F1 float references, T22 F2 expected codes, F3 RTL matching).
 
 Only this generator may write to ``sim/vectors/``. Normative schema:
 ``docs/contracts/vector-manifest-schema.md``. T13 implements the
-``float_reference`` stage and T22 (#46) the ``fxp_expected`` stage;
-``rtl_matching`` (T31 #48 / T33 #50) is a reserved interface that refuses to
-guess its data.
+``float_reference`` stage, T22 (#46) the ``fxp_expected`` stage and T31 (#48)
+the ``rtl_matching`` stage of the serial time variant. Variants owned by other
+tasks (T33 #50, T40 #51, T42 #53) refuse instead of guessing their data.
 """
 
 import argparse
@@ -111,6 +111,38 @@ _FORBIDDEN_FIELDS = {
     "rtl_matching": (*LEGACY_ALIASES, *CROSS_DOMAIN_FIELDS),
 }
 _RTL_CONSTANTS = {"FFT_LEN": 16, "HOP": 8, "DISCARD_PREFIX": 8, "EMIT_START": 8, "EMIT_LEN": 8, "block_cadence": 8}
+# F3 layout: rtl_matching/<variant_id>/<vector_set>/<vector_case>/ holds only
+# metadata (the manifest and the testbench .svh). The numeric payloads stay in
+# fxp_expected/ and the manifest binds them by hash; they are never rewritten.
+RTL_MATCHING_SVH_FILE = "vector_manifest.svh"
+_SVH_FIELDS = (
+    "DATA_WIDTH", "SPC", "input_samples", "output_samples", "valid_start", "valid_len",
+    "flush_samples", "transport_padding_samples", "accepted_input_samples", "raw_output_samples",
+    "latency_samples", "latency_cycles", *_RTL_CONSTANTS, "fft_pipeline_cycles",
+)
+# Streaming metadata per variant (rtl-streaming-17, schema sections 3 and 7).
+# latency_* is the variant's declared design latency. The matching testbench
+# asserts it in the unstalled ready_i=1 run, so a wrong value fails matching.
+_RTL_VARIANTS = {
+    "T-serial": {
+        "model_domain": "time",
+        "rtl_variant": "time_serial",
+        "SPC": 1,
+        "latency_samples": 0,
+        "latency_cycles": 9,
+        "fft_pipeline_cycles": 0,
+        "flush_samples": 7,
+        "evidence_file": "sim/python/artifacts/t31-time-matching/evidence_manifest.json",
+    },
+}
+# Variants whose matching metadata belongs to another task: refused, never guessed.
+_RESERVED_VARIANTS = {
+    "F-serial": "T33 (#50)",
+    "T-S4P1": "T40 (#51)",
+    "T-S8P1": "T40 (#51)",
+    "F-U4": "T42 (#53)",
+    "F-U8": "T42 (#53)",
+}
 
 
 def _sha256_bytes(data: bytes) -> str:
@@ -234,6 +266,29 @@ def validate_manifest(manifest: dict) -> None:
         for field, expected in _RTL_CONSTANTS.items():
             if manifest[field] != expected:
                 raise ValueError(f"{field}: expected {expected}")
+        _validate_transport(manifest)
+
+
+def _validate_transport(manifest: dict) -> None:
+    """Check the finite-frame transport counts of an ``rtl_matching`` manifest (schema section 7)."""
+    if not isinstance(manifest["variant_id"], str) or not manifest["variant_id"]:
+        raise ValueError("variant_id: expected a non-empty string")
+    spc = manifest["SPC"]
+    if not isinstance(spc, int) or spc < 1:
+        raise ValueError("SPC: expected a positive integer")
+    if manifest["latency_samples"] != 0:
+        raise ValueError("latency_samples: both causal filters start at y[0]")
+    source, flush = manifest["input_samples"], manifest["flush_samples"]
+    padding = manifest["transport_padding_samples"]
+    accepted, raw = manifest["accepted_input_samples"], manifest["raw_output_samples"]
+    if padding != -(source + flush) % spc:
+        raise ValueError("transport_padding_samples: must round source plus flush up to a whole SPC beat")
+    if accepted != source + flush + padding:
+        raise ValueError("accepted_input_samples: must equal source + flush + padding samples")
+    if raw % spc or raw + manifest["latency_samples"] < manifest["valid_start"] + manifest["valid_len"]:
+        raise ValueError("raw_output_samples: must be whole beats covering the valid window")
+    if manifest["model_domain"] == "time" and (flush, raw) != (_STIMULUS_CONSTANTS["output_samples"] - source, accepted):
+        raise ValueError("time transport: 7 flush zeros and one raw output per accepted sample")
 
 
 def _source_hashes() -> dict[str, str]:
@@ -570,18 +625,151 @@ def export_fxp_expected(
     return [coefficient_path, *manifest_paths]
 
 
-def export_rtl_matching(output_dir: Path, variant_id: str) -> list[Path]:
-    """Write F3 ``rtl_matching`` metadata for one variant (T31 #48 / T33 #50).
+def _checked_sidecar(path: Path) -> bytes:
+    """Return the bytes of ``path`` after checking its ``sha256sum``-format sidecar."""
+    data = path.read_bytes()
+    digest, name = path.with_name(path.name + ".sha256").read_text(encoding="utf-8").split()
+    if name != path.name or digest != _sha256_bytes(data):
+        raise ValueError(f"{path}: hash does not match its sidecar")
+    return data
 
-    Must bind the F2 payload hashes and add measured latency, flush and
-    transport counts plus the metadata-only ``vector_manifest.svh``.
+
+def _svh_text(manifest: dict) -> str:
+    """Return the metadata-only ``vector_manifest.svh`` the testbench includes for one frame."""
+    frame = f"{manifest['vector_set']}/{manifest['vector_case']}"
+    lines = [
+        f"// Generated by sim/python/gen_vectors.py --stage rtl_matching --variant {manifest['variant_id']}.",
+        f"// rtl_matching metadata of {manifest['variant_id']} ({manifest['model_domain']}) for {frame}; do not edit.",
+        f"// Metadata only: payloads stay in fxp_expected/{frame}/ and are bound by hash in the JSON manifest.",
+        "`define RRC_RTL_MATCHING",
+        *(f"localparam integer {field} = {manifest[field]};" for field in _SVH_FIELDS),
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def export_rtl_matching(output_dir: Path, variant_id: str, vectors_dir: Path | None = None) -> list[Path]:
+    """Write the F3 ``rtl_matching`` metadata of one variant (T31 #48); return the manifest paths.
+
+    Each frame directory gets a JSON manifest (schema sections 1-4 plus the
+    variant identity and transport counts) and the metadata-only
+    ``vector_manifest.svh`` the testbench includes. The F2 payloads in
+    ``vectors_dir`` (default ``output_dir``) are checked against their sidecars
+    and their F2 manifest, then bound by hash and never rewritten. Latency is
+    the variant's declared design value, which the matching run asserts.
+    Everything is built and validated before the first file is written.
     """
-    raise NotImplementedError("rtl_matching export is owned by T31 (#48) / T33 (#50) after RTL measurement")
+    if variant_id in _RESERVED_VARIANTS:
+        raise NotImplementedError(f"{variant_id}: rtl_matching metadata is owned by {_RESERVED_VARIANTS[variant_id]}")
+    if variant_id not in _RTL_VARIANTS:
+        raise ValueError(f"variant_id: expected one of {sorted(_RTL_VARIANTS)}, got {variant_id!r}")
+    output_dir = Path(output_dir)
+    vectors_dir = output_dir if vectors_dir is None else Path(vectors_dir)
+    variant = _RTL_VARIANTS[variant_id]
+    domain = variant["model_domain"]
+    tag = _DOMAIN_FILE_TAG[domain]
+    fxp_dir = vectors_dir / "fxp_expected"
+    table_sha256 = _sha256_bytes(_checked_sidecar(fxp_dir / COEFFICIENT_FILE))
+    provenance = {
+        "generator": "sim/python/gen_vectors.py",
+        "source_sha256": {"gen_vectors.py": _sha256_bytes((_SIM_DIR / "gen_vectors.py").read_bytes())},
+    }
+    files = []
+    manifest_paths = []
+
+    for vector_set, vector_case in iter_frames():
+        key = f"{vector_set}/{vector_case}"
+        f2_dir = fxp_dir / vector_set / vector_case
+        f2_bytes = _checked_sidecar(f2_dir / MANIFEST_FILE.format(tag=tag))
+        f2 = json.loads(f2_bytes)
+        validate_manifest(f2)
+        if (f2["artifact_stage"], f2["model_domain"], f2["vector_set"], f2["vector_case"]) != (
+            "fxp_expected", domain, vector_set, vector_case
+        ):
+            raise ValueError(f"{key}: expected the {domain} fxp_expected manifest of this frame")
+        payload = f2["payload"]
+        f2_hashes = f2["hashes"]
+        records = []
+        for name, hash_key, count in (
+            (payload["input_file"], "input_hex_sha256", f2["input_samples"]),
+            (payload["expected_file"], "expected_hex_sha256", f2["output_samples"]),
+        ):
+            data = _checked_sidecar(f2_dir / name)
+            if _sha256_bytes(data) != f2_hashes[hash_key]:
+                raise ValueError(f"{key}: {name} differs from the payload its F2 manifest binds")
+            records.append((len(data.split()), count))
+        if any(found != count for found, count in records):
+            raise ValueError(f"{key}: F2 payload record counts differ from input_samples/output_samples")
+        if f2_hashes["coefficient_table_sha256"] != table_sha256:
+            raise ValueError(f"{key}: the F2 manifest binds a different coefficient table")
+
+        spc, flush = variant["SPC"], variant["flush_samples"]
+        padding = -(f2["input_samples"] + flush) % spc
+        accepted = f2["input_samples"] + flush + padding
+        f2_relative = "/".join(("..", "..", "..", "..", "fxp_expected", vector_set, vector_case))
+        manifest = {
+            "artifact_stage": "rtl_matching",
+            "model_domain": domain,
+            "variant_id": variant_id,
+            "rtl_variant": variant["rtl_variant"],
+            **{field: f2[field] for field in (*_STIMULUS_CONSTANTS, "vector_set", "vector_case")},
+            **{field: f2[field] for field in FXP_FIELDS},
+            "DATA_WIDTH": f2["W_common"],
+            "SPC": spc,
+            **_RTL_CONSTANTS,
+            "latency_samples": variant["latency_samples"],
+            "latency_cycles": variant["latency_cycles"],
+            "fft_pipeline_cycles": variant["fft_pipeline_cycles"],
+            "flush_samples": flush,
+            "transport_padding_samples": padding,
+            "accepted_input_samples": accepted,
+            # Time domain: one output per accepted sample.
+            "raw_output_samples": accepted,
+            "component_sign_extension": f2["component_sign_extension"],
+        }
+        svh_bytes = _svh_text(manifest).encode("ascii")
+        manifest |= {
+            "payload": {
+                "input_file": f"{f2_relative}/{payload['input_file']}",
+                "expected_file": f"{f2_relative}/{payload['expected_file']}",
+                "fxp_expected_manifest": f"{f2_relative}/{MANIFEST_FILE.format(tag=tag)}",
+                "coefficient_file": f"../../../../fxp_expected/{COEFFICIENT_FILE}",
+                "testbench_metadata": RTL_MATCHING_SVH_FILE,
+                "encoding": payload["encoding"],
+                "input_count": payload["input_count"],
+                "expected_count": payload["expected_count"],
+            },
+            "latency_declaration": {
+                "source": f"declared design latency of rtl/{variant['rtl_variant']} (see its README.md)",
+                "verification": "rtl/tb/rrc_stream_tb.sv asserts latency_cycles from the first accepted input to the "
+                "first valid output in the unstalled ready_i=1 run and places every output at absolute index "
+                "received*SPC + lane + latency_samples",
+                "evidence_file": variant["evidence_file"],
+            },
+            "hash_serialization": f2["hash_serialization"],
+            "hashes": {
+                **f2_hashes,
+                "fxp_expected_manifest_sha256": _sha256_bytes(f2_bytes),
+                "vector_manifest_svh_sha256": _sha256_bytes(svh_bytes),
+            },
+            "provenance": provenance,
+        }
+        validate_manifest(manifest)
+        frame_dir = output_dir / "rtl_matching" / variant_id / vector_set / vector_case
+        manifest_path = frame_dir / MANIFEST_FILE.format(tag=tag)
+        text = json.dumps(manifest, sort_keys=True, indent=2, allow_nan=False) + "\n"
+        files.append((frame_dir / RTL_MATCHING_SVH_FILE, svh_bytes))
+        files.append((manifest_path, text.encode("utf-8")))
+        manifest_paths.append(manifest_path)
+
+    for path, data in files:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        _write_with_sidecar(path, data)
+    return manifest_paths
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate staged golden vectors (T13: float_reference, T22: fxp_expected)"
+        description="Generate staged golden vectors (T13: float_reference, T22: fxp_expected, T31: rtl_matching)"
     )
     parser.add_argument("--stage", choices=STAGES, default="float_reference")
     parser.add_argument("--output-dir", type=Path, default=_DEFAULT_OUTPUT_DIR)
@@ -590,9 +778,12 @@ def main() -> None:
         type=Path,
         help="also write review-evidence plots of the float_reference vectors (not part of the vectors)",
     )
+    parser.add_argument("--variant", help="variant_id of the rtl_matching stage, e.g. T-serial")
     args = parser.parse_args()
     if args.plots_dir is not None and args.stage != "float_reference":
         parser.error("--plots-dir is only available for --stage float_reference")
+    if (args.variant is not None) != (args.stage == "rtl_matching"):
+        parser.error("--variant is required by, and only available for, --stage rtl_matching")
     if args.stage == "float_reference":
         for path in generate_float_reference(args.output_dir):
             print(path)
@@ -604,7 +795,12 @@ def main() -> None:
         for path in export_fxp_expected(args.output_dir):
             print(path)
     else:
-        export_rtl_matching(args.output_dir, variant_id="")
+        try:
+            paths = export_rtl_matching(args.output_dir, args.variant)
+        except (NotImplementedError, ValueError) as error:
+            parser.error(str(error))
+        for path in paths:
+            print(path)
 
 
 if __name__ == "__main__":

@@ -212,9 +212,10 @@ def test_validator_requires_stage_fields(generated):
         validate_manifest(_f1_manifest(generated) | {"artifact_stage": "fxp_expected"})
 
 
-def test_rtl_matching_export_is_reserved_for_its_owners(tmp_path):
-    with pytest.raises(NotImplementedError, match="T31"):
-        export_rtl_matching(tmp_path, variant_id="T-serial")
+@pytest.mark.parametrize(("variant_id", "owner"), [("F-serial", "T33"), ("T-S4P1", "T40"), ("T-S8P1", "T40"), ("F-U8", "T42")])
+def test_rtl_matching_export_is_reserved_for_its_owners(tmp_path, variant_id, owner):
+    with pytest.raises(NotImplementedError, match=owner):
+        export_rtl_matching(tmp_path, variant_id=variant_id, vectors_dir=_COMMITTED_DIR)
     assert not list(tmp_path.iterdir())
 
 
@@ -635,3 +636,209 @@ def test_cli_exports_fxp_expected_next_to_the_f1_frames(monkeypatch, tmp_path, c
     printed = [Path(line) for line in capsys.readouterr().out.split()]
     assert printed == [tmp_path / path.relative_to(exported[0]) for path in exported[1]]
     assert _tree_bytes(tmp_path / "fxp_expected") == _tree_bytes(exported[0] / "fxp_expected")
+
+
+# T31 F3 rtl_matching export (T-serial)
+
+
+_SVH_LOCALPARAMS = [
+    "DATA_WIDTH", "SPC", "input_samples", "output_samples", "valid_start", "valid_len", "flush_samples",
+    "transport_padding_samples", "accepted_input_samples", "raw_output_samples", "latency_samples",
+    "latency_cycles", "FFT_LEN", "HOP", "DISCARD_PREFIX", "EMIT_START", "EMIT_LEN", "block_cadence",
+    "fft_pipeline_cycles",
+]
+
+
+@pytest.fixture(scope="module")
+def matched(tmp_path_factory):
+    output_dir = tmp_path_factory.mktemp("rtl_matching")
+    paths = export_rtl_matching(output_dir, "T-serial", vectors_dir=_COMMITTED_DIR)
+    return output_dir, paths
+
+
+def _matching_manifest(matched) -> dict:
+    return _load(matched[1][0])
+
+
+def _svh_localparams(path: Path) -> dict[str, int]:
+    fields = {}
+    for line in path.read_text(encoding="ascii").splitlines():
+        if line.startswith("localparam integer "):
+            name, value = line.removeprefix("localparam integer ").rstrip(";").split(" = ")
+            fields[name] = int(value)
+    return fields
+
+
+def test_rtl_matching_export_writes_only_metadata_for_every_time_frame(matched):
+    output_dir, paths = matched
+
+    assert sorted(path.name for path in output_dir.iterdir()) == ["rtl_matching"]
+    assert [(path.parent.parent.name, path.parent.name) for path in paths] == _EXPECTED_FRAMES
+    for path in paths:
+        assert path.name == "manifest_time.json"
+        assert path.parent.parent.parent.name == "T-serial"
+        assert sorted(item.name for item in path.parent.iterdir()) == [
+            "manifest_time.json", "manifest_time.json.sha256", "vector_manifest.svh", "vector_manifest.svh.sha256",
+        ]
+    # The numeric payloads stay in fxp_expected/; F3 never rewrites them.
+    assert not list(output_dir.rglob("*.hex"))
+
+
+def test_rtl_matching_manifests_declare_the_measured_variant_and_transport_counts(matched):
+    _, paths = matched
+
+    for path in paths:
+        manifest = _load(path)
+        validate_manifest(manifest)
+        f2 = _load(_COMMITTED_DIR / "fxp_expected" / manifest["vector_set"] / manifest["vector_case"] / path.name)
+        assert (manifest["artifact_stage"], manifest["model_domain"], manifest["variant_id"], manifest["rtl_variant"]) == (
+            "rtl_matching", "time", "T-serial", "time_serial")
+        assert (manifest["DATA_WIDTH"], manifest["SPC"]) == (16, 1)
+        # T30 design latency: accept edge plus eight MAC edges, y[0] first.
+        assert (manifest["latency_samples"], manifest["latency_cycles"], manifest["fft_pipeline_cycles"]) == (0, 9, 0)
+        assert (manifest["flush_samples"], manifest["transport_padding_samples"]) == (7, 0)
+        assert (manifest["accepted_input_samples"], manifest["raw_output_samples"]) == (2055, 2055)
+        assert (manifest["input_samples"], manifest["output_samples"], manifest["valid_start"], manifest["valid_len"]) == (
+            2048, 2055, 0, 2055)
+        for field in (*gen_vectors.STIMULUS_FIELDS[2:], *FXP_FIELDS, "component_sign_extension", "hash_serialization"):
+            assert manifest[field] == f2[field], field
+        assert "sqnr_cross_db" not in manifest
+        assert manifest["latency_declaration"]["evidence_file"] == (
+            "sim/python/artifacts/t31-time-matching/evidence_manifest.json")
+
+
+def test_rtl_matching_binds_the_f2_payloads_and_its_svh_by_hash(matched):
+    output_dir, paths = matched
+
+    for path in output_dir.rglob("*"):
+        if path.is_file() and not path.name.endswith(".sha256"):
+            digest, name = path.with_name(path.name + ".sha256").read_text(encoding="utf-8").split()
+            assert (name, digest) == (path.name, _sha256(path))
+    for path in paths:
+        manifest = _load(path)
+        hashes = manifest["hashes"]
+        f2_dir = _COMMITTED_DIR / "fxp_expected" / manifest["vector_set"] / manifest["vector_case"]
+        committed = _COMMITTED_DIR / "rtl_matching" / "T-serial" / manifest["vector_set"] / manifest["vector_case"]
+        payload = manifest["payload"]
+        # Payload paths are relative to the manifest directory, as in the committed tree.
+        assert (committed / payload["input_file"]).resolve() == (f2_dir / "input.hex").resolve()
+        assert (committed / payload["expected_file"]).resolve() == (f2_dir / "expected_time.hex").resolve()
+        assert (committed / payload["fxp_expected_manifest"]).resolve() == (f2_dir / "manifest_time.json").resolve()
+        assert hashes["input_hex_sha256"] == _sha256(f2_dir / "input.hex")
+        assert hashes["expected_hex_sha256"] == _sha256(f2_dir / "expected_time.hex")
+        assert hashes["fxp_expected_manifest_sha256"] == _sha256(f2_dir / "manifest_time.json")
+        assert hashes["coefficient_table_sha256"] == _sha256(_COMMITTED_DIR / "fxp_expected" / gen_vectors.COEFFICIENT_FILE)
+        assert hashes["output_codes_sha256"] == _load(f2_dir / "manifest_time.json")["hashes"]["output_codes_sha256"]
+        assert hashes["vector_manifest_svh_sha256"] == _sha256(path.parent / "vector_manifest.svh")
+        assert "vector_manifest_sha256" not in hashes
+
+
+def test_rtl_matching_svh_mirrors_the_manifest(matched):
+    _, paths = matched
+
+    for path in paths:
+        manifest = _load(path)
+        svh = path.parent / "vector_manifest.svh"
+        fields = _svh_localparams(svh)
+        assert list(fields) == _SVH_LOCALPARAMS
+        assert fields == {name: manifest[name] for name in _SVH_LOCALPARAMS}
+        assert "`define RRC_RTL_MATCHING" in svh.read_text(encoding="ascii").splitlines()
+
+
+def test_rtl_matching_export_is_byte_identical(matched, tmp_path):
+    output_dir, _ = matched
+    export_rtl_matching(tmp_path, "T-serial", vectors_dir=_COMMITTED_DIR)
+
+    assert _tree_bytes(tmp_path) == _tree_bytes(output_dir)
+
+
+def test_committed_rtl_matching_is_current(matched):
+    """Committed F3 metadata must equal a fresh export; it carries no host-dependent field."""
+    output_dir, _ = matched
+
+    assert _tree_bytes(_COMMITTED_DIR / "rtl_matching") == _tree_bytes(output_dir / "rtl_matching")
+
+
+def test_rtl_matching_export_refuses_unknown_variants(tmp_path):
+    with pytest.raises(ValueError, match="variant_id"):
+        export_rtl_matching(tmp_path, "T-bogus", vectors_dir=_COMMITTED_DIR)
+    assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize("rehash", [False, True], ids=["broken-sidecar", "unbound-payload"])
+def test_rtl_matching_export_refuses_tampered_f2_payloads(tmp_path, rehash):
+    shutil.copytree(_COMMITTED_DIR / "fxp_expected", tmp_path / "fxp_expected")
+    expected = tmp_path / "fxp_expected" / "sys_corners" / "corner_repeat" / "expected_time.hex"
+    lines = expected.read_text(encoding="ascii").splitlines()
+    lines[100] = f"{int(lines[100], 16) ^ 1:08x}"
+    expected.write_text("\n".join(lines) + "\n", encoding="ascii")
+    if rehash:
+        expected.with_name(expected.name + ".sha256").write_text(f"{_sha256(expected)}  {expected.name}\n")
+
+    with pytest.raises(ValueError, match="differs from the payload" if rehash else "hash does not match"):
+        export_rtl_matching(tmp_path, "T-serial")
+    assert not (tmp_path / "rtl_matching").exists()
+
+
+@pytest.mark.parametrize(
+    ("fields", "error"),
+    [
+        ({"flush_samples": 6}, "transport_padding_samples|accepted_input_samples|time transport"),
+        ({"flush_samples": 8, "accepted_input_samples": 2056, "raw_output_samples": 2056}, "time transport"),
+        ({"accepted_input_samples": 2054}, "accepted_input_samples"),
+        ({"transport_padding_samples": 1}, "transport_padding_samples"),
+        ({"raw_output_samples": 2056}, "time transport"),
+        ({"raw_output_samples": 2054}, "raw_output_samples"),
+        ({"latency_samples": 8}, "latency_samples"),
+        ({"SPC": 0}, "SPC"),
+        ({"variant_id": ""}, "variant_id"),
+        ({"DATA_WIDTH": 12}, "DATA_WIDTH"),
+        ({"HOP": 9}, "HOP"),
+        ({"block_cadence": 9}, "block_cadence"),
+        ({"W_acc_time": 34}, "W_acc_time"),
+        ({"sqnr_cross_db": 89.29}, "not allowed"),
+        ({"latency_time": 0}, "not allowed"),
+    ],
+)
+def test_rtl_matching_validator_rejects_bad_transport_and_non_production_fields(matched, fields, error):
+    with pytest.raises(ValueError, match=error):
+        validate_manifest(_matching_manifest(matched) | fields)
+
+
+@pytest.mark.parametrize("field", [*RTL_FIELDS, *RTL_MATCHING_FIELDS, *FXP_FIELDS, "hashes"])
+def test_rtl_matching_validator_requires_sections_1_to_4_and_transport_fields(matched, field):
+    manifest = _matching_manifest(matched)
+    del manifest[field]
+
+    with pytest.raises(ValueError, match="missing"):
+        validate_manifest(manifest)
+
+
+def test_cli_exports_rtl_matching_next_to_the_f2_frames(monkeypatch, tmp_path, capsys, matched):
+    shutil.copytree(_COMMITTED_DIR / "fxp_expected", tmp_path / "fxp_expected")
+    monkeypatch.setattr(
+        "sys.argv",
+        ["gen_vectors.py", "--stage", "rtl_matching", "--variant", "T-serial", "--output-dir", str(tmp_path)],
+    )
+
+    gen_vectors.main()
+    printed = [Path(line) for line in capsys.readouterr().out.split()]
+    assert printed == [tmp_path / path.relative_to(matched[0]) for path in matched[1]]
+    assert _tree_bytes(tmp_path / "rtl_matching") == _tree_bytes(matched[0] / "rtl_matching")
+
+
+@pytest.mark.parametrize(
+    ("arguments", "error"),
+    [
+        (["--stage", "rtl_matching"], "--variant is required"),
+        (["--stage", "fxp_expected", "--variant", "T-serial"], "--variant is required"),
+        (["--stage", "rtl_matching", "--variant", "F-serial"], "T33"),
+    ],
+)
+def test_cli_rtl_matching_requires_an_owned_variant(monkeypatch, tmp_path, capsys, arguments, error):
+    monkeypatch.setattr("sys.argv", ["gen_vectors.py", *arguments, "--output-dir", str(tmp_path)])
+
+    with pytest.raises(SystemExit):
+        gen_vectors.main()
+    assert error in capsys.readouterr().err
+    assert not list(tmp_path.iterdir())
