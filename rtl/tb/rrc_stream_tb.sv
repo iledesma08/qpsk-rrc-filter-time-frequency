@@ -13,7 +13,11 @@ module rrc_stream_tb;
   logic [SPC-1:0][2*DATA_WIDTH-1:0] sample_o;
   logic [31:0] input_codes [0:input_samples-1];
   logic [31:0] expected_codes [0:output_samples-1];
-  string vector_dir;
+  string vector_dir, capture_file;
+  // Optional +capture_file=<path>: the continuous run writes every captured
+  // output lane there, one packed record per line, as evidence independent of
+  // this comparator. Without the plusarg nothing is written.
+  integer capture_fd = 0;
 
   always #5 clk = ~clk;
 
@@ -117,7 +121,7 @@ module rrc_stream_tb;
     integer bubbles, stalls, backpressure, absolute_index;
     integer accepted_source, accepted_flush, accepted_padding, emitted_samples;
     integer interval_count, ii_min, ii_max, interval_cycles, tail_stalls;
-    string measured_ii;
+    string measured_ii, measured_latency;
     logic input_fire, output_stalled;
     logic [SPC-1:0][2*DATA_WIDTH-1:0] held_output;
     logic [31:0] got;
@@ -191,6 +195,7 @@ module rrc_stream_tb;
         if (valid_o && ready_i) begin
           if (received >= OUTPUT_BEATS) $fatal(1, "Unexpected extra output beat");
           for (integer lane = 0; lane < SPC; lane = lane + 1) begin
+            if (!robustness && capture_fd != 0) $fwrite(capture_fd, "%08h\n", extend_code(sample_o[lane]));
             absolute_index = received * SPC + lane + latency_samples;
             if (absolute_index >= valid_start && absolute_index < valid_start + valid_len) begin
               got = extend_code(sample_o[lane]);
@@ -236,10 +241,13 @@ module rrc_stream_tb;
         $fatal(1, "Robustness run did not exercise bubbles, stalls and ready_o loss");
       measured_ii = "undefined";
       if (interval_count > 0 && ii_min == ii_max) measured_ii = $sformatf("%0d", ii_min);
-      $display("Frame robustness=%0d compared=%0d accepted_beats=%0d emitted_beats=%0d cycles=%0d source_samples=%0d flush_samples=%0d transport_padding_samples=%0d accepted_input_samples=%0d raw_output_samples=%0d interval_count=%0d ii_min=%0d ii_max=%0d measured_ii=%s tail_stalls=%0d",
+      // Latency is only a measurement in the unstalled run, where it was asserted.
+      measured_latency = "undefined";
+      if (!robustness) measured_latency = $sformatf("%0d", first_output - first_input);
+      $display("Frame robustness=%0d compared=%0d accepted_beats=%0d emitted_beats=%0d cycles=%0d source_samples=%0d flush_samples=%0d transport_padding_samples=%0d accepted_input_samples=%0d raw_output_samples=%0d interval_count=%0d ii_min=%0d ii_max=%0d measured_ii=%s tail_stalls=%0d measured_latency_cycles=%s",
                 robustness, matched, sent, received, cycle, accepted_source, accepted_flush,
                 accepted_padding, accepted_source + accepted_flush + accepted_padding, emitted_samples,
-                interval_count, ii_min, ii_max, measured_ii, tail_stalls);
+                interval_count, ii_min, ii_max, measured_ii, tail_stalls, measured_latency);
     end
   endtask
 
@@ -286,7 +294,15 @@ module rrc_stream_tb;
     if (valid_o !== 1'b1 || ready_o !== 1'b0) $fatal(1, "Pending shell transaction not created");
     reset_dut();
 `endif
+    if ($value$plusargs("capture_file=%s", capture_file)) begin
+      capture_fd = $fopen(capture_file, "w");
+      if (capture_fd == 0) $fatal(1, "Cannot open capture file %s", capture_file);
+    end
     run_frame(1'b0);
+    if (capture_fd != 0) begin
+      $fclose(capture_fd);
+      capture_fd = 0;
+    end
     reset_dut();
     reset_accepted_prefix();
     run_frame(1'b1);
