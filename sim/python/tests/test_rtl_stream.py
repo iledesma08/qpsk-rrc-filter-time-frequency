@@ -12,10 +12,11 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
 # Wrappers that still forward codes through the T03 shell. time_serial carries
-# the T30 filter (see test_rtl_time_serial.py) and freq_serial the T32 engine
-# (see test_rtl_freq_serial.py); TB mechanics use a transport DUT.
-TRANSPORT_VARIANTS = ["time_opt", "freq_opt"]
-TRANSPORT_VARIANT = "time_opt"
+# the T30 filter (see test_rtl_time_serial.py), freq_serial the T32 engine
+# (see test_rtl_freq_serial.py) and time_opt the T40 filter (see
+# test_rtl_time_opt.py); TB mechanics use a transport DUT.
+TRANSPORT_VARIANTS = ["freq_opt"]
+TRANSPORT_VARIANT = "freq_opt"
 pytestmark = pytest.mark.skipif(
     not shutil.which("iverilog") or not shutil.which("vvp"),
     reason="Icarus/vvp checks run in the required RTL CI job",

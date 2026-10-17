@@ -1,4 +1,4 @@
-"""Generate T30 structural fixtures for the serial time filter outside sim/vectors.
+"""Generate structural fixtures for the time filters outside sim/vectors (T30, T40).
 
 Expected codes come from an exact integer reference of the accepted time
 policy (fxp-policy-16, Numeric Policy): Q2.14 data and coefficients, products
@@ -8,7 +8,8 @@ and never casts the float reference output; test_rtl_time_serial.py requires
 it to match that model and the T22 export in sim/vectors/fxp_expected. The
 frames check the datapath, its rounding/saturation, II and latency; RTL
 matching against the T22 production vectors and the rtl_matching manifest
-binding belong to T31 (#48).
+binding belong to T31 (#48) and T40 (#51). The serial (T30) and optimized
+(T40) filters share these frames; only the declared design latency differs.
 """
 
 import argparse
@@ -33,8 +34,11 @@ FRAC_BITS = WIDTH - 2
 W_PRODUCT = 2 * WIDTH
 W_ACC_TIME = 2 * WIDTH + 3
 TAPS = 8
-# T30 design latency (accept edge plus eight MAC edges); the TB measures it.
-LATENCY_CYCLES = 9
+# Design latency per RTL variant; the TB asserts it in the unstalled run.
+# time_serial (T30): accept edge plus eight MAC edges. time_opt (T40): accept
+# edge plus the slot-0 edge that closes y[n], for every S.
+DESIGN_LATENCY_CYCLES = {"time_serial": 9, "time_opt": 2}
+LATENCY_CYCLES = DESIGN_LATENCY_CYCLES["time_serial"]
 FLUSH_SAMPLES = TAPS - 1
 FRAMES = ("canonical", "impulse", "rne_ties", "saturation", "arbitrary")
 MAX_CODE = (1 << (WIDTH - 1)) - 1
@@ -146,8 +150,8 @@ def _records(i_codes, q_codes) -> str:
     return "".join(f"{q & 0xffff:04X}{i & 0xffff:04X}\n" for i, q in zip(i_codes, q_codes))
 
 
-def write_fixture(output: Path, name: str) -> Reference:
-    """Write input/expected/manifest plus SHA-256 sidecars; return the reference."""
+def write_fixture(output: Path, name: str, variant: str = "time_serial") -> Reference:
+    """Write input/expected/manifest plus SHA-256 sidecars for ``variant``; return the reference."""
     golden_dir = SIM_DIR.parent / "vectors"
     output = Path(output).resolve()
     if output == golden_dir or golden_dir in output.parents:
@@ -161,13 +165,13 @@ def write_fixture(output: Path, name: str) -> Reference:
         "valid_start": 0, "valid_len": outputs,
         "flush_samples": FLUSH_SAMPLES, "transport_padding_samples": 0,
         "accepted_input_samples": outputs, "raw_output_samples": outputs,
-        "latency_samples": 0, "latency_cycles": LATENCY_CYCLES,
+        "latency_samples": 0, "latency_cycles": DESIGN_LATENCY_CYCLES[variant],
         # Accepted baseline mirrored from rrc_pkg.sv; the TB checks agreement.
         "FFT_LEN": 16, "HOP": 8, "DISCARD_PREFIX": 8,
         "EMIT_START": 8, "EMIT_LEN": 8,
         "block_cadence": 8, "fft_pipeline_cycles": 0,
     }
-    manifest = f"// Generated T30 structural fixture '{name}' from an exact integer reference;\n"
+    manifest = f"// Generated {variant} structural fixture '{name}' from an exact integer reference;\n"
     manifest += "// not a T22 expected-code set or a T31 rtl_matching manifest.\n"
     manifest += "`define RRC_TIME_FILTER_FIXTURE\n"
     manifest += "".join(f"localparam integer {key} = {value};\n" for key, value in fields.items())
@@ -188,9 +192,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--frame", choices=FRAMES, default="canonical")
+    parser.add_argument("--variant", choices=sorted(DESIGN_LATENCY_CYCLES), default="time_serial")
     args = parser.parse_args()
     try:
-        write_fixture(args.output, args.frame)
+        write_fixture(args.output, args.frame, args.variant)
     except ValueError as error:
         parser.error(str(error))
 
