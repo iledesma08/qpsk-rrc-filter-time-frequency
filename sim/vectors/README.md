@@ -5,13 +5,13 @@ Generated only by `sim/python/gen_vectors.py` (T13, T22), according to
 
 The generator has three stages: T13 creates F1 float references, T22 exports
 F2 per-domain Q2.14 integer expected codes after numerical acceptance, and
-T31/T33 produce F3 per-variant matching metadata with measured latency and
-flush counts. Float references are not RTL expected codes; F1/F2 artifacts
+T31/T40 (time) and T33/T42 (frequency) produce F3 per-variant matching metadata
+with measured latency and flush counts. Float references are not RTL expected codes; F1/F2 artifacts
 must not invent future RTL latency. See the normative lifecycle in the schema.
 
 - Each complex sample is a packed 32-bit `{Q[15:0], I[15:0]}` record in the
   input or expected-output `.hex` file.
-- The `rtl_matching` stage (T31/T33) also writes `vector_manifest.svh` with the
+- The `rtl_matching` stage (T31/T33/T40/T42) also writes `vector_manifest.svh` with the
   vector count, packing and measured per-variant metadata. Normative manifest
   schema: `docs/contracts/vector-manifest-schema.md`.
 - RTL vector-matches against these files.
@@ -91,17 +91,20 @@ carries no RTL latency, transport counts or `vector_manifest.svh`, and the
 per-domain manifests do not carry `sqnr_cross_db`. T31/T33 bind these payloads
 by hash and add the measured per-variant metadata.
 
-## F3 RTL matching metadata (T31)
+## F3 RTL matching metadata (T31, T40)
 
 Regenerate after F2, with the F2 frames already in the output directory
 (Matias is the sole regenerator):
 
 ```bash
 python sim/python/gen_vectors.py --stage rtl_matching --variant T-serial --output-dir sim/vectors
+python sim/python/gen_vectors.py --stage rtl_matching --variant T-S4P1 --output-dir sim/vectors
+python sim/python/gen_vectors.py --stage rtl_matching --variant T-S8P1 --output-dir sim/vectors
 ```
 
-Only `T-serial` (T31, #48) is implemented. `F-serial` belongs to T33 (#50) and
-the optimized variants to T40/T42; they refuse instead of guessing their data.
+`T-serial` (T31, #48), `T-S4P1` and `T-S8P1` (T40, #51) are implemented.
+`F-serial` belongs to T33 (#50) and `F-U4`/`F-U8` to T42 (#53); they refuse
+instead of guessing their data.
 
 Layout: `rtl_matching/<variant_id>/<vector_set>/<vector_case>/`, metadata only:
 
@@ -112,6 +115,12 @@ Layout: `rtl_matching/<variant_id>/<vector_set>/<vector_case>/`, metadata only:
   (`flush_samples`, `transport_padding_samples`, `accepted_input_samples`,
   `raw_output_samples`). For `T-serial`: `SPC=1`, latency 0 samples / 9 cycles,
   7 flush zeros, 2055 accepted and raw samples.
+- `T-S4P1`/`T-S8P1` are two rows of one RTL source (`rtl_variant: time_opt`).
+  Their manifests add `rtl_parameters` (`SYSTOLIC_PES` 4 or 8,
+  `PIPELINE_DEPTH` 1), which the runner turns into the module parameters. It
+  stays out of the `.svh`, whose localparams are the T03 list, and never uses
+  the legacy name `S`. Both rows declare latency 0 samples / 2 cycles and bind
+  the same payloads as `T-serial`, since all three are bit-exact.
 - `vector_manifest.svh`: the integer localparams the testbench includes, the
   same values as the JSON manifest. Generated SystemVerilog is metadata only.
 - A `<file>.sha256` sidecar for each.
@@ -123,7 +132,9 @@ plus the `.svh` it describes. The export checks every F2 file against its
 sidecar and its F2 manifest before writing anything. `latency_cycles` is the
 variant's declared design latency; the matching run asserts it in the unstalled
 run, and its evidence is
-`sim/python/artifacts/t31-time-matching/evidence_manifest.json`. The manifests
+`sim/python/artifacts/t31-time-matching/evidence_manifest.json` (T-serial) and
+`sim/python/artifacts/t40-time-opt-matching/<variant_id>/evidence_manifest.json`
+(T-S4P1, T-S8P1). The manifests
 carry no host tool versions, so a fresh export is byte-identical to the
 committed one. `sim/python/tests/rtl_matching_stage.py` stages a frame for the
 testbench after checking every binding; see `rtl/tb/README.md`.
