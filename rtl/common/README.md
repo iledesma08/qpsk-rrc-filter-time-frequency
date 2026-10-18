@@ -24,13 +24,13 @@ T30 (#47) adds the time-domain numeric policy to the package: `RRC_TAPS`,
 cast `time_output_cast`. The table holds the Q2.14 integers listed in
 `fxp-policy-16.md`, and `test_rtl_time_serial.py` checks it against the frozen
 T22 export (`sim/vectors/fxp_expected/rrc8_q2.14_coefficients.json`). The
-serial filter and the future optimized time variants share these definitions,
-so their arithmetic stays bit-exact by construction.
+serial filter (T30) and the optimized rows T-S4P1/T-S8P1 (T40) share these
+definitions, so their arithmetic stays bit-exact by construction.
 
 `rrc_stream_shell.sv` replaces the inactive toolchain placeholder with a
-one-stage elastic **transport-only** register. The two wrappers without a
-datapath (`time_opt`, `freq_opt`) share it; `time_serial` replaced it with the T30
-filter and `freq_serial` with the T32 engine.
+one-stage elastic **transport-only** register. Only `freq_opt`, the wrapper
+without a datapath, still uses it; `time_serial` replaced it with the T30
+filter, `freq_serial` with the T32 engine and `time_opt` with the T40 filter.
 It forwards each accepted `{Q,I}` beat unchanged, with no FIR or FFT arithmetic.
 The packed bus is `[SAMPLES_PER_CLOCK-1:0][2*DATA_WIDTH-1:0]`, with I in the low
 bits, Q in the high bits, and lane 0 first.

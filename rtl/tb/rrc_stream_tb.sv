@@ -27,6 +27,10 @@ module rrc_stream_tb;
     , .FFT_LEN(FFT_LEN), .HOP(HOP), .DISCARD_PREFIX(DISCARD_PREFIX),
     .EMIT_START(EMIT_START), .EMIT_LEN(EMIT_LEN)
 `endif
+`ifdef TIME_OPT_DUT
+    // Matrix row of time_opt (T40): the runner defines both from its arguments.
+    , .SYSTOLIC_PES(`SYSTOLIC_PES), .PIPELINE_DEPTH(`PIPELINE_DEPTH)
+`endif
   ) dut (.*);
 
   function automatic logic [31:0] extend_code(input logic [2*DATA_WIDTH-1:0] packed_sample);
@@ -286,6 +290,10 @@ module rrc_stream_tb;
           expected_codes[n][0 +: DATA_WIDTH]}) !== expected_codes[n])
         $fatal(1, "Invalid expected code/sign extension index=%0d", n);
 
+`ifdef TIME_OPT_DUT
+    // The row the instance elaborated, read back from it for the evidence.
+    $display("DUT parameters SYSTOLIC_PES=%0d PIPELINE_DEPTH=%0d", dut.SYSTOLIC_PES, dut.PIPELINE_DEPTH);
+`endif
     reset_dut();
 `ifdef RRC_SHELL_FIXTURE
     // Reset a pending, stalled transaction and prove no stale output survives.

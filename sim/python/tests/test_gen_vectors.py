@@ -212,7 +212,7 @@ def test_validator_requires_stage_fields(generated):
         validate_manifest(_f1_manifest(generated) | {"artifact_stage": "fxp_expected"})
 
 
-@pytest.mark.parametrize(("variant_id", "owner"), [("F-serial", "T33"), ("T-S4P1", "T40"), ("T-S8P1", "T40"), ("F-U8", "T42")])
+@pytest.mark.parametrize(("variant_id", "owner"), [("F-serial", "T33"), ("F-U4", "T42"), ("F-U8", "T42")])
 def test_rtl_matching_export_is_reserved_for_its_owners(tmp_path, variant_id, owner):
     with pytest.raises(NotImplementedError, match=owner):
         export_rtl_matching(tmp_path, variant_id=variant_id, vectors_dir=_COMMITTED_DIR)
@@ -752,11 +752,49 @@ def test_rtl_matching_export_is_byte_identical(matched, tmp_path):
     assert _tree_bytes(tmp_path) == _tree_bytes(output_dir)
 
 
-def test_committed_rtl_matching_is_current(matched):
-    """Committed F3 metadata must equal a fresh export; it carries no host-dependent field."""
-    output_dir, _ = matched
+def test_committed_rtl_matching_is_current(tmp_path):
+    """Committed F3 metadata must equal a fresh export of every owned variant; it carries no host-dependent field."""
+    for variant_id in gen_vectors._RTL_VARIANTS:
+        export_rtl_matching(tmp_path, variant_id, vectors_dir=_COMMITTED_DIR)
 
-    assert _tree_bytes(_COMMITTED_DIR / "rtl_matching") == _tree_bytes(output_dir / "rtl_matching")
+    assert sorted(path.name for path in (_COMMITTED_DIR / "rtl_matching").iterdir()) == ["T-S4P1", "T-S8P1", "T-serial"]
+    assert _tree_bytes(_COMMITTED_DIR / "rtl_matching") == _tree_bytes(tmp_path / "rtl_matching")
+
+
+# T40 F3 rtl_matching export (T-S4P1/T-S8P1: one time_opt source, two rows)
+
+
+_T40_ROWS = {"T-S4P1": 4, "T-S8P1": 8}
+
+
+@pytest.mark.parametrize("variant_id", _T40_ROWS)
+def test_t40_rows_declare_their_parameters_and_bind_the_t_serial_payloads(tmp_path, variant_id, matched):
+    paths = export_rtl_matching(tmp_path, variant_id, vectors_dir=_COMMITTED_DIR)
+
+    assert [(path.parent.parent.name, path.parent.name) for path in paths] == _EXPECTED_FRAMES
+    for path, serial_path in zip(paths, matched[1]):
+        manifest = _load(path)
+        validate_manifest(manifest)
+        serial = _load(serial_path)
+        assert (manifest["variant_id"], manifest["rtl_variant"]) == (variant_id, "time_opt")
+        # The matrix row of the one parameterized source; never the legacy name "S".
+        assert manifest["rtl_parameters"] == {"SYSTOLIC_PES": _T40_ROWS[variant_id], "PIPELINE_DEPTH": 1}
+        assert "S" not in manifest and "rtl_parameters" not in serial
+        # T40 design latency: accept edge plus the slot-0 edge, for both rows.
+        assert (manifest["latency_samples"], manifest["latency_cycles"]) == (0, 2)
+        assert manifest["latency_declaration"]["evidence_file"] == (
+            f"sim/python/artifacts/t40-time-opt-matching/{variant_id}/evidence_manifest.json")
+        # Bit-exact rows bind the same expected codes and transport as T-serial.
+        assert manifest["hashes"] | {"vector_manifest_svh_sha256": None} == (
+            serial["hashes"] | {"vector_manifest_svh_sha256": None})
+        assert manifest["payload"] == serial["payload"]
+        different = {"variant_id", "rtl_variant", "rtl_parameters", "latency_cycles", "latency_declaration", "hashes"}
+        assert {key: value for key, value in manifest.items() if key not in different} == {
+            key: value for key, value in serial.items() if key not in different}
+        # The .svh carries only the T03 localparams: the row stays in the JSON manifest.
+        fields = _svh_localparams(path.parent / "vector_manifest.svh")
+        assert list(fields) == _SVH_LOCALPARAMS
+        assert fields == _svh_localparams(serial_path.parent / "vector_manifest.svh") | {"latency_cycles": 2}
 
 
 def test_rtl_matching_export_refuses_unknown_variants(tmp_path):

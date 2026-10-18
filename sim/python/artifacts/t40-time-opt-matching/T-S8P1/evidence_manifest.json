@@ -1,0 +1,324 @@
+{
+  "evidence_for": "rtl_matching vector matching of T-S8P1",
+  "expected_ii": 1,
+  "frames": {
+    "canonical/none": {
+      "bound_sha256": {
+        "expected_hex": "a1899d85e2d999e511070587d8135af350e1712f9b8acc0b4ff5e3f966d04d0c",
+        "input_hex": "20944e8726af4412334af3f52c84414b29372a8cff4e57f18cd4580d9e6077ee",
+        "vector_manifest_svh": "335bd1dcecb7b7a9b273f497f557f4f2a03c038b64ddb4da78f7eb5deaa9b44a"
+      },
+      "captured_output_sha256": "a1899d85e2d999e511070587d8135af350e1712f9b8acc0b4ff5e3f966d04d0c",
+      "continuous": {
+        "accepted_beats": 2055,
+        "accepted_input_samples": 2055,
+        "compared": 2055,
+        "cycles": 2057,
+        "emitted_beats": 2055,
+        "flush_samples": 7,
+        "ii_max": 1,
+        "ii_min": 1,
+        "interval_count": 2054,
+        "measured_ii": 1,
+        "measured_latency_cycles": 2,
+        "raw_output_samples": 2055,
+        "robustness": 0,
+        "source_samples": 2048,
+        "tail_stalls": 0,
+        "transport_padding_samples": 0
+      },
+      "declared": {
+        "DATA_WIDTH": 16,
+        "SPC": 1,
+        "accepted_input_samples": 2055,
+        "flush_samples": 7,
+        "latency_cycles": 2,
+        "latency_samples": 0,
+        "raw_output_samples": 2055,
+        "transport_padding_samples": 0,
+        "valid_len": 2055,
+        "valid_start": 0
+      },
+      "dut_parameters": {
+        "PIPELINE_DEPTH": 1,
+        "SYSTOLIC_PES": 8
+      },
+      "log_file": "canonical-none.log",
+      "log_sha256": "97c4360872a73458bb7103f5218483186b26c84352b047f153732fb8b3b5b1c9",
+      "midtraffic_reset": {
+        "prefix_accepted": 2,
+        "restart_index": 0
+      },
+      "pass_line": "PASS: vector window W=16 SPC=1 compared=2055",
+      "result": "PASS",
+      "robustness": {
+        "accepted_beats": 2055,
+        "accepted_input_samples": 2055,
+        "compared": 2055,
+        "cycles": 4309,
+        "emitted_beats": 2055,
+        "flush_samples": 7,
+        "ii_max": -1,
+        "ii_min": -1,
+        "interval_count": 0,
+        "measured_ii": "undefined",
+        "measured_latency_cycles": "undefined",
+        "raw_output_samples": 2055,
+        "robustness": 1,
+        "source_samples": 2048,
+        "tail_stalls": 2,
+        "transport_padding_samples": 0
+      }
+    },
+    "sys_corners/corner_repeat": {
+      "bound_sha256": {
+        "expected_hex": "9e3d7feed45fc7dadc296dcfd754ea246f3658bba248270f85bbdedbd44f9e45",
+        "input_hex": "6895329965402b8ad5894154cf204a99ff29e3d114cecfb9856babfd06a4e749",
+        "vector_manifest_svh": "701ab6903c725d22c07b1017ea6fb526ed26e149d1415f91ac107be74ea2277f"
+      },
+      "captured_output_sha256": "9e3d7feed45fc7dadc296dcfd754ea246f3658bba248270f85bbdedbd44f9e45",
+      "continuous": {
+        "accepted_beats": 2055,
+        "accepted_input_samples": 2055,
+        "compared": 2055,
+        "cycles": 2057,
+        "emitted_beats": 2055,
+        "flush_samples": 7,
+        "ii_max": 1,
+        "ii_min": 1,
+        "interval_count": 2054,
+        "measured_ii": 1,
+        "measured_latency_cycles": 2,
+        "raw_output_samples": 2055,
+        "robustness": 0,
+        "source_samples": 2048,
+        "tail_stalls": 0,
+        "transport_padding_samples": 0
+      },
+      "declared": {
+        "DATA_WIDTH": 16,
+        "SPC": 1,
+        "accepted_input_samples": 2055,
+        "flush_samples": 7,
+        "latency_cycles": 2,
+        "latency_samples": 0,
+        "raw_output_samples": 2055,
+        "transport_padding_samples": 0,
+        "valid_len": 2055,
+        "valid_start": 0
+      },
+      "dut_parameters": {
+        "PIPELINE_DEPTH": 1,
+        "SYSTOLIC_PES": 8
+      },
+      "log_file": "sys_corners-corner_repeat.log",
+      "log_sha256": "97c4360872a73458bb7103f5218483186b26c84352b047f153732fb8b3b5b1c9",
+      "midtraffic_reset": {
+        "prefix_accepted": 2,
+        "restart_index": 0
+      },
+      "pass_line": "PASS: vector window W=16 SPC=1 compared=2055",
+      "result": "PASS",
+      "robustness": {
+        "accepted_beats": 2055,
+        "accepted_input_samples": 2055,
+        "compared": 2055,
+        "cycles": 4309,
+        "emitted_beats": 2055,
+        "flush_samples": 7,
+        "ii_max": -1,
+        "ii_min": -1,
+        "interval_count": 0,
+        "measured_ii": "undefined",
+        "measured_latency_cycles": "undefined",
+        "raw_output_samples": 2055,
+        "robustness": 1,
+        "source_samples": 2048,
+        "tail_stalls": 2,
+        "transport_padding_samples": 0
+      }
+    },
+    "sys_corners/max_alternation": {
+      "bound_sha256": {
+        "expected_hex": "1cc5f72876e559a8de4b69457ab83aa9da9f67caf96696441b74c21ce6633ec6",
+        "input_hex": "d0eb55def7c10f5d22e20c6f06c48bb28477c18488433255c390d046b5626aba",
+        "vector_manifest_svh": "72dffe73e2f5ab1cb97c7042369fbe559aebbc541e6fa7bc85f86a37aaa38626"
+      },
+      "captured_output_sha256": "1cc5f72876e559a8de4b69457ab83aa9da9f67caf96696441b74c21ce6633ec6",
+      "continuous": {
+        "accepted_beats": 2055,
+        "accepted_input_samples": 2055,
+        "compared": 2055,
+        "cycles": 2057,
+        "emitted_beats": 2055,
+        "flush_samples": 7,
+        "ii_max": 1,
+        "ii_min": 1,
+        "interval_count": 2054,
+        "measured_ii": 1,
+        "measured_latency_cycles": 2,
+        "raw_output_samples": 2055,
+        "robustness": 0,
+        "source_samples": 2048,
+        "tail_stalls": 0,
+        "transport_padding_samples": 0
+      },
+      "declared": {
+        "DATA_WIDTH": 16,
+        "SPC": 1,
+        "accepted_input_samples": 2055,
+        "flush_samples": 7,
+        "latency_cycles": 2,
+        "latency_samples": 0,
+        "raw_output_samples": 2055,
+        "transport_padding_samples": 0,
+        "valid_len": 2055,
+        "valid_start": 0
+      },
+      "dut_parameters": {
+        "PIPELINE_DEPTH": 1,
+        "SYSTOLIC_PES": 8
+      },
+      "log_file": "sys_corners-max_alternation.log",
+      "log_sha256": "97c4360872a73458bb7103f5218483186b26c84352b047f153732fb8b3b5b1c9",
+      "midtraffic_reset": {
+        "prefix_accepted": 2,
+        "restart_index": 0
+      },
+      "pass_line": "PASS: vector window W=16 SPC=1 compared=2055",
+      "result": "PASS",
+      "robustness": {
+        "accepted_beats": 2055,
+        "accepted_input_samples": 2055,
+        "compared": 2055,
+        "cycles": 4309,
+        "emitted_beats": 2055,
+        "flush_samples": 7,
+        "ii_max": -1,
+        "ii_min": -1,
+        "interval_count": 0,
+        "measured_ii": "undefined",
+        "measured_latency_cycles": "undefined",
+        "raw_output_samples": 2055,
+        "robustness": 1,
+        "source_samples": 2048,
+        "tail_stalls": 2,
+        "transport_padding_samples": 0
+      }
+    },
+    "sys_corners/single_symbol_perturbation": {
+      "bound_sha256": {
+        "expected_hex": "23827c4c1c5e8ff4c233b504824fa6b885b58490280978e6a63e34290363e4c2",
+        "input_hex": "5e52666d86d6c7574b98eb0ffb5d7fa56ccaf9ca1d3b6d2cd0f293e23bab8d8d",
+        "vector_manifest_svh": "74165baf432a70e683f213eb4af5497e2923db7470744d04dabb585a4cbd2d05"
+      },
+      "captured_output_sha256": "23827c4c1c5e8ff4c233b504824fa6b885b58490280978e6a63e34290363e4c2",
+      "continuous": {
+        "accepted_beats": 2055,
+        "accepted_input_samples": 2055,
+        "compared": 2055,
+        "cycles": 2057,
+        "emitted_beats": 2055,
+        "flush_samples": 7,
+        "ii_max": 1,
+        "ii_min": 1,
+        "interval_count": 2054,
+        "measured_ii": 1,
+        "measured_latency_cycles": 2,
+        "raw_output_samples": 2055,
+        "robustness": 0,
+        "source_samples": 2048,
+        "tail_stalls": 0,
+        "transport_padding_samples": 0
+      },
+      "declared": {
+        "DATA_WIDTH": 16,
+        "SPC": 1,
+        "accepted_input_samples": 2055,
+        "flush_samples": 7,
+        "latency_cycles": 2,
+        "latency_samples": 0,
+        "raw_output_samples": 2055,
+        "transport_padding_samples": 0,
+        "valid_len": 2055,
+        "valid_start": 0
+      },
+      "dut_parameters": {
+        "PIPELINE_DEPTH": 1,
+        "SYSTOLIC_PES": 8
+      },
+      "log_file": "sys_corners-single_symbol_perturbation.log",
+      "log_sha256": "97c4360872a73458bb7103f5218483186b26c84352b047f153732fb8b3b5b1c9",
+      "midtraffic_reset": {
+        "prefix_accepted": 2,
+        "restart_index": 0
+      },
+      "pass_line": "PASS: vector window W=16 SPC=1 compared=2055",
+      "result": "PASS",
+      "robustness": {
+        "accepted_beats": 2055,
+        "accepted_input_samples": 2055,
+        "compared": 2055,
+        "cycles": 4309,
+        "emitted_beats": 2055,
+        "flush_samples": 7,
+        "ii_max": -1,
+        "ii_min": -1,
+        "interval_count": 0,
+        "measured_ii": "undefined",
+        "measured_latency_cycles": "undefined",
+        "raw_output_samples": 2055,
+        "robustness": 1,
+        "source_samples": 2048,
+        "tail_stalls": 2,
+        "transport_padding_samples": 0
+      }
+    }
+  },
+  "method": {
+    "capture": "the continuous run writes every captured output (+capture_file) in the .hex format; its SHA-256 must equal expected_hex_sha256, independently of the testbench comparator",
+    "comparison": "exact stored codes at absolute index received*SPC + lane + latency_samples; a mismatch reports index, expected and captured code",
+    "continuous": "valid_i and ready_i held high; asserts latency_cycles from the first accepted input to the first valid output, measures II from accepted-input edges",
+    "drain": "valid_i stops after the declared accepted count; outputs drain under ready_i=1 with a bounded timeout and a check for undeclared extra emissions",
+    "midtraffic_reset": "asynchronous reset after an accepted prefix, then the robust run restarts at record 0",
+    "robustness": "seeded source bubbles and sink stalls plus a post-input tail stall; the testbench fails unless bubbles, sink stalls and DUT ready_o backpressure all occur"
+  },
+  "model_domain": "time",
+  "rtl_parameters": {
+    "PIPELINE_DEPTH": 1,
+    "SYSTOLIC_PES": 8
+  },
+  "rtl_snapshot_sha256": {
+    "rtl/common/rrc_freq_engine.sv": "b18714a90bdf9027ccae64587c3b8415c5ee17872dec9977d02cb0f2b2149a84",
+    "rtl/common/rrc_freq_pkg.sv": "a6c4814ee12471013d7ebf5f0eaeb79e28b5e4609bf8d7cc88b0d801ed9d5af0",
+    "rtl/common/rrc_pkg.sv": "f3e27179829aca714940266d81988762bb6a442c13869e4071b4226ae8f53a37",
+    "rtl/common/rrc_reset_sync.sv": "69264a4124d7dede2b0c272947714a0d10bc20c0b336fc34e752b5d87cb01435",
+    "rtl/common/rrc_stream_shell.sv": "de9997a832628814881bc3dd0f0f95309015fa490ff9273cf4569a7ac8d14f9d",
+    "rtl/run_variant.sh": "2a49ac22e76d3456aad81e4560407cb3e6da9e8d4296ab7cdfe27cfd19b91c5d",
+    "rtl/tb/rrc_stream_tb.sv": "bc81001952474af1b51d46ae5ad8c686ff667df487fbd7123e3988ef92ac15b2",
+    "rtl/time_opt/time_opt_filter.sv": "84cb31ead3406f3e9a8843710820bf6962790af36324c622b9f05d2149206a62"
+  },
+  "rtl_variant": "time_opt",
+  "simulator": "Icarus Verilog version 11.0 (stable) ()",
+  "summary": {
+    "captured_equal_to_expected": 4,
+    "compared_codes": 8220,
+    "frames": 4,
+    "measured_ii": [
+      1
+    ],
+    "measured_latency_cycles": [
+      2
+    ],
+    "mismatches": 0,
+    "passed": 4
+  },
+  "testbench": "rtl/tb/rrc_stream_tb.sv",
+  "variant_id": "T-S8P1",
+  "vector_generator": {
+    "generator": "sim/python/gen_vectors.py",
+    "source_sha256": {
+      "gen_vectors.py": "189e2d0be2e97f1aabbb48c5a3a8d6cd60f0f24b3c73d6976544361a1de4e142"
+    }
+  }
+}

@@ -10,9 +10,10 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
 VARIANTS = ("time_serial", "time_opt", "freq_serial", "freq_opt")
-# time_serial carries the T30 filter (its reset test is in test_rtl_time_serial.py)
-# and freq_serial the T32 engine (test_rtl_freq_serial.py): neither is a T03 transport shell.
-TRANSPORT_VARIANTS = ("time_opt", "freq_opt")
+# time_serial carries the T30 filter (its reset test is in test_rtl_time_serial.py),
+# freq_serial the T32 engine (test_rtl_freq_serial.py) and time_opt the T40 filter
+# (test_rtl_time_opt.py): none of them is a T03 transport shell.
+TRANSPORT_VARIANTS = ("freq_opt",)
 FREQUENCY = ("freq_serial", "freq_opt")
 
 

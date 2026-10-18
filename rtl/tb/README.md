@@ -9,13 +9,15 @@ filter arithmetic against structural fixtures from an exact integer reference
 of the accepted time policy (including the impulse check `x[0] => y[0:8] = h`); see
 `rtl/time_serial/README.md`. Since T31 (#48), `time_serial` also matches the
 committed `sim/vectors/rtl_matching/T-serial` vectors (see below); frequency
-matching against `sim/vectors/` is T33 (#50).
+matching against `sim/vectors/` is T33 (#50). Since T40 (#51), `time_opt` runs
+the T-S4P1/T-S8P1 filter on the same structural frames and matches its own
+`rtl_matching` vectors (see the T40 section below and `rtl/time_opt/README.md`).
 
 From the repository root:
 
 ```bash
 bash rtl/run.sh
-bash rtl/time_opt/run.sh --data-width 8 --spc 4
+bash rtl/freq_opt/run.sh --data-width 8 --spc 4
 python -m pytest sim/python/tests/test_rtl_stream.py -v
 ```
 
@@ -26,7 +28,7 @@ metadata-only `vector_manifest.svh`, and SHA-256 sidecars. Expected output is
 identity transport, not filtered QPSK. Python 3 is needed for generation.
 
 To consume an existing **shell fixture**, use
-`bash rtl/time_opt/run.sh --vectors /path/to/fixture`. Files and sidecars
+`bash rtl/freq_opt/run.sh --vectors /path/to/fixture`. Files and sidecars
 must exist and hashes must pass before compilation. Width/SPC overrides cannot
 be combined with `--vectors`: the manifest owns those values. Transport
 wrappers reject metadata without `RRC_SHELL_FIXTURE`; real RRC manifests are
@@ -65,6 +67,24 @@ from the first accepted input to the first valid output in the continuous run,
 where the TB has just asserted them against `latency_cycles`, and `undefined`
 in the robust run, whose stalls are not part of the latency. Evidence and
 results are in `rtl/time_serial/README.md`.
+
+## T40 rows (#51)
+
+`time_opt_filter` is one source with two base rows, so the runner also takes
+the row: `--systolic-pes S` (4 for T-S4P1, 8 for T-S8P1) and
+`--pipeline-depth P` (1). It compiles the TB with `-D TIME_OPT_DUT` and the
+two values as macros, and the TB passes them to the instance. Before the
+first run it prints `DUT parameters SYSTOLIC_PES=<S> PIPELINE_DEPTH=<P>`,
+read back from the instance. `bash rtl/time_opt/run.sh` without
+`--systolic-pes` runs both rows on the generated fixture; `--vectors` and
+`--capture` belong to one row, so the script refuses them without it. The `.svh` is unchanged: the row comes from the JSON
+manifest's `rtl_parameters`, which `rtl_matching_stage.py` turns into those
+arguments.
+
+The two rows emit the same codes with the same latency, so the TB alone
+cannot tell their runs apart. The evidence does that: it requires the printed
+row to equal `rtl_parameters` and the measured `II` to be `8/S`. The TB still
+only reports `II`; it does not assert it.
 
 ## Scoreboard and coverage
 

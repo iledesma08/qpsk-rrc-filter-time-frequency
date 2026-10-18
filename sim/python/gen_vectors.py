@@ -123,6 +123,9 @@ _SVH_FIELDS = (
 # Streaming metadata per variant (rtl-streaming-17, schema sections 3 and 7).
 # latency_* is the variant's declared design latency. The matching testbench
 # asserts it in the unstalled ready_i=1 run, so a wrong value fails matching.
+# rtl_parameters names the matrix row of a parameterized RTL source (T40: one
+# time_opt_filter for T-S4P1/T-S8P1); the runner passes it to the testbench.
+# It stays out of the .svh and never uses the legacy name "S".
 _RTL_VARIANTS = {
     "T-serial": {
         "model_domain": "time",
@@ -134,12 +137,25 @@ _RTL_VARIANTS = {
         "flush_samples": 7,
         "evidence_file": "sim/python/artifacts/t31-time-matching/evidence_manifest.json",
     },
+    **{
+        variant_id: {
+            "model_domain": "time",
+            "rtl_variant": "time_opt",
+            "rtl_parameters": {"SYSTOLIC_PES": pes, "PIPELINE_DEPTH": 1},
+            "SPC": 1,
+            "latency_samples": 0,
+            # Accept edge plus the slot-0 edge that closes y[n], for every S.
+            "latency_cycles": 2,
+            "fft_pipeline_cycles": 0,
+            "flush_samples": 7,
+            "evidence_file": f"sim/python/artifacts/t40-time-opt-matching/{variant_id}/evidence_manifest.json",
+        }
+        for variant_id, pes in (("T-S4P1", 4), ("T-S8P1", 8))
+    },
 }
 # Variants whose matching metadata belongs to another task: refused, never guessed.
 _RESERVED_VARIANTS = {
     "F-serial": "T33 (#50)",
-    "T-S4P1": "T40 (#51)",
-    "T-S8P1": "T40 (#51)",
     "F-U4": "T42 (#53)",
     "F-U8": "T42 (#53)",
 }
@@ -648,7 +664,7 @@ def _svh_text(manifest: dict) -> str:
 
 
 def export_rtl_matching(output_dir: Path, variant_id: str, vectors_dir: Path | None = None) -> list[Path]:
-    """Write the F3 ``rtl_matching`` metadata of one variant (T31 #48); return the manifest paths.
+    """Write the F3 ``rtl_matching`` metadata of one variant (T31 #48, T40 #51); return the manifest paths.
 
     Each frame directory gets a JSON manifest (schema sections 1-4 plus the
     variant identity and transport counts) and the metadata-only
@@ -711,6 +727,7 @@ def export_rtl_matching(output_dir: Path, variant_id: str, vectors_dir: Path | N
             "model_domain": domain,
             "variant_id": variant_id,
             "rtl_variant": variant["rtl_variant"],
+            **({"rtl_parameters": variant["rtl_parameters"]} if "rtl_parameters" in variant else {}),
             **{field: f2[field] for field in (*_STIMULUS_CONSTANTS, "vector_set", "vector_case")},
             **{field: f2[field] for field in FXP_FIELDS},
             "DATA_WIDTH": f2["W_common"],
@@ -769,7 +786,7 @@ def export_rtl_matching(output_dir: Path, variant_id: str, vectors_dir: Path | N
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate staged golden vectors (T13: float_reference, T22: fxp_expected, T31: rtl_matching)"
+        description="Generate staged golden vectors (T13: float_reference, T22: fxp_expected, T31/T40: rtl_matching)"
     )
     parser.add_argument("--stage", choices=STAGES, default="float_reference")
     parser.add_argument("--output-dir", type=Path, default=_DEFAULT_OUTPUT_DIR)
@@ -778,7 +795,7 @@ def main() -> None:
         type=Path,
         help="also write review-evidence plots of the float_reference vectors (not part of the vectors)",
     )
-    parser.add_argument("--variant", help="variant_id of the rtl_matching stage, e.g. T-serial")
+    parser.add_argument("--variant", help="variant_id of the rtl_matching stage, e.g. T-serial or T-S4P1")
     args = parser.parse_args()
     if args.plots_dir is not None and args.stage != "float_reference":
         parser.error("--plots-dir is only available for --stage float_reference")

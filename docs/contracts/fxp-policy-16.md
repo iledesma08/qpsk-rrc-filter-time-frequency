@@ -6,7 +6,8 @@ Map: [#12](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/issues/1
 
 Date: 2026-09-22
 
-Updated: 2026-10-10 (production-A freeze accepted 2026-10-09, #44; T21
+Updated: 2026-10-17 (time accumulation-order clarification, T40 #51);
+2026-10-10 (production-A freeze accepted 2026-10-09, #44; T21
 acceptance record, #45); 2026-10-07 (production-A integer freeze amendment
 proposed, #44); 2026-10-06 (cross-domain SQNR amendment, #74); 2026-10-02
 (production Q2.14, numeric freeze and base-scope amendments)
@@ -724,6 +725,34 @@ of changing the frame.
 
 Optional experiments (truncation/wrap controls, 33/34-bit accumulators and
 frequency B) were not run; Q1 sensitivity remains outside base.
+
+## Time accumulation-order clarification (accepted 2026-10-17, T40 #51)
+
+Status: accepted 2026-10-17 by the T40 owner (@matiascostamagna) as a recorded
+deviation in the #51 analysis, and reviewed with the T40 PR. It clarifies item
+3 of the production-A time freeze ("Accumulation in ascending tap order
+`k = 0..7` ... Every partial sum is checked"). No width, rounding,
+saturation, coefficient or output code changes.
+
+- Item 3 fixes the reference order of the T20 FXP model
+  (`fxp.filter_time_fxp`). The model keeps that order and its check of every
+  partial sum.
+- An RTL datapath may add the same eight full-precision `2W`-bit products in
+  another order or grouping, provided no association can leave the
+  `2W+3`-bit accumulator for any input code. Examples are partial sums
+  carried across parallel PEs, as in the folded transposed form of
+  `T-S4P1`/`T-S8P1` (each output adds its products in the order
+  `k = 7..0`), or an adder tree.
+- At production `W=16` that bound holds for every association: any partial
+  sum of any subset of the products is at most
+  `2^(W-1) * sum|c[k]| = 2^15 * 30220 = 990248960 < 2^34`. Integer addition
+  without overflow is associative and commutative, so every association gives
+  the same 35-bit sum. The single RNE cast with saturation then gives the same
+  output code.
+- Each such RTL proves the bound at elaboration (as `time_serial_filter.sv`
+  does) and proves its codes by vector matching against the T22 export. It
+  also needs directed rounding and saturation frames, because the QPSK frames
+  never round or saturate.
 
 ## Open Items
 

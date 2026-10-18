@@ -1,4 +1,4 @@
-"""Stage the committed rtl_matching vectors of one variant for rrc_stream_tb (T31, #48).
+"""Stage the committed rtl_matching vectors of one variant for rrc_stream_tb (T31 #48, T40 #51).
 
 ``sim/vectors/rtl_matching/<variant_id>/<vector_set>/<vector_case>/`` holds only
 metadata: the JSON manifest and the ``vector_manifest.svh`` the testbench
@@ -7,9 +7,12 @@ manifest binds them by hash. Staging checks every sidecar, every bound hash and
 that the ``.svh`` localparams equal the manifest, then copies ``input.hex``,
 ``expected.hex`` and the ``.svh`` into a build directory (never
 ``sim/vectors/``), where ``rtl/run_variant.sh`` checks the sidecars again before
-compiling. With ``--evidence-dir`` it runs every frame, captures the RTL
-outputs of the continuous run next to each staged frame and writes the matching
-evidence. Standard library only, so the RTL CI job needs no NumPy.
+compiling. A parameterized RTL source gets its matrix row from the manifest's
+``rtl_parameters`` (T40: ``SYSTOLIC_PES``/``PIPELINE_DEPTH`` of time_opt),
+passed to the runner as arguments. With ``--evidence-dir`` it runs every frame,
+captures the RTL outputs of the continuous run next to each staged frame and
+writes the matching evidence. Standard library only, so the RTL CI job needs no
+NumPy.
 """
 
 import argparse
@@ -39,6 +42,9 @@ _BOUND_PAYLOADS = (
 )
 _LOCALPARAM = re.compile(r"^localparam integer (\w+) = (-?\d+);$", re.M)
 _FIELD = re.compile(r"(\w+)=(\S+)")
+# Runner argument of each rtl_parameters entry (rtl/run_variant.sh).
+_RUNNER_FLAGS = {"SYSTOLIC_PES": "--systolic-pes", "PIPELINE_DEPTH": "--pipeline-depth"}
+TIME_TAPS = 8
 
 
 def _sha256(data: bytes) -> str:
@@ -112,13 +118,31 @@ def stage(output: Path, variant_id: str, vector_set: str, vector_case: str, vect
     return output
 
 
-def run_matching(rtl_variant: str, staged: Path, capture: Path | None = None) -> subprocess.CompletedProcess:
+def runner_arguments(parameters: dict[str, int]) -> list[str]:
+    """Return the runner arguments that select the matrix row named by ``rtl_parameters``."""
+    unknown = sorted(set(parameters) - set(_RUNNER_FLAGS))
+    if unknown:
+        raise ValueError(f"rtl_parameters: no runner argument for {unknown}")
+    return [item for name, value in sorted(parameters.items()) for item in (_RUNNER_FLAGS[name], str(value))]
+
+
+def expected_ii(manifest: dict) -> int | None:
+    """Return the initiation interval a time variant must measure, ``8/S`` (T-serial is ``S=1``)."""
+    if manifest["model_domain"] != "time":
+        return None
+    return TIME_TAPS // manifest.get("rtl_parameters", {}).get("SYSTOLIC_PES", 1)
+
+
+def run_matching(rtl_variant: str, staged: Path, capture: Path | None = None,
+                 parameters: dict[str, int] | None = None) -> subprocess.CompletedProcess:
     """Run the variant's runner on a staged frame (shared testbench, Icarus).
 
     With ``capture`` the testbench also writes every output of its continuous
     run there, one packed ``{Q,I}`` record per line, in the ``.hex`` format.
+    ``parameters`` (the manifest's ``rtl_parameters``) selects the matrix row.
     """
     arguments = ["--vectors", str(staged)] + (["--capture", str(capture)] if capture is not None else [])
+    arguments += runner_arguments(parameters or {})
     return subprocess.run(
         ["bash", str(ROOT / "rtl" / rtl_variant / "run.sh"), *arguments],
         cwd=ROOT, capture_output=True, text=True, timeout=600, check=False,
@@ -126,7 +150,7 @@ def run_matching(rtl_variant: str, staged: Path, capture: Path | None = None) ->
 
 
 def parse_report(stdout: str) -> dict:
-    """Return the testbench report: both ``Frame`` lines, the mid-traffic reset and the PASS line."""
+    """Return the testbench report: both ``Frame`` lines, the mid-traffic reset, the DUT row and the PASS line."""
     def value(text: str):
         return int(text) if re.fullmatch(r"-?\d+", text) else text
 
@@ -137,6 +161,8 @@ def parse_report(stdout: str) -> dict:
             report["robustness" if fields["robustness"] else "continuous"] = fields
         elif line.startswith("Midtraffic reset "):
             report["midtraffic_reset"] = {key: value(text) for key, text in _FIELD.findall(line)}
+        elif line.startswith("DUT parameters "):
+            report["dut_parameters"] = {key: value(text) for key, text in _FIELD.findall(line)}
         elif line.startswith("PASS: "):
             report["pass"] = line
     return report
@@ -162,21 +188,26 @@ def write_evidence(variant_id: str, evidence_dir: Path, build_dir: Path, vectors
     measured latency, II, transport counts and robustness coverage. Each
     continuous run also captures the RTL outputs into ``<build_dir>/<frame>/``;
     their hash must equal the bound expected codes, independently of the
-    testbench comparator.
+    testbench comparator. For a parameterized source the testbench must report
+    the row of ``rtl_parameters`` and a time variant must measure ``II = 8/S``:
+    T-S4P1 and T-S8P1 emit the same codes with the same latency, so the II is
+    what binds a run to its row.
     """
     evidence_dir = Path(evidence_dir)
     evidence_dir.mkdir(parents=True, exist_ok=True)
     frames = {}
-    rtl_variant = domain = None
+    rtl_variant = domain = provenance = ii = None
     for vector_set, vector_case in FRAMES:
         key = f"{vector_set}/{vector_case}"
         frame = load_matching(variant_id, vector_set, vector_case, vectors)
         manifest = frame["manifest"]
         rtl_variant, domain = manifest["rtl_variant"], manifest["model_domain"]
+        parameters = manifest.get("rtl_parameters", {})
+        provenance, ii = manifest["provenance"], expected_ii(manifest)
         staged = stage(Path(build_dir) / f"{vector_set}-{vector_case}", variant_id, vector_set, vector_case, vectors)
         capture = staged / CAPTURE_FILE
         capture.unlink(missing_ok=True)
-        result = run_matching(rtl_variant, staged, capture)
+        result = run_matching(rtl_variant, staged, capture, parameters)
         log = result.stdout + result.stderr
         log_name = f"{vector_set}-{vector_case}.log"
         (evidence_dir / log_name).write_text(log, encoding="utf-8")
@@ -186,6 +217,10 @@ def write_evidence(variant_id: str, evidence_dir: Path, build_dir: Path, vectors
         continuous = report["continuous"]
         if continuous["measured_latency_cycles"] != manifest["latency_cycles"]:
             raise RuntimeError(f"{key}: measured latency differs from the manifest")
+        if parameters and report.get("dut_parameters") != parameters:
+            raise RuntimeError(f"{key}: the testbench elaborated {report.get('dut_parameters')}, not {parameters}")
+        if ii is not None and continuous["measured_ii"] != ii:
+            raise RuntimeError(f"{key}: measured II {continuous['measured_ii']} is not {ii}")
         captured_sha256 = _sha256(capture.read_bytes())
         if captured_sha256 != manifest["hashes"]["expected_hex_sha256"]:
             raise RuntimeError(f"{key}: captured RTL outputs differ from the bound expected codes")
@@ -206,6 +241,7 @@ def write_evidence(variant_id: str, evidence_dir: Path, build_dir: Path, vectors
             "continuous": continuous,
             "robustness": report["robustness"],
             "midtraffic_reset": report["midtraffic_reset"],
+            **({"dut_parameters": report["dut_parameters"]} if parameters else {}),
             "captured_output_sha256": captured_sha256,
             "log_file": log_name,
             "log_sha256": _sha256(log.encode("utf-8")),
@@ -216,6 +252,10 @@ def write_evidence(variant_id: str, evidence_dir: Path, build_dir: Path, vectors
         "variant_id": variant_id,
         "rtl_variant": rtl_variant,
         "model_domain": domain,
+        **({"rtl_parameters": parameters} if parameters else {}),
+        **({"expected_ii": ii} if ii is not None else {}),
+        # Revision of the generator that wrote the rtl_matching metadata these runs consumed.
+        "vector_generator": provenance,
         "testbench": "rtl/tb/rrc_stream_tb.sv",
         "simulator": _simulator_version(),
         "method": {
@@ -252,7 +292,7 @@ def write_evidence(variant_id: str, evidence_dir: Path, build_dir: Path, vectors
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Stage (and optionally run) the rtl_matching vectors of a variant")
-    parser.add_argument("--variant", required=True, help="variant_id, e.g. T-serial")
+    parser.add_argument("--variant", required=True, help="variant_id, e.g. T-serial or T-S8P1")
     parser.add_argument("--output", type=Path, help="staging directory (default .build/rtl/matching/<variant>)")
     parser.add_argument("--evidence-dir", type=Path, help="also run every frame and write the matching evidence here")
     arguments = parser.parse_args()
