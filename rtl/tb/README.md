@@ -86,6 +86,31 @@ cannot tell their runs apart. The evidence does that: it requires the printed
 row to equal `rtl_parameters` and the measured `II` to be `8/S`. The TB still
 only reports `II`; it does not assert it.
 
+## T41 target runs (#52)
+
+The PPA target runs reuse this TB on the final netlist of each OpenLane run
+(`sim/python/tests/ppa_stage.py`, see `openlane/README.md`). Three runner
+options, all off by default, so every other run is unchanged:
+
+- `--clock-period-ns P` compiles with `-D CLK_PERIOD_NS=P`: the run's period,
+  100 for SLOW, 10 for FAST. Without it the clock stays at 10 ns. The TB's
+  `#1`/`#2` offsets after the edges fit both periods.
+- `--netlist <nl.v> --cell-models <dir>` replaces the RTL with the netlist and
+  the Sky130 functional cell models (`-D GATE_LEVEL -D FUNCTIONAL`). The
+  instance then takes no parameters (synthesis bound them) and the TB does not
+  print the `DUT parameters` line, so the row is told apart by its `II`. The
+  flops get `UNIT_DELAY=#0.1`: their outputs change after the TB samples at the
+  edge and before its `+1 ns` checks, as nonblocking RTL registers do.
+- `--activity-vcd <file>` passes `+activity_vcd`: the continuous run dumps the
+  DUT and one level below it (in a netlist, every cell pin) from its first
+  cycle until `$dumpoff` at the negedge after its last output, and prints
+  `Activity window start_ns=... end_ns=... cycles=... period_ns=...`. The
+  window holds whole cycles; `ppa_activity.py` turns it into SAIF.
+
+The checks are the same in both modes: the gate-level run passes the
+continuous, mid-traffic-reset and robust runs, and its continuous capture must
+hash to the expected codes.
+
 ## Scoreboard and coverage
 
 The `.svh` supplies compile-time localparams for widths/SPC, source/expected file

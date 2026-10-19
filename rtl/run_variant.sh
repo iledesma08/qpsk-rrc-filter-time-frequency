@@ -5,6 +5,10 @@
 # the accepted policy, and freq_serial (T32) uses a structural fixture built
 # from the T22 vectors (see rtl_freq_fixture.py). time_opt needs its matrix row:
 # --systolic-pes S (4 for T-S4P1, 8 for T-S8P1) and --pipeline-depth P (1).
+# PPA target runs (T41): --clock-period-ns sets the testbench clock (10 ns by
+# default), --netlist runs the final netlist of an OpenLane run instead of the
+# RTL (with the Sky130 cell models of --cell-models) and --activity-vcd dumps
+# the continuous run's activity window there.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -22,9 +26,13 @@ spc=1
 override=0
 pes=""
 depth=""
+period=""
+netlist=""
+cell_models=""
+activity=""
 while (($#)); do
   case "$1" in
-    --vectors|--data-width|--spc|--capture|--systolic-pes|--pipeline-depth)
+    --vectors|--data-width|--spc|--capture|--systolic-pes|--pipeline-depth|--clock-period-ns|--netlist|--cell-models|--activity-vcd)
       if (($# < 2)); then printf 'Missing value for %s\n' "$1" >&2; exit 2; fi
       case "$1" in
         --vectors) vector_dir="$2" ;;
@@ -33,6 +41,10 @@ while (($#)); do
         --spc) spc="$2"; override=1 ;;
         --systolic-pes) pes="$2" ;;
         --pipeline-depth) depth="$2" ;;
+        --clock-period-ns) period="$2" ;;
+        --netlist) netlist="$2" ;;
+        --cell-models) cell_models="$2" ;;
+        --activity-vcd) activity="$2" ;;
       esac
       shift 2 ;;
     *) printf 'Unknown argument: %s\n' "$1" >&2; exit 2 ;;
@@ -64,6 +76,24 @@ if [[ "$variant" == time_opt ]]; then
   BUILD_DIR="$BUILD_DIR/S${pes}P${depth}"
 elif [[ -n "$pes" || -n "$depth" ]]; then
   printf -- '--systolic-pes and --pipeline-depth apply only to time_opt\n' >&2
+  exit 2
+fi
+if [[ -n "$period" ]] && ! awk -v p="$period" 'BEGIN { exit !(p ~ /^[0-9]+(\.[0-9]+)?$/ && p > 0) }'; then
+  printf -- '--clock-period-ns must be a positive number of ns, got %s\n' "$period" >&2
+  exit 2
+fi
+if [[ -n "$netlist" ]]; then
+  if [[ -z "$vector_dir" || -z "$cell_models" ]]; then
+    printf -- '--netlist needs --vectors and --cell-models (the Sky130 Verilog models directory)\n' >&2
+    exit 2
+  fi
+  for model in "$netlist" "$cell_models/primitives.v" "$cell_models/sky130_fd_sc_hd.v"; do
+    if [[ ! -f "$model" ]]; then printf 'Missing gate-level source: %s\n' "$model" >&2; exit 1; fi
+  done
+  # Gate-level builds never share the RTL binary of the same row.
+  BUILD_DIR="$BUILD_DIR/gl-${period:-10}ns"
+elif [[ -n "$cell_models" ]]; then
+  printf -- '--cell-models applies only to --netlist\n' >&2
   exit 2
 fi
 mkdir -p "$BUILD_DIR"
@@ -99,10 +129,20 @@ elif [[ "$variant" == freq_opt ]]; then
   sources+=("$ROOT/rtl/common/rrc_stream_shell.sv")
 fi
 if [[ "$variant" == freq_* ]]; then defines+=(-D FREQ_DUT); fi
+if [[ -n "$period" ]]; then defines+=(-D "CLK_PERIOD_NS=$period"); fi
+dut_sources=("${sources[@]}" "$ROOT/rtl/$variant/${variant}_filter.sv")
+if [[ -n "$netlist" ]]; then
+  # Functional cell models; the 0.1 ns flop delay keeps every register update
+  # after the testbench samples at the clock edge and before its +1 ns checks.
+  defines+=(-D GATE_LEVEL -D FUNCTIONAL -D "UNIT_DELAY=#0.1")
+  dut_sources=("$ROOT/rtl/common/rrc_pkg.sv" "$cell_models/primitives.v" "$cell_models/sky130_fd_sc_hd.v"
+               "$(realpath "$netlist")")
+fi
 iverilog -g2012 -Wall "${defines[@]}" -I "$vector_dir" \
   -s rrc_stream_tb -o "$BUILD_DIR/sim.out" \
-  "${sources[@]}" "$ROOT/rtl/$variant/${variant}_filter.sv" "$ROOT/rtl/tb/rrc_stream_tb.sv"
+  "${dut_sources[@]}" "$ROOT/rtl/tb/rrc_stream_tb.sv"
 # --capture <file>: the TB writes the continuous run's captured outputs there.
 plusargs=("+vector_dir=$vector_dir")
 if [[ -n "$capture" ]]; then plusargs+=("+capture_file=$(realpath -m "$capture")"); fi
+if [[ -n "$activity" ]]; then plusargs+=("+activity_vcd=$(realpath -m "$activity")"); fi
 vvp "$BUILD_DIR/sim.out" "${plusargs[@]}"
