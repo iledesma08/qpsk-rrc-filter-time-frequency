@@ -45,6 +45,11 @@ _FIELD = re.compile(r"(\w+)=(\S+)")
 # Runner argument of each rtl_parameters entry (rtl/run_variant.sh).
 _RUNNER_FLAGS = {"SYSTOLIC_PES": "--systolic-pes", "PIPELINE_DEPTH": "--pipeline-depth"}
 TIME_TAPS = 8
+# The ports and the engine control state of a frequency variant over the unstalled run (T33, #50).
+# It is the proof that the run covers every block, not the activity file of T43.
+VCD_FILE = "run.vcd"
+# Control states of rrc_freq_engine that the VCD records once per block, by value.
+_ENGINE_STATES = {1: "load", 2: "run", 3: "emit", 4: "drain"}
 
 
 def _sha256(data: bytes) -> str:
@@ -133,8 +138,70 @@ def expected_ii(manifest: dict) -> int | None:
     return TIME_TAPS // manifest.get("rtl_parameters", {}).get("SYSTOLIC_PES", 1)
 
 
+def expected_block_timing(manifest: dict) -> dict | None:
+    """Return the block-level timing a frequency variant must measure, from its own manifest.
+
+    ``None`` for the time domain. One block of the serial engine takes ``HOP``
+    cycles to accept, one to load, ``fft_pipeline_cycles`` to run, ``EMIT_LEN`` to
+    emit and one to drain, so a continuous run starts a block every
+    ``HOP + 1 + fft_pipeline_cycles + EMIT_LEN + 1`` cycles. The first 257 - 1 = 256
+    intervals are the steady-state ones (ppa-matrix-18, Workload). Fill is the
+    first accepted sample to the first valid output; tail is the last accepted
+    sample (the last flush beat) to the last output beat, which is the fill
+    without the other ``HOP - 1`` accept cycles and plus the other ``EMIT_LEN - 1``.
+    """
+    if manifest["model_domain"] != "frequency":
+        return None
+    hop, emit = manifest["HOP"], manifest["EMIT_LEN"]
+    blocks = manifest["accepted_input_samples"] // hop
+    return {
+        "blocks": blocks,
+        "block_ii_count": blocks - 1,
+        "block_ii": hop + 1 + manifest["fft_pipeline_cycles"] + emit + 1,
+        "fill_latency_cycles": manifest["latency_cycles"],
+        "tail_latency_cycles": manifest["latency_cycles"] - (hop - 1) + (emit - 1),
+    }
+
+
+def summarize_vcd(path: Path, expected_blocks: int) -> dict:
+    """Return how much of the run a testbench VCD covers, counted from the engine state it records.
+
+    Every block enters LOAD, RUN, EMIT and DRAIN once, so a dump that covers all
+    blocks has ``expected_blocks`` entries of each. The hash is over the value
+    changes only: the header carries the date of the run.
+    """
+    text = Path(path).read_bytes().decode("ascii")
+    header, marker, body = text.partition("$enddefinitions $end")
+    state = re.search(r"\$var \w+ \d+ (\S+) state \[2:0\] \$end", header)
+    if not marker or state is None:
+        raise ValueError(f"{path}: not a VCD with the engine state")
+    body = body.partition("$dumpoff")[0]
+    entries = {name: 0 for name in _ENGINE_STATES.values()}
+    previous, last_time = 0, 0
+    for line in body.splitlines():
+        line = line.strip()
+        if line.startswith("#"):
+            last_time = int(line[1:])
+        elif line.startswith("b"):
+            bits, _, identifier = line[1:].partition(" ")
+            if identifier == state.group(1) and set(bits) <= {"0", "1"}:
+                value = int(bits, 2)
+                if value != previous and value in _ENGINE_STATES:
+                    entries[_ENGINE_STATES[value]] += 1
+                previous = value
+    return {
+        "bytes": len(text.encode("ascii")),
+        "value_changes_sha256": _sha256(body.encode("ascii")),
+        "last_time": last_time,
+        "timescale": " ".join(re.search(r"\$timescale\s+(.*?)\s+\$end", header, re.S).group(1).split()),
+        "engine_state_entries": entries,
+        "blocks_expected": expected_blocks,
+        "covers_all_blocks": all(count == expected_blocks for count in entries.values()),
+    }
+
+
 def run_matching(rtl_variant: str, staged: Path, capture: Path | None = None,
-                 parameters: dict[str, int] | None = None) -> subprocess.CompletedProcess:
+                 parameters: dict[str, int] | None = None, vcd: Path | None = None) -> subprocess.CompletedProcess:
     """Run the variant's runner on a staged frame (shared testbench, Icarus).
 
     With ``capture`` the testbench also writes every output of its continuous
@@ -142,6 +209,7 @@ def run_matching(rtl_variant: str, staged: Path, capture: Path | None = None,
     ``parameters`` (the manifest's ``rtl_parameters``) selects the matrix row.
     """
     arguments = ["--vectors", str(staged)] + (["--capture", str(capture)] if capture is not None else [])
+    arguments += ["--vcd", str(vcd)] if vcd is not None else []
     arguments += runner_arguments(parameters or {})
     return subprocess.run(
         ["bash", str(ROOT / "rtl" / rtl_variant / "run.sh"), *arguments],
@@ -161,6 +229,8 @@ def parse_report(stdout: str) -> dict:
             report["robustness" if fields["robustness"] else "continuous"] = fields
         elif line.startswith("Midtraffic reset "):
             report["midtraffic_reset"] = {key: value(text) for key, text in _FIELD.findall(line)}
+        elif line.startswith("Block timing "):
+            report["block_timing"] = {key: value(text) for key, text in _FIELD.findall(line)}
         elif line.startswith("DUT parameters "):
             report["dut_parameters"] = {key: value(text) for key, text in _FIELD.findall(line)}
         elif line.startswith("PASS: "):
@@ -204,11 +274,18 @@ def write_evidence(variant_id: str, evidence_dir: Path, build_dir: Path, vectors
         rtl_variant, domain = manifest["rtl_variant"], manifest["model_domain"]
         parameters = manifest.get("rtl_parameters", {})
         provenance, ii = manifest["provenance"], expected_ii(manifest)
+        timing = expected_block_timing(manifest)
         staged = stage(Path(build_dir) / f"{vector_set}-{vector_case}", variant_id, vector_set, vector_case, vectors)
         capture = staged / CAPTURE_FILE
         capture.unlink(missing_ok=True)
-        result = run_matching(rtl_variant, staged, capture, parameters)
-        log = result.stdout + result.stderr
+        vcd = staged / VCD_FILE if timing is not None else None
+        if vcd is not None:
+            vcd.unlink(missing_ok=True)
+        result = run_matching(rtl_variant, staged, capture, parameters, vcd)
+        # Icarus names the VCD it opens with an absolute path of this machine: keep it out of the log, whose
+        # hash the evidence records, so the evidence does not depend on where it was generated.
+        log = "".join(line + "\n" for line in (result.stdout + result.stderr).splitlines()
+                      if not line.startswith("VCD info:"))
         log_name = f"{vector_set}-{vector_case}.log"
         (evidence_dir / log_name).write_text(log, encoding="utf-8")
         if result.returncode != 0:
@@ -221,9 +298,32 @@ def write_evidence(variant_id: str, evidence_dir: Path, build_dir: Path, vectors
             raise RuntimeError(f"{key}: the testbench elaborated {report.get('dut_parameters')}, not {parameters}")
         if ii is not None and continuous["measured_ii"] != ii:
             raise RuntimeError(f"{key}: measured II {continuous['measured_ii']} is not {ii}")
+        block_timing = vcd_coverage = None
+        if timing is not None:
+            block_timing = report.get("block_timing")
+            expected_fields = {"blocks": timing["blocks"], "block_ii_count": timing["block_ii_count"],
+                               "block_ii_min": timing["block_ii"], "block_ii_max": timing["block_ii"],
+                               "fill_latency_cycles": timing["fill_latency_cycles"],
+                               "tail_latency_cycles": timing["tail_latency_cycles"]}
+            measured = {name: (block_timing or {}).get(name) for name in expected_fields}
+            if measured != expected_fields:
+                raise RuntimeError(f"{key}: block timing {measured} differs from the expected {expected_fields}")
+            vcd_coverage = summarize_vcd(vcd, timing["blocks"])
+            if not vcd_coverage["covers_all_blocks"]:
+                raise RuntimeError(f"{key}: the VCD does not cover all {timing['blocks']} blocks: {vcd_coverage}")
         captured_sha256 = _sha256(capture.read_bytes())
-        if captured_sha256 != manifest["hashes"]["expected_hex_sha256"]:
+        # The capture holds every raw output beat. Only the records inside the valid window are expected
+        # codes; any others are the declared block padding (the last frequency output, index 2055), which
+        # is recorded but never compared.
+        records = capture.read_text(encoding="ascii").split()
+        if len(records) != manifest["raw_output_samples"]:
+            raise RuntimeError(f"{key}: {len(records)} captured outputs, {manifest['raw_output_samples']} declared")
+        first = manifest["valid_start"] - manifest["latency_samples"]
+        window = records[first : first + manifest["valid_len"]]
+        window_sha256 = _sha256(("\n".join(window) + "\n").encode("ascii"))
+        if window_sha256 != manifest["hashes"]["expected_hex_sha256"]:
             raise RuntimeError(f"{key}: captured RTL outputs differ from the bound expected codes")
+        padding = records[:first] + records[first + manifest["valid_len"]:]
         frames[key] = {
             "result": "PASS",
             "pass_line": report["pass"],
@@ -242,7 +342,10 @@ def write_evidence(variant_id: str, evidence_dir: Path, build_dir: Path, vectors
             "robustness": report["robustness"],
             "midtraffic_reset": report["midtraffic_reset"],
             **({"dut_parameters": report["dut_parameters"]} if parameters else {}),
+            **({"block_timing": block_timing, "vcd": vcd_coverage} if timing is not None else {}),
             "captured_output_sha256": captured_sha256,
+            "captured_valid_window_sha256": window_sha256,
+            "block_padding_records": padding,
             "log_file": log_name,
             "log_sha256": _sha256(log.encode("utf-8")),
         }
@@ -254,6 +357,7 @@ def write_evidence(variant_id: str, evidence_dir: Path, build_dir: Path, vectors
         "model_domain": domain,
         **({"rtl_parameters": parameters} if parameters else {}),
         **({"expected_ii": ii} if ii is not None else {}),
+        **({"expected_block_timing": timing} if timing is not None else {}),
         # Revision of the generator that wrote the rtl_matching metadata these runs consumed.
         "vector_generator": provenance,
         "testbench": "rtl/tb/rrc_stream_tb.sv",
@@ -269,18 +373,43 @@ def write_evidence(variant_id: str, evidence_dir: Path, build_dir: Path, vectors
             "drain": "valid_i stops after the declared accepted count; outputs drain under ready_i=1 with a "
             "bounded timeout and a check for undeclared extra emissions",
             "capture": "the continuous run writes every captured output (+capture_file) in the .hex format; "
-            "its SHA-256 must equal expected_hex_sha256, independently of the testbench comparator",
+            "the SHA-256 of its valid-window records must equal expected_hex_sha256, independently of the "
+            "testbench comparator. Records outside the window are declared block padding: recorded, not compared",
+            **(
+                {
+                    "block_timing": "continuous run: the interval between the first accepted samples of consecutive "
+                    "blocks is the block II (256 intervals for 257 blocks, the first 256 blocks); fill is the first "
+                    "accepted input to the first valid output and tail the last accepted input to the last output beat",
+                    "vcd": "+vcd_file dumps the ports and the engine control state over the continuous run; the "
+                    "engine enters LOAD, RUN, EMIT and DRAIN once per block, so every block is covered only if each "
+                    "count equals the block count. The dump stays in the build directory; the evidence keeps its "
+                    "size and the hash of its value changes",
+                }
+                if timing is not None
+                else {}
+            ),
         },
         "summary": {
             "frames": len(frames),
             "passed": sum(frame["result"] == "PASS" for frame in frames.values()),
             "compared_codes": sum(run["compared"] for run in runs),
             "captured_equal_to_expected": sum(
-                frame["captured_output_sha256"] == frame["bound_sha256"]["expected_hex"] for frame in frames.values()
+                frame["captured_valid_window_sha256"] == frame["bound_sha256"]["expected_hex"]
+                for frame in frames.values()
             ),
             "mismatches": 0,
             "measured_latency_cycles": sorted({run["measured_latency_cycles"] for run in runs}),
             "measured_ii": sorted({run["measured_ii"] for run in runs}),
+            **(
+                {
+                    "measured_block_ii": sorted({frame["block_timing"]["block_ii_min"] for frame in frames.values()}),
+                    "fill_latency_cycles": sorted({frame["block_timing"]["fill_latency_cycles"] for frame in frames.values()}),
+                    "tail_latency_cycles": sorted({frame["block_timing"]["tail_latency_cycles"] for frame in frames.values()}),
+                    "vcd_covers_all_blocks": all(frame["vcd"]["covers_all_blocks"] for frame in frames.values()),
+                }
+                if timing is not None
+                else {}
+            ),
         },
         "frames": frames,
         "rtl_snapshot_sha256": _rtl_snapshot(rtl_variant),
