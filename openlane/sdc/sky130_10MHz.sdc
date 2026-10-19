@@ -1,5 +1,5 @@
-# 10 MHz labelled fallback SDC (identical to sky130_100MHz.sdc except period).
-# Never ranked with 100 MHz passes (D3 interpretation, ADR-0006).
+# SLOW 10 MHz SDC template (PNR/SIGNOFF), identical to sky130_100MHz.sdc except period.
+# Main target of the serial rows, secondary of the optimized rows (ppa-matrix-18 Clock Policy).
 # See docs/contracts/toolchain-gap-2.md and openlane-env-19.md.
 create_clock -name clk -period 100.000 [get_ports clk]
 set_input_delay 2.0 -clock clk [all_inputs]

@@ -40,6 +40,10 @@ db/
 incremental_db/
 output_files/
 *.rpt
+# Committed OpenLane evidence of the T41 target runs (openlane-env-19).
+!sim/python/artifacts/t41-time-ppa/**/*.rpt
+# Direct OpenLane runs; ppa_stage.py runs the flow under .build/ppa/.
+openlane/*/runs/
 *.sdc.bak
 
 # OS / editors
