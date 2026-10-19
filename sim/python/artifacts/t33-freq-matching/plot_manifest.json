@@ -1,0 +1,48 @@
+{
+  "drawn_from": {
+    "captured_output_sha256": {
+      "canonical/none": "f1c58b044829f3b17a2d70ba6daaf03b52f259111f070b12899975f6784e3dad",
+      "sys_corners/corner_repeat": "334ea83a8d6e144c4a051a63cea2796fbebd77edb4e77779375e74f88f1a3e75",
+      "sys_corners/max_alternation": "441671bb16c1ac31691430560791c3752eb489d0a167255726c345180542fa74",
+      "sys_corners/single_symbol_perturbation": "69e4dcaa4f550f4f27ee62bdfffbf84472e7160b62f925c95cd372be122a1986"
+    },
+    "file": "evidence_manifest.json",
+    "sha256": "f0f6f5a3ba9d808a862b0a95cecb6a5779dff979d04d7008dfa49630ad86a96b"
+  },
+  "evidence_for": "T33 (#50)",
+  "exact_codes": {
+    "canonical/none": 2055,
+    "sys_corners/corner_repeat": 2055,
+    "sys_corners/max_alternation": 2055,
+    "sys_corners/single_symbol_perturbation": 2055
+  },
+  "max_abs_error_lsb": {
+    "canonical/none": 0,
+    "sys_corners/corner_repeat": 0,
+    "sys_corners/max_alternation": 0,
+    "sys_corners/single_symbol_perturbation": 0
+  },
+  "note": "PNG bytes can vary across matplotlib versions; the plot hash is evidence of this run, not a CI check",
+  "plot_sha256": {
+    "canonical_none.png": "8b1f08fc3af343eb9191a96df57c3555b484f4640f0d2af5c0b75c0cf5980d0d",
+    "sys_corners_corner_repeat.png": "a0c67093629fcda352ae51799c39c3194dc4dd5bffd90390a631e2b271f1024e",
+    "sys_corners_max_alternation.png": "10e53924f9149a760ac7d42ee7cbc5a7127636de03c69c6dac1666c19a772e70",
+    "sys_corners_single_symbol_perturbation.png": "dc99ef58030a13f581585405092bdf5593b7cc79eeb620be1872e156c17047d1"
+  },
+  "plots": [
+    "canonical_none.png",
+    "sys_corners_corner_repeat.png",
+    "sys_corners_max_alternation.png",
+    "sys_corners_single_symbol_perturbation.png"
+  ],
+  "series_colors": {
+    "I": "#0057B8",
+    "Q": "#E65100"
+  },
+  "source_sha256": "c71cb3793b15d563d113a701fb8585f4be3c00e80cdfe39215f1336e3d8a0fc6",
+  "variant_id": "F-serial",
+  "versions": {
+    "matplotlib": "3.11.2",
+    "numpy": "2.5.3"
+  }
+}

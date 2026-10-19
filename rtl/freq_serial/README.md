@@ -8,20 +8,27 @@ T03 transport shell (T32, #49). The datapath is the shared
 synchronizer and the interface and parameter checks.
 
 ```bash
-bash rtl/freq_serial/run.sh      # canonical T22 codes through rrc_stream_tb (structural fixture)
+bash rtl/freq_serial/run.sh      # canonical F-serial rtl_matching frame through rrc_stream_tb
 ```
 
 ## Status
 
-- CI runs `freq_serial` through the shared testbench `rrc_stream_tb` with a
-  structural fixture built in `.build/` from the committed T22 vectors
-  (`sim/python/tests/rtl_freq_fixture.py`; nothing is written to `sim/vectors/`).
-  `bash rtl/freq_serial/run.sh` passes the canonical frame, and
-  `sim/python/tests/test_rtl_freq_serial.py` passes all four frames (canonical
+- Vector matching (T33, #50): CI runs `freq_serial` through the shared testbench
+  `rrc_stream_tb` on the committed `sim/vectors/rtl_matching/F-serial` frames
+  (metadata) bound by hash to the T22 payloads in `fxp_expected/`.
+  `bash rtl/freq_serial/run.sh` stages and passes the canonical frame, and
+  `sim/python/tests/test_rtl_freq_matching.py` passes all four frames (canonical
   and the three `sys_corners`, 2055 exact codes each, 257 blocks, 2056 raw
-  outputs). Each run has a continuous pass (latency, `II` accounting) and a
-  robust pass (bubbles, stalls, a reset after two accepted samples).
-- The same test file checks the rounding and saturation primitives against an
+  outputs; the 2056th is the declared zero padding of block 257). Each run has
+  a continuous pass (latency, block timing) and a robust pass (bubbles, stalls,
+  a reset after two accepted samples).
+- Measured timing (`rtl-streaming-17.md`): fill latency 99 cycles (first
+  accepted sample to first output), tail latency 99, steady-state block `II`
+  107 cycles on the 256 block-to-block intervals (8 samples per block, so no
+  per-sample `II` is defined: the engine is block-rate limited). A scoped VCD
+  (ports + engine control state) shows all 257 blocks enter LOAD, RUN, EMIT and
+  DRAIN. The committed evidence is `sim/python/artifacts/t33-freq-matching/`.
+- `test_rtl_freq_serial.py` checks the rounding and saturation primitives against an
   exact reference (the vectors reach no RNE tie and no output saturation), a
   reset in the middle of RUN, EMIT and DRAIN, the runner limits and a latency
   change. `test_rtl_freq_tables.py` compares the tables and widths with the T20
@@ -30,9 +37,6 @@ bash rtl/freq_serial/run.sh      # canonical T22 codes through rrc_stream_tb (st
 - Elaborates with Icarus (`-g2012 -Wall`, no warnings). It synthesizes with the
   Yosys 0.46 of OpenLane 2.3.10 (synthesis step only: 30896 cells, 331821 um^2 of
   cell area). Verilator lint has only width/unused-bit warnings.
-- The committed `rtl_matching` manifest, its hashes and the formal matching
-  report (VCD coverage, steady-state `II`) are T33 (#50). The structural fixture
-  does not replace them.
 - Not placed and routed: the committed floorplan (`DIE_AREA` 200 x 200 um) is the
   T02 skeleton and is far too small for this design (about 331821 um^2 of cells),
   so the full flow stops at global placement. Sizing, timing and PPA are T43
@@ -107,7 +111,7 @@ cycle at the end of each pass makes the next pass read fully written values.
 | EMIT | `z[8:16]` out through one output register | 8 |
 | DRAIN | last output waits for its consumer | 1 |
 
-Measured with the testbench on the canonical frame (the fixture pins the 99): the first output appears 99
+Measured with the testbench on the canonical frame (the T33 matching asserts the 99): the first output appears 99
 cycles after the first accepted sample, and the whole frame (2056 accepted
 samples, 257 blocks, 2056 raw outputs) takes 27499 cycles, i.e. 107 cycles per
 block, against 8 cycles per sample for the serial time-domain filter.
@@ -157,8 +161,8 @@ supported or verified configurations.
   `rrc_freq_pkg.sv` equal the T20 freeze, and `H[k]` recomputed from the T22
   coefficient codes (`[179, -1818, 1818, 11295, 11295, 1818, -1818, 179]`) with
   the frozen rule (DFT16 of the zero-padded codes, one RNE) is identical too. The
-  committed matching and the `rtl_matching` metadata are T33 (#50), including
-  the value to record for `fft_pipeline_cycles`.
+  committed matching and the `rtl_matching` metadata are T33 (#50): see "Vector
+  matching (T33)" below, which records `fft_pipeline_cycles = 89`.
 - `U` is a parameter of the engine for the F-U4/F-U8 rows (T42); only `U=1`
   elaborates.
 - Declared deviation from "no duplicated constants" (`rtl-streaming-17` D8,
@@ -167,6 +171,91 @@ supported or verified configurations.
   to another package; the engine checks them against `rrc_pkg` at elaboration and a
   test checks them too. `FREQ_FILTER_TAPS` and `FREQ_FRAC` wait for T30 (#79) to
   add `RRC_TAPS` and `FRAC_BITS` to `rrc_pkg`.
+
+## Vector matching (T33)
+
+T33 closes the frequency lane's F3 gate: the RTL reproduces, bit for bit, the
+T22 production frequency codes of all four frames. The datapath did not change;
+T33 adds the metadata that binds those codes to this variant, the block-level
+measurements the frequency lane needs, and the runs that prove the match.
+
+**Design.** The testbench of the time lane already had the finite-frame
+scoreboard, the bubble/stall/`ready_o` checks and the reset-after-prefix check,
+so the frequency matching reuses it and adds only what a block engine needs.
+A frame is 2048 source samples plus 8 flush zeros: the flush zeros complete the
+257th block, so the engine accepts 2056 samples, runs 257 blocks and emits 2056
+raw outputs. The first 2055 are the expected codes; the last one is the
+declared padding of block 257 (`00000000`) and is not compared, as
+`rtl-streaming-17` requires. `latency_samples = 0`: the first causal result is
+`y[0]`, and the wait for the first block shows up only as cycle latency.
+
+- **Metadata:** `gen_vectors.py --stage rtl_matching --variant F-serial` writes
+  `sim/vectors/rtl_matching/F-serial/<set>/<case>/` with `manifest_freq.json`
+  and the `vector_manifest.svh` the TB includes. It declares `SPC = 1`,
+  `latency_samples = 0`, `latency_cycles = 99`, `fft_pipeline_cycles = 89`
+  (the RUN phase: 4 FFT passes, the product pass and 4 IFFT passes), 8 flush
+  zeros and 2056 accepted and raw samples. The `.hex` payloads stay in
+  `sim/vectors/fxp_expected/` (`expected_freq.hex`) and are bound by hash.
+  The transport validator checks that the flush zeros complete the last block
+  and that every block emits `HOP` outputs.
+- **Staging:** `sim/python/tests/rtl_matching_stage.py --variant F-serial`
+  checks every sidecar and bound hash, that the `.svh` equals the manifest, and
+  copies the payloads and the `.svh` into `.build/`. `bash rtl/freq_serial/run.sh`
+  does this for the canonical frame and runs the shared TB on it.
+- **Block timing** (`Block timing` line of the TB, continuous run only), with
+  the definitions the contracts leave open:
+  fill latency is the first accepted sample to the first output (99 cycles);
+  tail latency is the last accepted sample to the last output (99 cycles);
+  block II is the interval between consecutive block starts, over the first 256
+  intervals of the 257 blocks, and it is 107 cycles on every one
+  (8 + 1 + 89 + 8 + 1). There is no per-sample II: one block is not one sample,
+  so `measured_ii` is `undefined`, as `rtl-streaming-17` prescribes for
+  variable cadence.
+- **VCD:** `bash rtl/run_variant.sh freq_serial --vcd <file>` (or `+vcd_file`)
+  dumps the ports and the engine control state (`state`, `cnt`, `pass`, `step`,
+  `emit_idx`) over the unstalled run. The evidence checks that all 257 blocks
+  enter LOAD, RUN, EMIT and DRAIN. The scope (control, not the FFT datapath) is
+  our choice: the contracts fix the coverage (all 257 blocks), not the signals.
+- **Evidence:** `sim/python/artifacts/t33-freq-matching/evidence_manifest.json`
+  (written by `rtl_matching_stage.py --variant F-serial --evidence-dir`): 4/4
+  frames PASS, 8220 compared codes, fill and tail latency 99, block II 107, VCD
+  covering 257 blocks, plus the hashes of the `.svh` and payloads each run
+  consumed. The captured valid window of every run hashes to the bound
+  `expected_freq.hex`, which proves the match without relying on the TB
+  comparator. The per-frame logs next to it are git-ignored (`*.log`) and are
+  attached to the PR.
+- **Plots:** `python sim/python/plot_matching.py --variant F-serial` draws one
+  PNG per frame in the same folder from those captures, after checking their
+  hashes against the evidence: the RTL output over the compared window, a zoom
+  with the float reference, the expected codes and the RTL output, and the RTL
+  minus expected error (0 LSB on all 2055 compared codes of every frame). The
+  capture hash covers the 2056th record (the block padding), which is not
+  drawn. `plot_manifest.json` binds the plots to the evidence.
+
+`test_rtl_freq_matching.py` runs the four frames and the failure cases: a wrong
+code at the first, a middle and the last compared index reports that absolute
+index; a declared latency of 98 or 100 fails the unstalled run; one undeclared
+output more times out; eight more flush zeros (a 258th block) fail the drain
+check; staging refuses a broken sidecar, a payload or `.svh` the manifest does
+not bind, and any output inside `sim/vectors/`. On a scratch copy, shifting the
+emission window by one position failed at index 0 and adding 1 LSB to `H[0]`
+failed at index 34.
+
+Learning (T33):
+
+- A block engine has no per-sample cadence: the serial filter is limited by the
+  block (107 cycles per 8 samples), so the metric that matters is the block II,
+  and the per-sample `II` is correctly `undefined`.
+- The 2056th output exists because the schedule works in whole blocks. It is not
+  an invented expected code, so the comparison stops at index 2054 and the
+  padding is recorded and checked separately.
+- Fill and tail latency are different quantities (first sample to first
+  output, last sample to last output); the contracts ask for them split. Here
+  both measure 99 cycles, because the last block is processed like any other.
+- Editing `gen_vectors.py` changes its source hash, which is recorded in the F1
+  and F2 manifests and in the T20/T21 evidence. Adding this variant therefore
+  regenerated them; only hashes and provenance changed (payloads are
+  byte-identical, and a regeneration from a clean copy reproduces them).
 
 ## Learning
 

@@ -1,11 +1,14 @@
-"""Review plots of the RTL vector matching evidence (T31, #48).
+"""Review plots of the RTL vector matching evidence (T31 #48 time, T33 #50 frequency).
 
 Reads the matching evidence written by ``tests/rtl_matching_stage.py
 --evidence-dir`` and the RTL outputs its continuous runs captured, checks that
 every capture still has the hash the evidence recorded (the hash of the bound
 expected codes), then draws one plot per frame: the captured RTL output over
 the full causal window, a zoom with the float reference, the expected codes and
-the RTL output, and the RTL minus expected error in LSB. It writes the plots and
+the RTL output, and the RTL minus expected error in LSB. A frequency capture has
+one more record than the expected codes (the declared block padding): the plots
+draw the compared window and the capture hash still covers the whole file. It
+writes the plots and
 ``plot_manifest.json`` next to the evidence. Plots are review evidence, never
 vectors.
 """
@@ -26,8 +29,15 @@ from plot_vectors import (
 
 _SIM_DIR = Path(__file__).resolve().parent
 _VECTORS_DIR = _SIM_DIR.parent / "vectors"
-_DEFAULT_EVIDENCE_DIR = _SIM_DIR / "artifacts" / "t31-time-matching"
-_DEFAULT_CAPTURE_DIR = _SIM_DIR.parents[1] / ".build" / "rtl" / "matching" / "T-serial"
+_BUILD_MATCHING_DIR = _SIM_DIR.parents[1] / ".build" / "rtl" / "matching"
+# variant_id -> (evidence directory, task named in plot_manifest.json)
+_VARIANTS = {
+    "T-serial": ("t31-time-matching", "T31 (#48)"),
+    "F-serial": ("t33-freq-matching", "T33 (#50)"),
+}
+_DEFAULT_VARIANT = "T-serial"
+_DEFAULT_EVIDENCE_DIR = _SIM_DIR / "artifacts" / _VARIANTS[_DEFAULT_VARIANT][0]
+_DEFAULT_CAPTURE_DIR = _BUILD_MATCHING_DIR / _DEFAULT_VARIANT
 _CAPTURE_FILE = "captured.hex"
 _DOMAIN_TAG = {"time": "time", "frequency": "freq"}
 _FRAC_BITS = 14
@@ -138,11 +148,16 @@ def generate_matching_plots(evidence_dir: Path = _DEFAULT_EVIDENCE_DIR, capture_
     for frame_key, frame in sorted(evidence["frames"].items()):
         vector_set, vector_case = frame_key.split("/")
         captured_sha256 = frame["captured_output_sha256"]
-        if captured_sha256 != frame["bound_sha256"]["expected_hex"]:
+        bound_expected = frame["bound_sha256"]["expected_hex"]
+        # Time: the capture is the expected codes. Frequency: the capture is the expected codes plus the declared
+        # block padding, and the evidence records the hash of the compared window separately.
+        window_sha256 = frame.get("captured_valid_window_sha256", captured_sha256)
+        if window_sha256 != bound_expected:
             raise ValueError(f"{frame_key}: the evidence does not record a capture equal to the expected codes")
         captured = _codes(_checked(capture_dir / f"{vector_set}-{vector_case}" / _CAPTURE_FILE, captured_sha256))
         expected_path = vectors_dir / "fxp_expected" / vector_set / vector_case / EXPECTED_HEX_FILE.format(tag=tag)
-        expected = _codes(_checked(expected_path, frame["bound_sha256"]["expected_hex"]))
+        expected = _codes(_checked(expected_path, bound_expected))
+        captured = captured[:expected.size]
         reference_path = vectors_dir / "float_reference" / vector_set / vector_case / REFERENCE_FILE.format(tag=tag)
         digest, _ = reference_path.with_name(reference_path.name + ".sha256").read_text(encoding="utf-8").split()
         _checked(reference_path, digest)
@@ -158,7 +173,7 @@ def generate_matching_plots(evidence_dir: Path = _DEFAULT_EVIDENCE_DIR, capture_
         captured_hashes[frame_key] = captured_sha256
 
     manifest = {
-        "evidence_for": "T31 (#48)",
+        "evidence_for": _VARIANTS[evidence["variant_id"]][1],
         "variant_id": evidence["variant_id"],
         "drawn_from": {
             "file": "evidence_manifest.json",
@@ -180,13 +195,19 @@ def generate_matching_plots(evidence_dir: Path = _DEFAULT_EVIDENCE_DIR, capture_
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Plot the RTL vector matching evidence (T31)")
-    parser.add_argument("--evidence-dir", type=Path, default=_DEFAULT_EVIDENCE_DIR)
-    parser.add_argument("--capture-dir", type=Path, default=_DEFAULT_CAPTURE_DIR,
-                        help="build directory where rtl_matching_stage.py --evidence-dir staged and captured each frame")
+    parser = argparse.ArgumentParser(description="Plot the RTL vector matching evidence (T31, T33)")
+    parser.add_argument("--variant", choices=sorted(_VARIANTS), default=_DEFAULT_VARIANT,
+                        help="variant whose evidence to plot; sets the default directories")
+    parser.add_argument("--evidence-dir", type=Path,
+                        help="default: the variant's directory under sim/python/artifacts")
+    parser.add_argument("--capture-dir", type=Path,
+                        help="build directory where rtl_matching_stage.py --evidence-dir staged and captured each "
+                             "frame (default: .build/rtl/matching/<variant>)")
     args = parser.parse_args()
+    evidence_dir = args.evidence_dir or _SIM_DIR / "artifacts" / _VARIANTS[args.variant][0]
+    capture_dir = args.capture_dir or _BUILD_MATCHING_DIR / args.variant
     try:
-        print(generate_matching_plots(args.evidence_dir, args.capture_dir))
+        print(generate_matching_plots(evidence_dir, capture_dir))
     except (OSError, ValueError) as error:
         parser.error(str(error))
 

@@ -38,10 +38,12 @@ and by default generates the canonical structural fixture
 (`rtl_filter_fixture.py`, which needs the pinned simulator requirements).
 
 `freq_serial` carries the T32 datapath and no longer uses the identity shell
-fixtures. `bash rtl/freq_serial/run.sh` builds a structural fixture from the T22
-vectors on `main` (`sim/python/tests/rtl_freq_fixture.py`, written under `.build/`)
-and runs this testbench on it; it rejects the width/SPC overrides. The committed
-`rtl_matching` manifest and the formal matching report are T33.
+fixtures. `bash rtl/freq_serial/run.sh` stages the committed `rtl_matching/F-serial`
+canonical frame under `.build/` (T33) and runs this testbench on it; it rejects the
+width/SPC overrides. Compiled with `FREQ_SERIAL_DUT`, the TB also prints a
+`Block timing` line (block-start intervals, fill and tail latency) and, with
+`+vcd_file=<path>` (`--vcd` in `run_variant.sh`), dumps the ports and the engine
+control state of the unstalled run.
 
 ## T31 vector matching (#48)
 
