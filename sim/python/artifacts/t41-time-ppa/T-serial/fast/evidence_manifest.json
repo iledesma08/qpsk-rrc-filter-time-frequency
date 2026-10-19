@@ -1,0 +1,542 @@
+{
+  "activity": {
+    "cycles": 16442,
+    "duration_ps": 164420000,
+    "file": "activity.saif.gz",
+    "period_ns": 10.0,
+    "saif_names": 37094,
+    "scope": "rrc_stream_tb/dut",
+    "sha256": "20632ab35084294166ec1ab9d59a7a5b22ec90513e0d0d6e59da5e98b128496c",
+    "source": "gate-level simulation of the run's final netlist at its period, continuous canonical run, from its first cycle to the negedge after its last output (whole cycles)",
+    "unrepresentable_names": 331,
+    "vcd_bytes": 285992866,
+    "window_ps": [
+      50000,
+      164470000
+    ]
+  },
+  "committed_reports_sha256": {
+    "last-state/metrics.json": "6f9d818e94ab62639e395b7e27469701abb9f76d6f505ac11d40108a40d138e3",
+    "openroad-stapostpnr/max_ff_n40C_1v95/checks.rpt": "ba8c37f2c0120f36c56ec5e174a888a83a132f36d5fb465e23c7c3be4004dc56",
+    "openroad-stapostpnr/max_ff_n40C_1v95/max.rpt": "3ad14d0edd974501c2794e20f089568e038ac9bd1aecc35d81c61e82d6a19f32",
+    "openroad-stapostpnr/max_ff_n40C_1v95/min.rpt": "448d33ad0635b585fdac81379ae234965f6b77f659464d379d4904ba49934e07",
+    "openroad-stapostpnr/max_ff_n40C_1v95/power.rpt": "c8782991c47f7db8a5c81baa70ccd21b2650c596efccb84551f7aacbfcbcff14",
+    "openroad-stapostpnr/max_ss_100C_1v60/checks.rpt": "8fc4356bdef45791435f3e0de46c7073d20f717be91503409aac72ebf578d5b4",
+    "openroad-stapostpnr/max_ss_100C_1v60/max.rpt": "58c2d3d84b4362ab5aed55ff2a09e688eb7a4ba2c614e1615bf93e20ff024b98",
+    "openroad-stapostpnr/max_ss_100C_1v60/min.rpt": "cdadc63caca46bd65d211e20b5ccb3cbec82b6468cdd691779fb470351425fe5",
+    "openroad-stapostpnr/max_ss_100C_1v60/power.rpt": "a473bd8ac57e202d908eb1c618957c5d22462c374b69a65a89c9b1bd09c4bb64",
+    "openroad-stapostpnr/max_tt_025C_1v80/checks.rpt": "9de3414b375455a8c2a2975bd0fca9baa6599b626875982b521da067ac6be7df",
+    "openroad-stapostpnr/max_tt_025C_1v80/max.rpt": "7375f522f92a9c2e87c26cb92b4320f0e3badea0e99a23a0c6d515f891b11f34",
+    "openroad-stapostpnr/max_tt_025C_1v80/min.rpt": "63619c2d8d59ece411256e588db5b4481a010759e018bb6c986891993544c572",
+    "openroad-stapostpnr/max_tt_025C_1v80/power.rpt": "a1cce0da16d99c15b9d386a91a13bd4b35c5548f1cdad7aaa784713411d9edf2",
+    "openroad-stapostpnr/min_ff_n40C_1v95/checks.rpt": "9d7a4bbcd84a86cf3ef87285418520444ea52ea2659e2dcf0282fbe6bbc3c524",
+    "openroad-stapostpnr/min_ff_n40C_1v95/max.rpt": "e85a83f8eeb2ec71f6e1bb6f5902997bf78798218e447d206e2f00c3e27a5ade",
+    "openroad-stapostpnr/min_ff_n40C_1v95/min.rpt": "2926486d6eeaf9cff5c70f504a2f8e734f0ca5ea20f97449a23685c97e0cc278",
+    "openroad-stapostpnr/min_ff_n40C_1v95/power.rpt": "8df72f3acaec70af9f8c519a9e0b1b146d081958f2aa072c15cf15e3265151c9",
+    "openroad-stapostpnr/min_ss_100C_1v60/checks.rpt": "d3af8dc9cc89420da7a3811c5af44e2f8a8de5e85105ca50763fe4a8442e922e",
+    "openroad-stapostpnr/min_ss_100C_1v60/max.rpt": "f9bd87cd745d65b40a9b6594b324208f4817cd679eae9c80c7657cb2cebd60c5",
+    "openroad-stapostpnr/min_ss_100C_1v60/min.rpt": "cf3ce1449cb426a6023bd165071e0840f16f51256f9896294c82dfffd1bcc912",
+    "openroad-stapostpnr/min_ss_100C_1v60/power.rpt": "73546603a2466dd12b7c860ca71ef2ca9022193a56cd4fef62d9ce4e60d1a752",
+    "openroad-stapostpnr/min_tt_025C_1v80/checks.rpt": "615ec3768baa9de345401b19aff87d208c58db77b54a99d2f259115aca1e3f8c",
+    "openroad-stapostpnr/min_tt_025C_1v80/max.rpt": "9750d1632dda5ba5f71a768233846396b026d9e5438586ae838927c31c7cf19b",
+    "openroad-stapostpnr/min_tt_025C_1v80/min.rpt": "9954e6311afa57cc57e1158011174589c50d7770fc4075afe6d7571c6b1cafad",
+    "openroad-stapostpnr/min_tt_025C_1v80/power.rpt": "54f879d2861924ea904343eb8c9082aae76e63612b376e3657fa98c38c430ff5",
+    "openroad-stapostpnr/nom_ff_n40C_1v95/checks.rpt": "a69320b395cbbbc37a7e6718e6a3f81ea1064eae91fd4653347874fc182eaf92",
+    "openroad-stapostpnr/nom_ff_n40C_1v95/max.rpt": "0925e2b3e8c759f55d96bb42d343b48f91e4aacf6ab26741b510e81e323062cb",
+    "openroad-stapostpnr/nom_ff_n40C_1v95/min.rpt": "bb9dedc3757e644654b05f6167fd7c7dce3dcfe03cc1d62d6a0eacaf7270e9ce",
+    "openroad-stapostpnr/nom_ff_n40C_1v95/power.rpt": "f6181bd15404072a24ad848f065601a7022b8fa1fb5030b6c0ae26455ff60023",
+    "openroad-stapostpnr/nom_ss_100C_1v60/checks.rpt": "23db77f2f0ba92659a967e60e235db8c91225677d2ebd1950b95432a1886a4ac",
+    "openroad-stapostpnr/nom_ss_100C_1v60/max.rpt": "3d7f62e26ea7d962b80609b2ac0dafb49d9643a49d9557973d0a62e43a221e5d",
+    "openroad-stapostpnr/nom_ss_100C_1v60/min.rpt": "cba9c8b235a53aefd5139eb9b898a7aa48d4dc50a219e32b62af1cc03b7386a2",
+    "openroad-stapostpnr/nom_ss_100C_1v60/power.rpt": "2bf623e9aa2349deca83e802f99ce15687dd1a076db3368823998643de8a6b5d",
+    "openroad-stapostpnr/nom_tt_025C_1v80/checks.rpt": "d934a326d540a5a47cf42f676987dcb0fd169f2e0e83c09534cd403f4b579c56",
+    "openroad-stapostpnr/nom_tt_025C_1v80/max.rpt": "e020cdff0b1121d1424d52df2c32f662bd43be72e617d01158c2607d698421b9",
+    "openroad-stapostpnr/nom_tt_025C_1v80/min.rpt": "a4b85287aeadeecd780bfcbf63d2f454ae7922c7c8a2124091eced3035c64ad9",
+    "openroad-stapostpnr/nom_tt_025C_1v80/power.rpt": "61aef8fb831118f56e75144bb910a102b92164e914e7dc0f0da9e0125c66b92b",
+    "openroad-stapostpnr/summary.rpt": "ffc164363ad689f506707b5f4e888e5bd4eab994085b0ca766f1137fa10ca152",
+    "resolved.json": "3bb5bc2a743fde6395fa414ce9dcea0df52b3ab388e9d13354c4cb4bc7243540"
+  },
+  "compressed_reports": [
+    "openroad-stapostpnr/max_ff_n40C_1v95/max.rpt",
+    "openroad-stapostpnr/max_ff_n40C_1v95/min.rpt",
+    "openroad-stapostpnr/max_ss_100C_1v60/max.rpt",
+    "openroad-stapostpnr/max_ss_100C_1v60/min.rpt",
+    "openroad-stapostpnr/max_tt_025C_1v80/max.rpt",
+    "openroad-stapostpnr/max_tt_025C_1v80/min.rpt",
+    "openroad-stapostpnr/min_ff_n40C_1v95/max.rpt",
+    "openroad-stapostpnr/min_ff_n40C_1v95/min.rpt",
+    "openroad-stapostpnr/min_ss_100C_1v60/max.rpt",
+    "openroad-stapostpnr/min_ss_100C_1v60/min.rpt",
+    "openroad-stapostpnr/min_tt_025C_1v80/max.rpt",
+    "openroad-stapostpnr/min_tt_025C_1v80/min.rpt",
+    "openroad-stapostpnr/nom_ff_n40C_1v95/max.rpt",
+    "openroad-stapostpnr/nom_ff_n40C_1v95/min.rpt",
+    "openroad-stapostpnr/nom_ss_100C_1v60/max.rpt",
+    "openroad-stapostpnr/nom_ss_100C_1v60/min.rpt",
+    "openroad-stapostpnr/nom_tt_025C_1v80/max.rpt",
+    "openroad-stapostpnr/nom_tt_025C_1v80/min.rpt"
+  ],
+  "config_sha256": "c1051d4fff9ddf4ddb5a5c063f4e61ab96a612bc10d41dd5a031e9ae9a5f98ef",
+  "dut_sources_sha256": {
+    "rtl/common/rrc_pkg.sv": "f3e27179829aca714940266d81988762bb6a442c13869e4071b4226ae8f53a37",
+    "rtl/common/rrc_reset_sync.sv": "69264a4124d7dede2b0c272947714a0d10bc20c0b336fc34e752b5d87cb01435",
+    "rtl/time_serial/time_serial_filter.sv": "9a220c58b7fed171bc58bfa2df5f9328104b3d07873bb0b153b18d3f2e1d06a2"
+  },
+  "evidence_for": "T41 target run T-serial-FAST (secondary target of T-serial)",
+  "gate_level": {
+    "captured_output_sha256": "a1899d85e2d999e511070587d8135af350e1712f9b8acc0b4ff5e3f966d04d0c",
+    "command": [
+      "rtl/run_variant.sh",
+      "time_serial",
+      "--vectors",
+      ".build/ppa/T-serial/fast/gl/vectors",
+      "--clock-period-ns",
+      "10",
+      "--netlist",
+      ".build/ppa/T-serial/fast/openlane/51-openroad-fillinsertion/time_serial_filter.nl.v",
+      "--cell-models",
+      "/home/majac/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_fd_sc_hd/verilog",
+      "--capture",
+      ".build/ppa/T-serial/fast/gl/captured.hex",
+      "--activity-vcd",
+      ".build/ppa/T-serial/fast/gl/activity.vcd"
+    ],
+    "continuous": {
+      "accepted_beats": 2055,
+      "accepted_input_samples": 2055,
+      "compared": 2055,
+      "cycles": 16442,
+      "emitted_beats": 2055,
+      "flush_samples": 7,
+      "ii_max": 8,
+      "ii_min": 8,
+      "interval_count": 2054,
+      "measured_ii": 8,
+      "measured_latency_cycles": 9,
+      "raw_output_samples": 2055,
+      "robustness": 0,
+      "source_samples": 2048,
+      "tail_stalls": 0,
+      "transport_padding_samples": 0
+    },
+    "declared_latency_cycles": 9,
+    "expected_ii": 8,
+    "failures": [],
+    "log_sha256": "cba31d38842fad311a1baf6081af00b887ed5a14f38accb0a1dace20984b8041",
+    "midtraffic_reset": {
+      "prefix_accepted": 2,
+      "restart_index": 0
+    },
+    "netlist_sha256": "f42441f6f24517f280f91d3d0ac35b3a3013bdf41b74847c36f9241f7574e849",
+    "pass_line": "PASS: vector window W=16 SPC=1 compared=2055",
+    "robustness": {
+      "accepted_beats": 2055,
+      "accepted_input_samples": 2055,
+      "compared": 2055,
+      "cycles": 16444,
+      "emitted_beats": 2055,
+      "flush_samples": 7,
+      "ii_max": -1,
+      "ii_min": -1,
+      "interval_count": 0,
+      "measured_ii": "undefined",
+      "measured_latency_cycles": "undefined",
+      "raw_output_samples": 2055,
+      "robustness": 1,
+      "source_samples": 2048,
+      "tail_stalls": 2,
+      "transport_padding_samples": 0
+    },
+    "testbench_sha256": {
+      "rtl/run_variant.sh": "bf9c1379322b32c0704695defc0d2929806a6e8559a3a846e841ac206ec70855",
+      "rtl/tb/rrc_stream_tb.sv": "a8a366edafb7af59ae84cbbfd9fc27bb49b564e74d81285c2c5b3f8d33123e7f"
+    },
+    "wall_time_s": 153.8,
+    "window": {
+      "cycles": 16442,
+      "end_ns": 164470.0,
+      "period_ns": 10.0,
+      "start_ns": 50.0
+    }
+  },
+  "metrics_source": "74-misc-reportmanufacturability/state_out.json (no final/)",
+  "openlane_errors": [],
+  "openlane_version": "2.3.10",
+  "pdk": {
+    "pdk": "sky130A",
+    "pdk_root": "/home/majac/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af",
+    "scl": "sky130_fd_sc_hd"
+  },
+  "power": {
+    "annotated_pins": 17163,
+    "annotated_w": {
+      "Clock": {
+        "internal_w": 0.0007537293,
+        "leakage_w": 9.580668e-09,
+        "switching_w": 0.000769142,
+        "total_w": 0.001522881
+      },
+      "Combinational": {
+        "internal_w": 0.001126441,
+        "leakage_w": 1.719721e-08,
+        "switching_w": 0.001668368,
+        "total_w": 0.002794826
+      },
+      "Macro": {
+        "internal_w": 0.0,
+        "leakage_w": 0.0,
+        "switching_w": 0.0,
+        "total_w": 0.0
+      },
+      "Pad": {
+        "internal_w": 0.0,
+        "leakage_w": 0.0,
+        "switching_w": 0.0,
+        "total_w": 0.0
+      },
+      "Sequential": {
+        "internal_w": 0.001515071,
+        "leakage_w": 4.806146e-09,
+        "switching_w": 4.638843e-05,
+        "total_w": 0.001561464
+      },
+      "Total": {
+        "internal_w": 0.00339524,
+        "leakage_w": 3.158405e-08,
+        "switching_w": 0.0024839,
+        "total_w": 0.005879171
+      }
+    },
+    "annotation_coverage": 1.0,
+    "corner": "nom_tt_025C_1v80",
+    "leaf_pins": 17163,
+    "liberty": [
+      "sky130_fd_sc_hd__tt_025C_1v80.lib"
+    ],
+    "liberty_internal_pins_excluded": 730,
+    "netlist": "51-openroad-fillinsertion/time_serial_filter.nl.v",
+    "openlane_power_rpt_total_w": 0.003005068,
+    "reports": [
+      "power/power_unannotated.rpt",
+      "power/power_annotated.rpt",
+      "power/power_vcd_check.rpt",
+      "power/run.tcl"
+    ],
+    "scope": "core + clock tree (report_power Total; this design has no Pad or Macro power)",
+    "spef": "53-openroad-rcx/nom/time_serial_filter.nom.spef",
+    "sta_version": "2.6.0",
+    "unannotated_pins_sample": [],
+    "unannotated_reproduces_openlane": true,
+    "unannotated_w": {
+      "Clock": {
+        "internal_w": 0.0007537294,
+        "leakage_w": 9.580648e-09,
+        "switching_w": 0.000769142,
+        "total_w": 0.001522881
+      },
+      "Combinational": {
+        "internal_w": 3.303124e-06,
+        "leakage_w": 1.707778e-08,
+        "switching_w": 2.3989e-06,
+        "total_w": 5.719101e-06
+      },
+      "Macro": {
+        "internal_w": 0.0,
+        "leakage_w": 0.0,
+        "switching_w": 0.0,
+        "total_w": 0.0
+      },
+      "Pad": {
+        "internal_w": 0.0,
+        "leakage_w": 0.0,
+        "switching_w": 0.0,
+        "total_w": 0.0
+      },
+      "Sequential": {
+        "internal_w": 0.001476464,
+        "leakage_w": 4.968538e-09,
+        "switching_w": 0.0,
+        "total_w": 0.001476469
+      },
+      "Total": {
+        "internal_w": 0.002233495,
+        "leakage_w": 3.162623e-08,
+        "switching_w": 0.0007715409,
+        "total_w": 0.003005068
+      }
+    },
+    "vcd_cross_check": {
+      "agrees": true,
+      "method": "the same window as a VCD from time 0, read with OpenSTA read_vcd after the SAIF",
+      "opensta_annotated_pins": 17163,
+      "total_w": 0.005879171
+    }
+  },
+  "row": {
+    "F": null,
+    "P": 1,
+    "S": 1,
+    "U": null,
+    "activity_file": "sim/python/artifacts/t41-time-ppa/T-serial/fast/activity.saif.gz",
+    "activity_period_ns": 10.0,
+    "annotation_coverage": 1.0,
+    "antenna": 3,
+    "architecture": "T-serial",
+    "area_delta": null,
+    "area_um2": 49990.4,
+    "clock_period_ns": 10.0,
+    "clock_target": "100 MHz",
+    "comparison_reason": null,
+    "comparison_status": null,
+    "core_area_um2": 95152.5,
+    "corner": "tt_025C_1v80",
+    "die_area_um2": 106257,
+    "drc": 0,
+    "effective_outputs_per_s": 12500000.0,
+    "failure_or_unrun_reason": "OpenLane exited 2; timing violated at the signoff corners nom_tt_025C_1v80, min_tt_025C_1v80, max_tt_025C_1v80",
+    "fft_n": null,
+    "fmax_mhz": 92.09488170511742,
+    "hold_tns_ns": 0,
+    "hold_ws_ns": 0.3450899108590806,
+    "hop": null,
+    "ii_cycles": 8,
+    "lane": "time",
+    "lvs": 0,
+    "power_per_output_delta": null,
+    "power_per_valid_output": 4.7033368e-10,
+    "power_status": "annotated",
+    "power_total": 0.005879171,
+    "run_status": "failed",
+    "run_tag": "T-serial-FAST",
+    "samples_per_cycle": 0.125,
+    "serial_run_tag": "T-serial-FAST",
+    "setup_tns_ns": -14.291261911721946,
+    "setup_ws_ns": -0.8583667353191597,
+    "target_class": "FAST",
+    "target_role": "secondary",
+    "throughput_delta": null,
+    "timing_status": "violated",
+    "utilization": 0.525372,
+    "vector_status": "pass",
+    "workload": "canonical #15 frame: 2048 input samples + flush, 2055 full causal outputs, continuous run after reset"
+  },
+  "run": {
+    "exit_code": 2,
+    "finished": "2026-10-19T20:24:45-03:00",
+    "machine": {
+      "cpus": 4,
+      "memory_gib": 7.8
+    },
+    "openlane_command": "openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir /home/majac/curso/qpsk-rrc-filter-time-frequency/.build/ppa/T-serial/fast/openlane -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc /home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/time_serial/config.json",
+    "overrides": [
+      "CLOCK_PERIOD=10.0",
+      "PNR_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc",
+      "SIGNOFF_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc"
+    ],
+    "resources": {
+      "peak_rss_mib": 1024.0,
+      "peak_rss_step": "31-openroad-repairdesignpostgpl",
+      "summed_step_runtime_s": 645.5
+    },
+    "sizing": {
+      "FP_CORE_UTIL": 55,
+      "die_area_override": null,
+      "die_floor_um": [
+        200,
+        200
+      ],
+      "floor_applied": false,
+      "prepass_wall_time_s": 26.7,
+      "rule": "relative sizing at FP_CORE_UTIL; absolute max(sized, floor) per side under the PDN floor",
+      "sized_die_bbox_um": [
+        0.0,
+        0.0,
+        320.655,
+        331.375
+      ],
+      "sized_instance_utilization": 0.554103
+    },
+    "started": "2026-10-19T20:13:51-03:00",
+    "wall_time_s": 690.3
+  },
+  "run_tag": "T-serial-FAST",
+  "sdc_sha256": "22f5c0d8b2e6b0804e9bf90989590aee6b49d7a4177ccfbbeb380bae7a7019a0",
+  "signoff": {
+    "antenna": 3,
+    "antenna_counts": {
+      "antenna__violating__nets": 3,
+      "antenna__violating__pins": 3
+    },
+    "antenna_report": "openroad-checkantennas/antenna_summary.rpt",
+    "antenna_report_sha256": "146130b7466fddf36271ff632da82db553e1808bbf8da09f2a90e14e0431b5ad",
+    "antenna_status": "reported, not gated: pending the timing review (T44)",
+    "antenna_violations": [
+      {
+        "layer": "met1",
+        "net": "acc_q[11]",
+        "partial": 505.08,
+        "pin": "_6609_/A",
+        "ratio": 1.26,
+        "required": 400.0
+      },
+      {
+        "layer": "met1",
+        "net": "net33",
+        "partial": 481.31,
+        "pin": "_8168_/A1",
+        "ratio": 1.2,
+        "required": 400.0
+      },
+      {
+        "layer": "met1",
+        "net": "history[157]",
+        "partial": 431.78,
+        "pin": "_4216_/A0",
+        "ratio": 1.08,
+        "required": 400.0
+      }
+    ],
+    "diagnostics": {
+      "design__disconnected_pin__count": 0,
+      "design__max_cap_violation__count": 1,
+      "design__max_fanout_violation__count": 3,
+      "design__max_slew_violation__count": 5,
+      "design__power_grid_violation__count": 0,
+      "design__xor_difference__count": 0,
+      "magic__illegal_overlap__count": 0,
+      "route__antenna_violation__count": 3
+    },
+    "drc": 0,
+    "drc_counts": {
+      "klayout__drc_error__count": 0,
+      "magic__drc_error__count": 0,
+      "route__drc_errors": 0
+    },
+    "lvs": 0,
+    "status": "clean"
+  },
+  "spec": {
+    "clock_period_ns": 10.0,
+    "clock_target": "100 MHz",
+    "config": "openlane/time_serial/config.json",
+    "factors": {
+      "P": 1,
+      "S": 1
+    },
+    "lane": "time",
+    "row": "T-serial",
+    "rtl_variant": "time_serial",
+    "sdc": "openlane/sdc/sky130_100MHz.sdc",
+    "serial_run_tag": "T-serial-FAST",
+    "synth_parameters": {},
+    "target": "FAST",
+    "target_role": "secondary"
+  },
+  "synthesis": {
+    "multipliers_at_alumacc": 2,
+    "stat": {
+      "design__instance__count__class:clock_buffer": 60,
+      "design__instance__count__class:multi_input_combinational_cell": 4074,
+      "design__instance__count__class:sequential_cell": 365,
+      "design__instance__count__class:timing_repair_buffer": 307,
+      "design__instance__count__stdcell": 6219
+    }
+  },
+  "timing": {
+    "fmax_mhz": 92.09488170511742,
+    "fmax_rule": "1000 / (CLOCK_PERIOD - worst signed setup slack at the signoff corners)",
+    "hold_tns_ns": 0,
+    "hold_ws_ns": 0.3450899108590806,
+    "per_corner": {
+      "max_ff_n40C_1v95": {
+        "fmax_mhz": 150.8046818302472,
+        "hold_tns_ns": 0,
+        "hold_violations": 0,
+        "hold_ws_ns": 0.21598518029855895,
+        "setup_tns_ns": 0,
+        "setup_violations": 0,
+        "setup_ws_ns": 3.3689061383011523
+      },
+      "max_ss_100C_1v60": {
+        "fmax_mhz": 47.370443122692016,
+        "hold_tns_ns": 0,
+        "hold_violations": 0,
+        "hold_ws_ns": 0.7084929510272838,
+        "setup_tns_ns": -554.6306326750414,
+        "setup_violations": 91,
+        "setup_ws_ns": -11.110209955392348
+      },
+      "max_tt_025C_1v80": {
+        "fmax_mhz": 92.09488170511742,
+        "hold_tns_ns": 0,
+        "hold_violations": 0,
+        "hold_ws_ns": 0.345333882375642,
+        "setup_tns_ns": -14.291261911721946,
+        "setup_violations": 32,
+        "setup_ws_ns": -0.8583667353191597
+      },
+      "min_ff_n40C_1v95": {
+        "fmax_mhz": 154.6490827659415,
+        "hold_tns_ns": 0,
+        "hold_violations": 0,
+        "hold_ws_ns": 0.21583785369902453,
+        "setup_tns_ns": 0,
+        "setup_violations": 0,
+        "setup_ws_ns": 3.533747616767432
+      },
+      "min_ss_100C_1v60": {
+        "fmax_mhz": 48.22199986686375,
+        "hold_tns_ns": 0,
+        "hold_violations": 0,
+        "hold_ws_ns": 0.7080852771211117,
+        "setup_tns_ns": -518.5238625237436,
+        "setup_violations": 89,
+        "setup_ws_ns": -10.737422810354252
+      },
+      "min_tt_025C_1v80": {
+        "fmax_mhz": 94.0171704732359,
+        "hold_tns_ns": 0,
+        "hold_violations": 0,
+        "hold_ws_ns": 0.3450899108590806,
+        "setup_tns_ns": -9.02045130789272,
+        "setup_violations": 16,
+        "setup_ws_ns": -0.6363549867167363
+      },
+      "nom_ff_n40C_1v95": {
+        "fmax_mhz": 152.79021127466086,
+        "hold_tns_ns": 0,
+        "hold_violations": 0,
+        "hold_ws_ns": 0.2159374407071499,
+        "setup_tns_ns": 0,
+        "setup_violations": 0,
+        "setup_ws_ns": 3.4550780991959877
+      },
+      "nom_ss_100C_1v60": {
+        "fmax_mhz": 47.828413392037945,
+        "hold_tns_ns": 0,
+        "hold_violations": 0,
+        "hold_ws_ns": 0.7082907794087818,
+        "setup_tns_ns": -535.389362220153,
+        "setup_violations": 89,
+        "setup_ws_ns": -10.908073864028095
+      },
+      "nom_tt_025C_1v80": {
+        "fmax_mhz": 93.07696299648828,
+        "hold_tns_ns": 0,
+        "hold_violations": 0,
+        "hold_ws_ns": 0.34523296309984935,
+        "setup_tns_ns": -10.79104836031712,
+        "setup_violations": 17,
+        "setup_ws_ns": -0.7437970450081096
+      }
+    },
+    "setup_tns_ns": -14.291261911721946,
+    "setup_ws_ns": -0.8583667353191597,
+    "signoff_corners": [
+      "nom_tt_025C_1v80",
+      "min_tt_025C_1v80",
+      "max_tt_025C_1v80"
+    ],
+    "status": "violated"
+  }
+}

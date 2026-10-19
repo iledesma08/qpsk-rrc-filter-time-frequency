@@ -3,12 +3,12 @@
   "VERILOG_FILES": [
     "dir::../../rtl/common/rrc_pkg.sv",
     "dir::../../rtl/common/rrc_reset_sync.sv",
-    "dir::../../rtl/time_opt/*.sv"
+    "dir::../../rtl/time_opt/time_opt_filter.sv"
   ],
   "CLOCK_PORT": "clk",
   "CLOCK_PERIOD": 10.0,
-  "FP_SIZING": "absolute",
-  "DIE_AREA": [0, 0, 200, 200],
+  "FP_SIZING": "relative",
+  "FP_CORE_UTIL": 55,
   "PNR_SDC_FILE": "dir::../sdc/sky130_100MHz.sdc",
   "SIGNOFF_SDC_FILE": "dir::../sdc/sky130_100MHz.sdc"
 }

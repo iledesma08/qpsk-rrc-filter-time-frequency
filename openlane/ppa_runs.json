@@ -1,0 +1,54 @@
+{
+  "description": "Target runs of the PPA matrix (docs/contracts/ppa-matrix-18.md, Clock Policy): every row resolves its main and secondary target from the shared targets. sim/python/tests/ppa_stage.py reads this table; each row's config.json carries its main target.",
+  "flow": "Classic",
+  "openlane_version": "2.3.10",
+  "pdk": "sky130A",
+  "scl": "sky130_fd_sc_hd",
+  "evidence_dirs": {"time": "sim/python/artifacts/t41-time-ppa"},
+  "targets": {
+    "SLOW": {"clock_target": "10 MHz", "clock_period_ns": 100.0, "sdc": "openlane/sdc/sky130_10MHz.sdc"},
+    "FAST": {"clock_target": "100 MHz", "clock_period_ns": 10.0, "sdc": "openlane/sdc/sky130_100MHz.sdc"}
+  },
+  "sizing": {"FP_CORE_UTIL": 55, "die_floor_um": [200, 200]},
+  "signoff": {
+    "timing_corners": ["nom_tt_025C_1v80", "min_tt_025C_1v80", "max_tt_025C_1v80"],
+    "power_corner": "nom_tt_025C_1v80",
+    "corner": "tt_025C_1v80",
+    "min_annotation_coverage": 0.95
+  },
+  "activity": {
+    "vector_set": "canonical",
+    "vector_case": "none",
+    "scope": "rrc_stream_tb/dut",
+    "workload": "canonical #15 frame: 2048 input samples + flush, 2055 full causal outputs, continuous run after reset"
+  },
+  "rows": {
+    "T-serial": {
+      "lane": "time",
+      "rtl_variant": "time_serial",
+      "config": "openlane/time_serial/config.json",
+      "factors": {"S": 1, "P": 1},
+      "synth_parameters": {},
+      "main_target": "SLOW",
+      "serial": "T-serial"
+    },
+    "T-S4P1": {
+      "lane": "time",
+      "rtl_variant": "time_opt",
+      "config": "openlane/time_opt/config.json",
+      "factors": {"S": 4, "P": 1},
+      "synth_parameters": {"SYSTOLIC_PES": 4, "PIPELINE_DEPTH": 1},
+      "main_target": "FAST",
+      "serial": "T-serial"
+    },
+    "T-S8P1": {
+      "lane": "time",
+      "rtl_variant": "time_opt",
+      "config": "openlane/time_opt/config.json",
+      "factors": {"S": 8, "P": 1},
+      "synth_parameters": {"SYSTOLIC_PES": 8, "PIPELINE_DEPTH": 1},
+      "main_target": "FAST",
+      "serial": "T-serial"
+    }
+  }
+}
