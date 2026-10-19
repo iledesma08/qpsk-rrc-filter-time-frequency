@@ -179,4 +179,4 @@ cover that, and the T31 match on those frames says nothing new about that
 hardware. The robust matching run's sink stalls stay below eight cycles, so it
 never reaches the tap-7 hold; the directed 40-cycle stall in
 `test_rtl_time_serial.py` covers it. SLOW 10 MHz main-target timing and PPA
-belong to T41 (#52). The OpenLane JSON's 10 ns setup is not timing evidence.
+are T41 (#52): `openlane/README.md` and `sim/python/artifacts/t41-time-ppa/`.
