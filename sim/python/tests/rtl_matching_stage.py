@@ -1,4 +1,4 @@
-"""Stage the committed rtl_matching vectors of one variant for rrc_stream_tb (T31 #48, T40 #51).
+"""Stage the committed rtl_matching vectors of one variant for rrc_stream_tb (T31 #48, T33 #50, T40 #51).
 
 ``sim/vectors/rtl_matching/<variant_id>/<vector_set>/<vector_case>/`` holds only
 metadata: the JSON manifest and the ``vector_manifest.svh`` the testbench
@@ -11,7 +11,8 @@ compiling. A parameterized RTL source gets its matrix row from the manifest's
 ``rtl_parameters`` (T40: ``SYSTOLIC_PES``/``PIPELINE_DEPTH`` of time_opt),
 passed to the runner as arguments. With ``--evidence-dir`` it runs every frame,
 captures the RTL outputs of the continuous run next to each staged frame and
-writes the matching evidence. Standard library only, so the RTL CI job needs no
+writes the matching evidence. For the frequency variant the evidence also holds the block timing and
+the VCD coverage of the continuous run (T33). Standard library only, so the RTL CI job needs no
 NumPy.
 """
 
@@ -141,25 +142,36 @@ def expected_ii(manifest: dict) -> int | None:
 def expected_block_timing(manifest: dict) -> dict | None:
     """Return the block-level timing a frequency variant must measure, from its own manifest.
 
-    ``None`` for the time domain. One block of the serial engine takes ``HOP``
+    ``None`` unless the variant is the serial frequency engine: the schedule below is its own, and the
+    unrolled variants (F-U4/F-U8, T42) must declare theirs instead of inheriting this one. One block of the serial engine takes ``HOP``
     cycles to accept, one to load, ``fft_pipeline_cycles`` to run, ``EMIT_LEN`` to
     emit and one to drain, so a continuous run starts a block every
     ``HOP + 1 + fft_pipeline_cycles + EMIT_LEN + 1`` cycles. The first 257 - 1 = 256
     intervals are the steady-state ones (ppa-matrix-18, Workload). Fill is the
     first accepted sample to the first valid output; tail is the last accepted
     sample (the last flush beat) to the last output beat, which is the fill
-    without the other ``HOP - 1`` accept cycles and plus the other ``EMIT_LEN - 1``.
+    without the other ``HOP - 1`` accept cycles and plus the other ``EMIT_LEN - 1``
+    (it ends on the block padding, so it equals the fill only because
+    ``HOP == EMIT_LEN``). The source tail is what the tail-flush block costs: the
+    last source sample to the last valid output, ``block_ii`` later than the
+    block of that sample plus the fill and the difference of the two positions
+    inside their blocks (``valid_start == 0`` and ``latency_samples == 0``).
     """
-    if manifest["model_domain"] != "frequency":
+    if manifest["rtl_variant"] != "freq_serial":
         return None
     hop, emit = manifest["HOP"], manifest["EMIT_LEN"]
     blocks = manifest["accepted_input_samples"] // hop
+    block_ii = hop + 1 + manifest["fft_pipeline_cycles"] + emit + 1
+    source = manifest["accepted_input_samples"] - manifest["flush_samples"] - manifest["transport_padding_samples"]
+    last_valid, last_source = manifest["valid_start"] + manifest["valid_len"] - 1, source - 1
     return {
         "blocks": blocks,
         "block_ii_count": blocks - 1,
-        "block_ii": hop + 1 + manifest["fft_pipeline_cycles"] + emit + 1,
+        "block_ii": block_ii,
         "fill_latency_cycles": manifest["latency_cycles"],
         "tail_latency_cycles": manifest["latency_cycles"] - (hop - 1) + (emit - 1),
+        "source_tail_latency_cycles": ((last_valid // hop - last_source // hop) * block_ii
+                                       + manifest["latency_cycles"] + last_valid % hop - last_source % hop),
     }
 
 
@@ -304,7 +316,8 @@ def write_evidence(variant_id: str, evidence_dir: Path, build_dir: Path, vectors
             expected_fields = {"blocks": timing["blocks"], "block_ii_count": timing["block_ii_count"],
                                "block_ii_min": timing["block_ii"], "block_ii_max": timing["block_ii"],
                                "fill_latency_cycles": timing["fill_latency_cycles"],
-                               "tail_latency_cycles": timing["tail_latency_cycles"]}
+                               "tail_latency_cycles": timing["tail_latency_cycles"],
+                               "source_tail_latency_cycles": timing["source_tail_latency_cycles"]}
             measured = {name: (block_timing or {}).get(name) for name in expected_fields}
             if measured != expected_fields:
                 raise RuntimeError(f"{key}: block timing {measured} differs from the expected {expected_fields}")
@@ -379,7 +392,8 @@ def write_evidence(variant_id: str, evidence_dir: Path, build_dir: Path, vectors
                 {
                     "block_timing": "continuous run: the interval between the first accepted samples of consecutive "
                     "blocks is the block II (256 intervals for 257 blocks, the first 256 blocks); fill is the first "
-                    "accepted input to the first valid output and tail the last accepted input to the last output beat",
+                    "accepted input to the first valid output, tail the last accepted input to the last output beat (the block "
+                    "padding) and source tail the last source sample to the last valid output",
                     "vcd": "+vcd_file dumps the ports and the engine control state over the continuous run; the "
                     "engine enters LOAD, RUN, EMIT and DRAIN once per block, so every block is covered only if each "
                     "count equals the block count. The dump stays in the build directory; the evidence keeps its "
@@ -405,6 +419,8 @@ def write_evidence(variant_id: str, evidence_dir: Path, build_dir: Path, vectors
                     "measured_block_ii": sorted({frame["block_timing"]["block_ii_min"] for frame in frames.values()}),
                     "fill_latency_cycles": sorted({frame["block_timing"]["fill_latency_cycles"] for frame in frames.values()}),
                     "tail_latency_cycles": sorted({frame["block_timing"]["tail_latency_cycles"] for frame in frames.values()}),
+                    "source_tail_latency_cycles": sorted(
+                        {frame["block_timing"]["source_tail_latency_cycles"] for frame in frames.values()}),
                     "vcd_covers_all_blocks": all(frame["vcd"]["covers_all_blocks"] for frame in frames.values()),
                 }
                 if timing is not None

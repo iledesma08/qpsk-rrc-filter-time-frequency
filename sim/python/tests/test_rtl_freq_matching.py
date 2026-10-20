@@ -23,6 +23,9 @@ ROOT = Path(__file__).resolve().parents[3]
 VARIANT = "F-serial"
 EVIDENCE = ROOT / "sim/python/artifacts/t33-freq-matching/evidence_manifest.json"
 BLOCKS, HOP, BLOCK_CYCLES, LATENCY = 257, 8, 107, 99
+# Last source sample x[2047] to the last valid output y[2054]: one block (107) + the fill (99) + the positions
+# of the two inside their blocks (6 - 7). The tail-flush block's cost, unlike the tail to the padding output.
+SOURCE_TAIL = 205
 requires_icarus = pytest.mark.skipif(
     not shutil.which("iverilog") or not shutil.which("vvp"),
     reason="Icarus/vvp checks run in the required RTL CI job",
@@ -68,11 +71,13 @@ def test_f_serial_matches_the_t22_frequency_codes_on_every_frame(tmp_path, vecto
     result = run_freq_serial(staged, capture)
     assert result.returncode == 0, result.stdout + result.stderr
     assert f"PASS: vector window W=16 SPC=1 compared={manifest['valid_len']}" in result.stdout
-    # 2056 raw outputs: the first 2055 are the expected codes byte for byte, the last is the
-    # declared padding of block 257 (zero), outside the comparison window.
+    # 2056 raw outputs: the first 2055 are the expected codes byte for byte; the last is the block padding
+    # of block 257, outside the comparison window.
     captured = capture.read_text(encoding="ascii").split()
     expected = (staged / "expected.hex").read_text(encoding="ascii").split()
     assert captured[:2055] == expected
+    # Regression sentinel, not a contract value: y[2055] depends only on the flush zeros, so it is zero in
+    # exact arithmetic, but no manifest declares it and the FXP path only happens to give 00000000.
     assert captured[2055:] == ["00000000"]
     report = matching.parse_report(result.stdout)
     for run in ("continuous", "robustness"):
@@ -88,7 +93,8 @@ def test_f_serial_matches_the_t22_frequency_codes_on_every_frame(tmp_path, vecto
     assert continuous["measured_ii"] == "undefined"
     assert report["block_timing"] == {
         "blocks": BLOCKS, "hop": HOP, "block_ii_count": BLOCKS - 1, "block_ii_min": BLOCK_CYCLES,
-        "block_ii_max": BLOCK_CYCLES, "fill_latency_cycles": LATENCY, "tail_latency_cycles": LATENCY}
+        "block_ii_max": BLOCK_CYCLES, "fill_latency_cycles": LATENCY, "tail_latency_cycles": LATENCY,
+        "source_tail_latency_cycles": SOURCE_TAIL}
     assert report["robustness"]["tail_stalls"] >= 1
     assert report["robustness"]["measured_latency_cycles"] == "undefined"
     assert report["midtraffic_reset"] == {"prefix_accepted": 2, "restart_index": 0}
@@ -207,6 +213,19 @@ def test_staging_refuses_the_protected_vector_directory():
     assert not target.exists()
 
 
+# Expected block timing is the serial engine's own ---------------------------------
+
+
+def test_expected_block_timing_is_scoped_to_the_serial_engine():
+    manifest = matching.load_matching(VARIANT, "canonical", "none")["manifest"]
+    timing = matching.expected_block_timing(manifest)
+    assert (timing["block_ii"], timing["tail_latency_cycles"], timing["source_tail_latency_cycles"]) == (
+        BLOCK_CYCLES, LATENCY, SOURCE_TAIL)
+    # An unrolled variant (T42) must not inherit the serial schedule, nor a time variant any block timing.
+    assert matching.expected_block_timing({**manifest, "rtl_variant": "freq_unrolled"}) is None
+    assert matching.expected_block_timing({**manifest, "model_domain": "time", "rtl_variant": "time_serial"}) is None
+
+
 # Committed evidence ---------------------------------------------------------------
 
 
@@ -217,7 +236,8 @@ def test_committed_evidence_binds_the_committed_vectors_and_the_measured_timing(
     assert evidence["summary"] == {
         "frames": 4, "passed": 4, "compared_codes": 4 * 2055, "captured_equal_to_expected": 4, "mismatches": 0,
         "measured_latency_cycles": [LATENCY], "measured_ii": ["undefined"], "measured_block_ii": [BLOCK_CYCLES],
-        "fill_latency_cycles": [LATENCY], "tail_latency_cycles": [LATENCY], "vcd_covers_all_blocks": True,
+        "fill_latency_cycles": [LATENCY], "tail_latency_cycles": [LATENCY], "source_tail_latency_cycles": [SOURCE_TAIL],
+        "vcd_covers_all_blocks": True,
     }
     for key, frame in evidence["frames"].items():
         loaded = matching.load_matching(VARIANT, *key.split("/"))
@@ -230,6 +250,7 @@ def test_committed_evidence_binds_the_committed_vectors_and_the_measured_timing(
         }
         assert frame["declared"] == {name: manifest[name] for name in frame["declared"]}
         assert frame["captured_valid_window_sha256"] == manifest["hashes"]["expected_hex_sha256"]
+        # Regression sentinel, not a contract value (see the matching test above).
         assert frame["block_padding_records"] == ["00000000"]
         assert frame["block_timing"]["blocks"] == BLOCKS
         assert frame["continuous"]["compared"] == frame["robustness"]["compared"] == manifest["valid_len"]

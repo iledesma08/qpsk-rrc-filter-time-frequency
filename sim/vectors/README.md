@@ -116,6 +116,11 @@ Layout: `rtl_matching/<variant_id>/<vector_set>/<vector_case>/`, metadata only:
   (`flush_samples`, `transport_padding_samples`, `accepted_input_samples`,
   `raw_output_samples`). For `T-serial`: `SPC=1`, latency 0 samples / 9 cycles,
   7 flush zeros, 2055 accepted and raw samples.
+- `manifest_freq.json` (`F-serial`, T33): the same fields for the frequency
+  domain: `SPC=1`, latency 0 samples / 99 cycles, `fft_pipeline_cycles=89`,
+  8 flush zeros, 2056 accepted and raw samples (257 blocks). Index 2055 is the
+  block padding, outside the compared window (`valid_len=2055`) and not an
+  expected code.
 - `T-S4P1`/`T-S8P1` are two rows of one RTL source (`rtl_variant: time_opt`).
   Their manifests add `rtl_parameters` (`SYSTOLIC_PES` 4 or 8,
   `PIPELINE_DEPTH` 1), which the runner turns into the module parameters. It

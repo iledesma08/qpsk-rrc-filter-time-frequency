@@ -41,7 +41,7 @@ and by default generates the canonical structural fixture
 fixtures. `bash rtl/freq_serial/run.sh` stages the committed `rtl_matching/F-serial`
 canonical frame under `.build/` (T33) and runs this testbench on it; it rejects the
 width/SPC overrides. Compiled with `FREQ_SERIAL_DUT`, the TB also prints a
-`Block timing` line (block-start intervals, fill and tail latency) and, with
+`Block timing` line (block-start intervals, fill, tail and source-tail latency) and, with
 `+vcd_file=<path>` (`--vcd` in `run_variant.sh`), dumps the ports and the engine
 control state of the unstalled run.
 

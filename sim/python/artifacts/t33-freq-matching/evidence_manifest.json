@@ -5,6 +5,7 @@
     "block_ii_count": 256,
     "blocks": 257,
     "fill_latency_cycles": 99,
+    "source_tail_latency_cycles": 205,
     "tail_latency_cycles": 99
   },
   "frames": {
@@ -19,6 +20,7 @@
         "blocks": 257,
         "fill_latency_cycles": 99,
         "hop": 8,
+        "source_tail_latency_cycles": 205,
         "tail_latency_cycles": 99
       },
       "bound_sha256": {
@@ -59,7 +61,7 @@
         "valid_start": 0
       },
       "log_file": "canonical-none.log",
-      "log_sha256": "c3a8918dfaa290d02492d5a0e12ed4cf128852fc8cc21561c9eb1b3fb88aad63",
+      "log_sha256": "e235628240abda0a0a64afc2286705b5660296f91144e7e828bfd45e1f59cfdc",
       "midtraffic_reset": {
         "prefix_accepted": 2,
         "restart_index": 0
@@ -110,6 +112,7 @@
         "blocks": 257,
         "fill_latency_cycles": 99,
         "hop": 8,
+        "source_tail_latency_cycles": 205,
         "tail_latency_cycles": 99
       },
       "bound_sha256": {
@@ -150,7 +153,7 @@
         "valid_start": 0
       },
       "log_file": "sys_corners-corner_repeat.log",
-      "log_sha256": "c3a8918dfaa290d02492d5a0e12ed4cf128852fc8cc21561c9eb1b3fb88aad63",
+      "log_sha256": "e235628240abda0a0a64afc2286705b5660296f91144e7e828bfd45e1f59cfdc",
       "midtraffic_reset": {
         "prefix_accepted": 2,
         "restart_index": 0
@@ -201,6 +204,7 @@
         "blocks": 257,
         "fill_latency_cycles": 99,
         "hop": 8,
+        "source_tail_latency_cycles": 205,
         "tail_latency_cycles": 99
       },
       "bound_sha256": {
@@ -241,7 +245,7 @@
         "valid_start": 0
       },
       "log_file": "sys_corners-max_alternation.log",
-      "log_sha256": "c3a8918dfaa290d02492d5a0e12ed4cf128852fc8cc21561c9eb1b3fb88aad63",
+      "log_sha256": "e235628240abda0a0a64afc2286705b5660296f91144e7e828bfd45e1f59cfdc",
       "midtraffic_reset": {
         "prefix_accepted": 2,
         "restart_index": 0
@@ -292,6 +296,7 @@
         "blocks": 257,
         "fill_latency_cycles": 99,
         "hop": 8,
+        "source_tail_latency_cycles": 205,
         "tail_latency_cycles": 99
       },
       "bound_sha256": {
@@ -332,7 +337,7 @@
         "valid_start": 0
       },
       "log_file": "sys_corners-single_symbol_perturbation.log",
-      "log_sha256": "c3a8918dfaa290d02492d5a0e12ed4cf128852fc8cc21561c9eb1b3fb88aad63",
+      "log_sha256": "e235628240abda0a0a64afc2286705b5660296f91144e7e828bfd45e1f59cfdc",
       "midtraffic_reset": {
         "prefix_accepted": 2,
         "restart_index": 0
@@ -374,7 +379,7 @@
     }
   },
   "method": {
-    "block_timing": "continuous run: the interval between the first accepted samples of consecutive blocks is the block II (256 intervals for 257 blocks, the first 256 blocks); fill is the first accepted input to the first valid output and tail the last accepted input to the last output beat",
+    "block_timing": "continuous run: the interval between the first accepted samples of consecutive blocks is the block II (256 intervals for 257 blocks, the first 256 blocks); fill is the first accepted input to the first valid output, tail the last accepted input to the last output beat (the block padding) and source tail the last source sample to the last valid output",
     "capture": "the continuous run writes every captured output (+capture_file) in the .hex format; the SHA-256 of its valid-window records must equal expected_hex_sha256, independently of the testbench comparator. Records outside the window are declared block padding: recorded, not compared",
     "comparison": "exact stored codes at absolute index received*SPC + lane + latency_samples; a mismatch reports index, expected and captured code",
     "continuous": "valid_i and ready_i held high; asserts latency_cycles from the first accepted input to the first valid output, measures II from accepted-input edges",
@@ -392,7 +397,7 @@
     "rtl/common/rrc_stream_shell.sv": "de9997a832628814881bc3dd0f0f95309015fa490ff9273cf4569a7ac8d14f9d",
     "rtl/freq_serial/freq_serial_filter.sv": "dd22bdde3d3dbecd1ce146639208f008e832195cf92618c2f57870a37849768e",
     "rtl/run_variant.sh": "61016454b94947e786c3df741342e7ec84eb4e2199cf5b213476a8046b71590c",
-    "rtl/tb/rrc_stream_tb.sv": "9cd59336f378218b33563ba190cc36c3133f8b36b1bbfa1a902a19387de52b7a"
+    "rtl/tb/rrc_stream_tb.sv": "e41cdc91ac2359103f3409f87f90c2d62ec5e27f2e26bb1b3903cd17c7b1b821"
   },
   "rtl_variant": "freq_serial",
   "simulator": "Icarus Verilog version 11.0 (stable) ()",
@@ -414,6 +419,9 @@
     ],
     "mismatches": 0,
     "passed": 4,
+    "source_tail_latency_cycles": [
+      205
+    ],
     "tail_latency_cycles": [
       99
     ],

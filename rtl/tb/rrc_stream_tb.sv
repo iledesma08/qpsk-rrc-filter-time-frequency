@@ -128,7 +128,7 @@ module rrc_stream_tb;
     // Block-level timing of the unstalled run (frequency lane): the cycle of the first accepted
     // sample of each block, the intervals between consecutive blocks and the last output beat.
     integer block_start_prev, block_interval, block_ii_count, block_ii_min, block_ii_max;
-    integer blocks_started, last_output;
+    integer blocks_started, last_output, last_source_input, last_valid_output;
     string measured_ii, measured_latency;
     logic input_fire, output_stalled;
     logic [SPC-1:0][2*DATA_WIDTH-1:0] held_output;
@@ -140,7 +140,7 @@ module rrc_stream_tb;
       bubbles = 0; stalls = 0; backpressure = 0;
       interval_count = 0; ii_min = -1; ii_max = -1; tail_stalls = 0;
       block_start_prev = -1; block_ii_count = 0; block_ii_min = -1; block_ii_max = -1;
-      blocks_started = 0; last_output = -1;
+      blocks_started = 0; last_output = -1; last_source_input = -1; last_valid_output = -1;
       accepted_source = 0; accepted_flush = 0; accepted_padding = 0; emitted_samples = 0;
       input_fire = 1'b1; rng = 32'd2026;
       while (received < OUTPUT_BEATS || sent < INPUT_BEATS) begin
@@ -206,6 +206,8 @@ module rrc_stream_tb;
               accepted_flush = accepted_flush + 1;
             else accepted_padding = accepted_padding + 1;
           end
+          // The last source sample x[input_samples-1]: the tail-flush block still has to run after it.
+          if ((sent + 1) * SPC >= input_samples && sent * SPC < input_samples) last_source_input = cycle;
           sent = sent + 1;
         end
         if (valid_o) begin
@@ -227,6 +229,7 @@ module rrc_stream_tb;
                 $fatal(1, "Mismatch index=%0d expected=%08h got=%08h", absolute_index,
                        expected_codes[absolute_index], got);
               matched = matched + 1;
+              if (absolute_index == valid_start + valid_len - 1) last_valid_output = cycle;
             end
           end
           received = received + 1;
@@ -275,11 +278,14 @@ module rrc_stream_tb;
                 interval_count, ii_min, ii_max, measured_ii, tail_stalls, measured_latency);
 `ifdef FREQ_SERIAL_DUT
       // fill: first accepted input to first valid output (asserted above as latency_cycles);
-      // tail: last accepted input (the last flush beat) to the last output beat.
+      // tail: last accepted input (the last flush beat) to the last output beat (the block padding, so it
+      //   only mirrors the fill when HOP == EMIT_LEN);
+      // source tail: last source sample to the last valid output y[valid_start+valid_len-1], which is what
+      //   the tail-flush block costs.
       if (!robustness)
-        $display("Block timing blocks=%0d hop=%0d block_ii_count=%0d block_ii_min=%0d block_ii_max=%0d fill_latency_cycles=%0d tail_latency_cycles=%0d",
+        $display("Block timing blocks=%0d hop=%0d block_ii_count=%0d block_ii_min=%0d block_ii_max=%0d fill_latency_cycles=%0d tail_latency_cycles=%0d source_tail_latency_cycles=%0d",
                  blocks_started, HOP, block_ii_count, block_ii_min, block_ii_max,
-                 first_output - first_input, last_output - last_input);
+                 first_output - first_input, last_output - last_input, last_valid_output - last_source_input);
 `endif
     end
   endtask

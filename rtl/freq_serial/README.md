@@ -19,19 +19,23 @@ bash rtl/freq_serial/run.sh      # canonical F-serial rtl_matching frame through
   `bash rtl/freq_serial/run.sh` stages and passes the canonical frame, and
   `sim/python/tests/test_rtl_freq_matching.py` passes all four frames (canonical
   and the three `sys_corners`, 2055 exact codes each, 257 blocks, 2056 raw
-  outputs; the 2056th is the declared zero padding of block 257). Each run has
+  outputs; the 2056th is the block padding of block 257, observed as zero). Each run has
   a continuous pass (latency, block timing) and a robust pass (bubbles, stalls,
   a reset after two accepted samples).
 - Measured timing (`rtl-streaming-17.md`): fill latency 99 cycles (first
-  accepted sample to first output), tail latency 99, steady-state block `II`
+  accepted sample to first output), tail latency 99 (last accepted sample to the
+  last raw output, the padding), source tail latency 205 (last source sample
+  `x[2047]` to the last valid output `y[2054]`), steady-state block `II`
   107 cycles on the 256 block-to-block intervals (8 samples per block, so no
   per-sample `II` is defined: the engine is block-rate limited). A scoped VCD
   (ports + engine control state) shows all 257 blocks enter LOAD, RUN, EMIT and
   DRAIN. The committed evidence is `sim/python/artifacts/t33-freq-matching/`.
 - `test_rtl_freq_serial.py` checks the rounding and saturation primitives against an
   exact reference (the vectors reach no RNE tie and no output saturation), a
-  reset in the middle of RUN, EMIT and DRAIN, the runner limits and a latency
-  change. `test_rtl_freq_tables.py` compares the tables and widths with the T20
+  reset in the middle of RUN, EMIT and DRAIN and the runner limits; the declared
+  latency change is checked in `test_rtl_freq_matching.py`
+  (`test_a_wrong_declared_latency_fails_the_unstalled_run`).
+  `test_rtl_freq_tables.py` compares the tables and widths with the T20
   freeze and the T22 coefficient export. `test_rtl_config.py` holds the
   parameter-override check.
 - Elaborates with Icarus (`-g2012 -Wall`, no warnings). It synthesizes with the
@@ -185,8 +189,10 @@ so the frequency matching reuses it and adds only what a block engine needs.
 A frame is 2048 source samples plus 8 flush zeros: the flush zeros complete the
 257th block, so the engine accepts 2056 samples, runs 257 blocks and emits 2056
 raw outputs. The first 2055 are the expected codes; the last one is the
-declared padding of block 257 (`00000000`) and is not compared, as
-`rtl-streaming-17` requires. `latency_samples = 0`: the first causal result is
+padding of block 257 and is not compared, as `rtl-streaming-17` requires. No
+manifest declares its value: `y[2055]` depends only on the flush zeros, so it is
+zero in exact arithmetic, and the FXP path was observed to give `00000000`. The
+tests assert that as a regression sentinel, not as a contract value. `latency_samples = 0`: the first causal result is
 `y[0]`, and the wait for the first block shows up only as cycle latency.
 
 - **Metadata:** `gen_vectors.py --stage rtl_matching --variant F-serial` writes
@@ -205,7 +211,14 @@ declared padding of block 257 (`00000000`) and is not compared, as
 - **Block timing** (`Block timing` line of the TB, continuous run only), with
   the definitions the contracts leave open:
   fill latency is the first accepted sample to the first output (99 cycles);
-  tail latency is the last accepted sample to the last output (99 cycles);
+  tail latency is the last accepted sample (the last flush beat) to the last raw
+  output (99 cycles), which is the padding output of block 257, so it does not
+  show what the tail-flush block costs. It equals the fill by construction: the
+  8 accept cycles mirror the 8 emit cycles (`HOP == EMIT_LEN`), so
+  `latency_cycles - (HOP-1) + (EMIT_LEN-1) = 99`;
+  source tail latency is the last source sample `x[2047]` to the last valid
+  output `y[2054]` (205 cycles): one block (107) after the block of `x[2047]`,
+  plus the fill (99), plus the positions of the two inside their blocks (6 - 7);
   block II is the interval between consecutive block starts, over the first 256
   intervals of the 257 blocks, and it is 107 cycles on every one
   (8 + 1 + 89 + 8 + 1). There is no per-sample II: one block is not one sample,
@@ -216,10 +229,14 @@ declared padding of block 257 (`00000000`) and is not compared, as
   `emit_idx`) over the unstalled run. The evidence checks that all 257 blocks
   enter LOAD, RUN, EMIT and DRAIN. The scope (control, not the FFT datapath) is
   our choice: the contracts fix the coverage (all 257 blocks), not the signals.
+  The VCD runs on the 10 ns clock of the testbench and covers only the ports and
+  the control state, so it is **not** the T43 activity: F-serial targets SLOW at
+  100 ns and the power activity needs the full design at the declared period.
+  Do not reuse it for power.
 - **Evidence:** `sim/python/artifacts/t33-freq-matching/evidence_manifest.json`
   (written by `rtl_matching_stage.py --variant F-serial --evidence-dir`): 4/4
   frames PASS, 8220 compared codes, fill and tail latency 99, block II 107, VCD
-  covering 257 blocks, plus the hashes of the `.svh` and payloads each run
+  covering 257 blocks, source tail 205, plus the hashes of the `.svh` and payloads each run
   consumed. The captured valid window of every run hashes to the bound
   `expected_freq.hex`, which proves the match without relying on the TB
   comparator. The per-frame logs next to it are git-ignored (`*.log`) and are
@@ -248,10 +265,12 @@ Learning (T33):
   and the per-sample `II` is correctly `undefined`.
 - The 2056th output exists because the schedule works in whole blocks. It is not
   an invented expected code, so the comparison stops at index 2054 and the
-  padding is recorded and checked separately.
-- Fill and tail latency are different quantities (first sample to first
-  output, last sample to last output); the contracts ask for them split. Here
-  both measure 99 cycles, because the last block is processed like any other.
+  padding is recorded and checked separately, as an observed value.
+- Fill and tail latency are different quantities and the contracts ask for them
+  split. The last flush beat to the last raw output equals the fill here only
+  because `HOP == EMIT_LEN`, and it ends on the padding output; the number that
+  shows the tail-flush block's cost is the last source sample to the last valid
+  output (205 cycles).
 - Editing `gen_vectors.py` changes its source hash, which is recorded in the F1
   and F2 manifests and in the T20/T21 evidence. Adding this variant therefore
   regenerated them; only hashes and provenance changed (payloads are
