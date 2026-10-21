@@ -2,8 +2,8 @@
 # Shared compile/run path. Generated fixtures are not RRC golden vectors: the
 # transport wrapper (freq_opt) uses identity shell fixtures, time_serial (T30)
 # and time_opt (T40) use structural frames from an exact integer reference of
-# the accepted policy, and freq_serial (T32) uses a structural fixture built
-# from the T22 vectors (see rtl_freq_fixture.py). time_opt needs its matrix row:
+# the accepted policy, and freq_serial (T32/T33) runs the committed rtl_matching
+# vectors of F-serial (see rtl_matching_stage.py). time_opt needs its matrix row:
 # --systolic-pes S (4 for T-S4P1, 8 for T-S8P1) and --pipeline-depth P (1).
 set -euo pipefail
 
@@ -17,6 +17,7 @@ esac
 BUILD_DIR="$ROOT/.build/rtl/$variant"
 vector_dir=""
 capture=""
+vcd=""
 width=16
 spc=1
 override=0
@@ -24,11 +25,12 @@ pes=""
 depth=""
 while (($#)); do
   case "$1" in
-    --vectors|--data-width|--spc|--capture|--systolic-pes|--pipeline-depth)
+    --vectors|--data-width|--spc|--capture|--vcd|--systolic-pes|--pipeline-depth)
       if (($# < 2)); then printf 'Missing value for %s\n' "$1" >&2; exit 2; fi
       case "$1" in
         --vectors) vector_dir="$2" ;;
         --capture) capture="$2" ;;
+        --vcd) vcd="$2" ;;
         --data-width) width="$2"; override=1 ;;
         --spc) spc="$2"; override=1 ;;
         --systolic-pes) pes="$2" ;;
@@ -72,9 +74,10 @@ if [[ -z "$vector_dir" && ( "$variant" == time_serial || "$variant" == time_opt 
   "${PYTHON:-python3}" "$ROOT/sim/python/tests/rtl_filter_fixture.py" \
     --output "$vector_dir" --frame canonical --variant "$variant"
 elif [[ -z "$vector_dir" && "$variant" == freq_serial ]]; then
-  vector_dir="$BUILD_DIR/fixture-canonical"
-  "${PYTHON:-python3}" "$ROOT/sim/python/tests/rtl_freq_fixture.py" \
-    --output "$vector_dir" --frame canonical
+  # The committed rtl_matching vectors of F-serial (T33): metadata in rtl_matching/, payloads in fxp_expected/.
+  "${PYTHON:-python3}" "$ROOT/sim/python/tests/rtl_matching_stage.py" \
+    --variant F-serial --output "$BUILD_DIR/matching" >/dev/null
+  vector_dir="$BUILD_DIR/matching/canonical-none"
 elif [[ -z "$vector_dir" ]]; then
   vector_dir="$BUILD_DIR/fixture-w${width}-spc${spc}"
   "${PYTHON:-python3}" "$ROOT/sim/python/tests/rtl_shell_fixture.py" \
@@ -99,10 +102,20 @@ elif [[ "$variant" == freq_opt ]]; then
   sources+=("$ROOT/rtl/common/rrc_stream_shell.sv")
 fi
 if [[ "$variant" == freq_* ]]; then defines+=(-D FREQ_DUT); fi
+if [[ "$variant" == freq_serial ]]; then defines+=(-D FREQ_SERIAL_DUT); fi
 iverilog -g2012 -Wall "${defines[@]}" -I "$vector_dir" \
   -s rrc_stream_tb -o "$BUILD_DIR/sim.out" \
   "${sources[@]}" "$ROOT/rtl/$variant/${variant}_filter.sv" "$ROOT/rtl/tb/rrc_stream_tb.sv"
 # --capture <file>: the TB writes the continuous run's captured outputs there.
 plusargs=("+vector_dir=$vector_dir")
-if [[ -n "$capture" ]]; then plusargs+=("+capture_file=$(realpath -m "$capture")"); fi
+if [[ -n "$capture" ]]; then
+  mkdir -p "$(dirname "$(realpath -m "$capture")")"
+  plusargs+=("+capture_file=$(realpath -m "$capture")")
+fi
+# --vcd <file> (freq_serial): ports and engine control state over the unstalled run.
+if [[ -n "$vcd" ]]; then
+  if [[ "$variant" != freq_serial ]]; then printf -- '--vcd applies only to freq_serial\n' >&2; exit 2; fi
+  mkdir -p "$(dirname "$(realpath -m "$vcd")")"
+  plusargs+=("+vcd_file=$(realpath -m "$vcd")")
+fi
 vvp "$BUILD_DIR/sim.out" "${plusargs[@]}"
