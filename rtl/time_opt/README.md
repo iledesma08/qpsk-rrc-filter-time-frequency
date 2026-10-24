@@ -73,8 +73,8 @@ systolic design B1: broadcast input, moving results, fixed weights).
   coefficients: a coefficient multiplexer would turn the constant multipliers
   into generic ones. Taps with the same coefficient (`c[k] = c[7-k]`) give
   identical products that synthesis may merge. In the #51 synthesis check both
-  rows kept 8 multipliers, four distinct constant products per component; T41
-  reports confirm it on the real runs.
+  rows kept 8 multipliers, four distinct constant products per component; every
+  T41 target run confirms it at Yosys's ALUMACC pass (`openlane/README.md`).
 - **Parameters:** only `SYSTOLIC_PES` 4 or 8 with `PIPELINE_DEPTH` 1, production
   `DATA_WIDTH=16` and `SPC=1` elaborate. Anything else stops at elaboration
   (`S=1`/`S=2` and `P=2` are extension rows). The datapath is written for any
@@ -117,7 +117,8 @@ through OpenLane up to CTS (pre-route, 50% utilization, the repository's
 - **Slow corner.** At the slow corner (`nom_ss_100C_1v60`) no prototype reached
   100 MHz with `P=1` (transposed about 55/62 MHz, direct about 40/42 MHz).
   Registering the cast gained less than 1 ns at the typical corner, so it was
-  not adopted. Which corner signs off FAST is a T41 decision.
+  not adopted. T41 signs off at the typical corners and reports ss as a
+  diagnostic (`openlane/README.md`).
 - **This file through the same flow.** Both rows closed 10 ns at the typical
   corner, with worst slack +0.37 ns (`S=4`) and +0.58 ns (`S=8`) and post-CTS
   areas of 74k and 75k um². That is less margin than the `S=8` prototype had,
@@ -221,15 +222,16 @@ A scratch run of eleven mutants failed `test_rtl_time_opt.py` every time:
 
 These are functional results.
 
-- **Physical runs:** FAST 100 MHz timing, the per-row OpenLane configurations
-  (one `DESIGN_NAME`, `SYNTH_PARAMETERS` per row), synthesis, activity and
-  signoff belong to T41 (#52). The comparable PPA evidence belongs to #55.
+- **Physical runs:** FAST 100 MHz timing, the per-row OpenLane runs (one
+  `DESIGN_NAME`, `SYNTH_PARAMETERS` per row), synthesis, activity and signoff
+  are T41 (#52): `openlane/README.md` and `sim/python/artifacts/t41-time-ppa/`.
+  The comparable PPA evidence belongs to #55.
 - **The two PPA items of the #51 DoD,** the throughput/area/energy deltas
   against the same-domain serial row and the "improves at least one axis"
   claim, are delivered by those tasks.
-- **`openlane/time_opt/config.json`** only lists the sources: it no longer
-  includes the transport shell, and its defaults elaborate T-S8P1. Its 10 ns
-  setup is not timing evidence.
+- **`openlane/time_opt/config.json`** lists the sources and the FAST main
+  target; without `SYNTH_PARAMETERS` its defaults elaborate T-S8P1. The run
+  table `openlane/ppa_runs.json` gives each row its parameters.
 - **`docs/block-diagram.md` §2** draws the time datapath as a sample history
   (the serial and direct form). The transposed form of these rows is described
   here; updating the diagram belongs to its owner (T52).

@@ -1,4 +1,9 @@
 `timescale 1ns/1ps
+// Clock period in ns. A PPA target run (T41) sets it to the run's period:
+// 10 for FAST, 100 for SLOW. Every other run keeps the 10 ns clock.
+`ifndef CLK_PERIOD_NS
+`define CLK_PERIOD_NS 10
+`endif
 module rrc_stream_tb;
   `include "vector_manifest.svh"
 
@@ -18,9 +23,18 @@ module rrc_stream_tb;
   // output lane there, one packed record per line, as evidence independent of
   // this comparator. Without the plusarg nothing is written.
   integer capture_fd = 0;
+  // Optional +activity_vcd=<path>: the continuous run dumps the DUT there, from
+  // its first cycle to the negedge after its last output (the activity window),
+  // for annotated power (T41). Without the plusarg nothing is dumped.
+  string activity_vcd;
+  bit activity_dump = 1'b0;
 
-  always #5 clk = ~clk;
+  always #(`CLK_PERIOD_NS / 2.0) clk = ~clk;
 
+`ifdef GATE_LEVEL
+  // Final netlist of an OpenLane run: synthesis already bound its parameters.
+  `DUT_MODULE dut (.*);
+`else
   `DUT_MODULE #(
     .DATA_WIDTH(DATA_WIDTH), .SAMPLES_PER_CLOCK(SPC)
 `ifdef FREQ_DUT
@@ -32,6 +46,7 @@ module rrc_stream_tb;
     , .SYSTOLIC_PES(`SYSTOLIC_PES), .PIPELINE_DEPTH(`PIPELINE_DEPTH)
 `endif
   ) dut (.*);
+`endif
 
   function automatic logic [31:0] extend_code(input logic [2*DATA_WIDTH-1:0] packed_sample);
     logic signed [15:0] i_code, q_code;
@@ -134,6 +149,7 @@ module rrc_stream_tb;
     logic [SPC-1:0][2*DATA_WIDTH-1:0] held_output;
     logic [31:0] got;
     logic [31:0] rng;
+    realtime window_start;
     begin
       sent = 0; received = 0; matched = 0; cycle = 0;
       first_input = -1; first_output = -1; last_input = -1;
@@ -145,6 +161,12 @@ module rrc_stream_tb;
       input_fire = 1'b1; rng = 32'd2026;
       while (received < OUTPUT_BEATS || sent < INPUT_BEATS) begin
         @(negedge clk);
+        if (!robustness && activity_dump && cycle == 0) begin
+          window_start = $realtime;
+          $dumpfile(activity_vcd);
+          // The DUT and one level below: in a netlist, every cell pin and no model internals.
+          $dumpvars(2, dut);
+        end
         rng = rng ^ (rng << 13); rng = rng ^ (rng >> 17); rng = rng ^ (rng << 5);
         // Bounded ready opportunities do not rely on the PRNG. Keep tail
         // backpressure until at least one valid post-input output is held.
@@ -247,6 +269,12 @@ module rrc_stream_tb;
           $fatal(1, "Timeout sent=%0d received=%0d matched=%0d", sent, received, matched);
       end
       @(negedge clk);
+      if (!robustness && activity_dump) begin
+        // The window closes at the negedge after the last output: whole cycles only.
+        $dumpoff;
+        $display("Activity window start_ns=%0.3f end_ns=%0.3f cycles=%0d period_ns=%0.3f",
+                 window_start, $realtime, cycle, `CLK_PERIOD_NS * 1.0);
+      end
       valid_i = 1'b0; ready_i = 1'b1;
       repeat (latency_cycles + 3) begin
         @(posedge clk);
@@ -326,9 +354,12 @@ module rrc_stream_tb;
         $fatal(1, "Invalid expected code/sign extension index=%0d", n);
 
 `ifdef TIME_OPT_DUT
+`ifndef GATE_LEVEL
     // The row the instance elaborated, read back from it for the evidence.
     $display("DUT parameters SYSTOLIC_PES=%0d PIPELINE_DEPTH=%0d", dut.SYSTOLIC_PES, dut.PIPELINE_DEPTH);
 `endif
+`endif
+    activity_dump = $value$plusargs("activity_vcd=%s", activity_vcd);
     reset_dut();
 `ifdef RRC_SHELL_FIXTURE
     // Reset a pending, stalled transaction and prove no stale output survives.

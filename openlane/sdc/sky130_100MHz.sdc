@@ -1,5 +1,5 @@
-# 100 MHz primary SDC template (PNR/SIGNOFF identical except period).
-# Fallback: use sky130_10MHz.sdc with CLOCK_PERIOD 100.0, same file otherwise.
+# FAST 100 MHz SDC template (PNR/SIGNOFF), identical to sky130_10MHz.sdc except period.
+# Main target of the optimized rows, secondary of the serial rows (ppa-matrix-18 Clock Policy).
 # See docs/contracts/toolchain-gap-2.md and openlane-env-19.md.
 create_clock -name clk -period 10.000 [get_ports clk]
 set_input_delay 2.0 -clock clk [all_inputs]
