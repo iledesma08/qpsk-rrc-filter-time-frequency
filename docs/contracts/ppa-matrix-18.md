@@ -6,7 +6,7 @@ Map: [#12](https://github.com/iledesma08/qpsk-rrc-filter-time-frequency/issues/1
 
 Date: 2026-09-22
 
-Updated: 2026-10-02
+Updated: 2026-10-24
 
 Branch: `docs/18-ppa-matrix`
 
@@ -547,6 +547,35 @@ winner. Cross-target displays are labelled context, not controlled
 architecture-only improvement claims. This amendment does not change
 precision, activate additional architectures, or alter the non-normative
 Booth/ROM guidance.
+
+## Amendment - Antenna Residual Tolerance (2026-10-24)
+
+Accepted by the T44 owner (@AndresCesana, #55) on 2026-10-24 to settle the
+antenna deviation left open by T41 (#52, `openlane/README.md`); this records
+team approval, not professor approval. It changes gate 2 of the Ranking Rule
+only for antenna; DRC and LVS stay zero-tolerance.
+
+- A target run passes the antenna part of physical signoff when its
+  post-route check (`openroad-checkantennas`) reports **at most 3 violating
+  nets**, each with a **partial/required ratio of at most 1.72**. Any run over
+  either bound fails signoff and cannot be a winner or delivery evidence.
+- The bound is the residual measured on the six T41 time runs (1-3 nets,
+  ratios 1.00-1.72, all on met1 except one met3 net at 401.68/400) under the
+  shared Classic repair (`GRT_ANTENNA_ITERS` 3, `GRT_ANTENNA_MARGIN` 10 %).
+  It is not loosened for later runs: the frequency rows meet the same bound.
+- Why: the global-routing repair runs before detailed routing lengthens some
+  nets and nothing repairs after it; stronger uniform repair did not converge
+  (T41 trials) and per-row tuning would break Measurement Conditions. Under the
+  strict rule both time serial references fail and the time domain has no
+  comparable pair (D7). The residual nets are a known, bounded manufacturing
+  risk, stated as such in the T44 table and slides.
+- Every run keeps reporting each residual net (layer, partial, required,
+  ratio) in `evidence_manifest.json` and the OpenLane `antenna_summary.rpt`.
+  The T44 table (`sim/python/tests/ppa_table.py`) applies the bound and marks
+  every run that passes only through it.
+- A post-detailed-route antenna repair that clears the residual with the same
+  configuration for all rows supersedes this tolerance when its evidence is
+  committed; it does not change any other condition.
 
 ## References
 
