@@ -212,7 +212,7 @@ def test_validator_requires_stage_fields(generated):
         validate_manifest(_f1_manifest(generated) | {"artifact_stage": "fxp_expected"})
 
 
-@pytest.mark.parametrize(("variant_id", "owner"), [("F-serial", "T33"), ("F-U4", "T42"), ("F-U8", "T42")])
+@pytest.mark.parametrize(("variant_id", "owner"), [("F-U4", "T42"), ("F-U8", "T42")])
 def test_rtl_matching_export_is_reserved_for_its_owners(tmp_path, variant_id, owner):
     with pytest.raises(NotImplementedError, match=owner):
         export_rtl_matching(tmp_path, variant_id=variant_id, vectors_dir=_COMMITTED_DIR)
@@ -757,7 +757,7 @@ def test_committed_rtl_matching_is_current(tmp_path):
     for variant_id in gen_vectors._RTL_VARIANTS:
         export_rtl_matching(tmp_path, variant_id, vectors_dir=_COMMITTED_DIR)
 
-    assert sorted(path.name for path in (_COMMITTED_DIR / "rtl_matching").iterdir()) == ["T-S4P1", "T-S8P1", "T-serial"]
+    assert sorted(path.name for path in (_COMMITTED_DIR / "rtl_matching").iterdir()) == ["F-serial", "T-S4P1", "T-S8P1", "T-serial"]
     assert _tree_bytes(_COMMITTED_DIR / "rtl_matching") == _tree_bytes(tmp_path / "rtl_matching")
 
 
@@ -795,6 +795,119 @@ def test_t40_rows_declare_their_parameters_and_bind_the_t_serial_payloads(tmp_pa
         fields = _svh_localparams(path.parent / "vector_manifest.svh")
         assert list(fields) == _SVH_LOCALPARAMS
         assert fields == _svh_localparams(serial_path.parent / "vector_manifest.svh") | {"latency_cycles": 2}
+
+
+# T33 F3 rtl_matching export (F-serial: frequency domain, 257 blocks of eight)
+
+
+@pytest.fixture(scope="module")
+def matched_freq(tmp_path_factory):
+    output_dir = tmp_path_factory.mktemp("rtl_matching_freq")
+    paths = export_rtl_matching(output_dir, "F-serial", vectors_dir=_COMMITTED_DIR)
+    return output_dir, paths
+
+
+def test_f_serial_writes_only_frequency_metadata_for_every_frame(matched_freq):
+    output_dir, paths = matched_freq
+
+    assert sorted(path.name for path in output_dir.iterdir()) == ["rtl_matching"]
+    assert [(path.parent.parent.name, path.parent.name) for path in paths] == _EXPECTED_FRAMES
+    for path in paths:
+        assert path.name == "manifest_freq.json"
+        assert path.parent.parent.parent.name == "F-serial"
+        assert sorted(item.name for item in path.parent.iterdir()) == [
+            "manifest_freq.json", "manifest_freq.json.sha256", "vector_manifest.svh", "vector_manifest.svh.sha256",
+        ]
+    assert not list(output_dir.rglob("*.hex"))
+
+
+def test_f_serial_manifests_declare_the_block_schedule_and_transport_counts(matched_freq):
+    _, paths = matched_freq
+
+    for path in paths:
+        manifest = _load(path)
+        validate_manifest(manifest)
+        f2 = _load(_COMMITTED_DIR / "fxp_expected" / manifest["vector_set"] / manifest["vector_case"] / path.name)
+        assert (manifest["artifact_stage"], manifest["model_domain"], manifest["variant_id"], manifest["rtl_variant"]) == (
+            "rtl_matching", "frequency", "F-serial", "freq_serial")
+        assert (manifest["DATA_WIDTH"], manifest["SPC"]) == (16, 1)
+        # Block fill is cycle latency, not an index shift: y[0] is the first output.
+        assert (manifest["latency_samples"], manifest["latency_cycles"]) == (0, 99)
+        # FFT + spectral product + IFFT: the 89 cycles of the RUN state.
+        assert manifest["fft_pipeline_cycles"] == 89
+        assert (manifest["FFT_LEN"], manifest["HOP"], manifest["DISCARD_PREFIX"], manifest["EMIT_START"],
+                manifest["EMIT_LEN"], manifest["block_cadence"]) == (16, 8, 8, 8, 8, 8)
+        # 2048 source records + 8 flush zeros = 257 blocks; 2056 raw outputs, 2055 of them expected codes.
+        assert (manifest["flush_samples"], manifest["transport_padding_samples"]) == (8, 0)
+        assert (manifest["accepted_input_samples"], manifest["raw_output_samples"]) == (2056, 2056)
+        assert manifest["accepted_input_samples"] // manifest["HOP"] == 257
+        assert (manifest["input_samples"], manifest["output_samples"], manifest["valid_start"], manifest["valid_len"]) == (
+            2048, 2055, 0, 2055)
+        assert manifest["raw_output_samples"] - manifest["valid_len"] == 1
+        for field in (*gen_vectors.STIMULUS_FIELDS[2:], *FXP_FIELDS, "component_sign_extension", "hash_serialization"):
+            assert manifest[field] == f2[field], field
+        assert "sqnr_cross_db" not in manifest and "rtl_parameters" not in manifest
+        assert manifest["latency_declaration"]["evidence_file"] == (
+            "sim/python/artifacts/t33-freq-matching/evidence_manifest.json")
+
+
+def test_f_serial_binds_the_f2_frequency_payloads_and_its_svh_by_hash(matched_freq):
+    output_dir, paths = matched_freq
+
+    for path in output_dir.rglob("*"):
+        if path.is_file() and not path.name.endswith(".sha256"):
+            digest, name = path.with_name(path.name + ".sha256").read_text(encoding="utf-8").split()
+            assert (name, digest) == (path.name, _sha256(path))
+    for path in paths:
+        manifest = _load(path)
+        hashes, payload = manifest["hashes"], manifest["payload"]
+        f2_dir = _COMMITTED_DIR / "fxp_expected" / manifest["vector_set"] / manifest["vector_case"]
+        committed = _COMMITTED_DIR / "rtl_matching" / "F-serial" / manifest["vector_set"] / manifest["vector_case"]
+        assert (committed / payload["input_file"]).resolve() == (f2_dir / "input.hex").resolve()
+        assert (committed / payload["expected_file"]).resolve() == (f2_dir / "expected_freq.hex").resolve()
+        assert (committed / payload["fxp_expected_manifest"]).resolve() == (f2_dir / "manifest_freq.json").resolve()
+        assert hashes["input_hex_sha256"] == _sha256(f2_dir / "input.hex")
+        assert hashes["expected_hex_sha256"] == _sha256(f2_dir / "expected_freq.hex")
+        assert hashes["fxp_expected_manifest_sha256"] == _sha256(f2_dir / "manifest_freq.json")
+        assert hashes["coefficient_table_sha256"] == _sha256(_COMMITTED_DIR / "fxp_expected" / gen_vectors.COEFFICIENT_FILE)
+        assert hashes["output_codes_sha256"] == _load(f2_dir / "manifest_freq.json")["hashes"]["output_codes_sha256"]
+        assert hashes["vector_manifest_svh_sha256"] == _sha256(path.parent / "vector_manifest.svh")
+        assert "vector_manifest_sha256" not in hashes
+
+
+def test_f_serial_svh_mirrors_the_manifest(matched_freq):
+    _, paths = matched_freq
+
+    for path in paths:
+        manifest = _load(path)
+        fields = _svh_localparams(path.parent / "vector_manifest.svh")
+        assert list(fields) == _SVH_LOCALPARAMS
+        assert fields == {name: manifest[name] for name in _SVH_LOCALPARAMS}
+
+
+def test_f_serial_export_is_byte_identical(matched_freq, tmp_path):
+    output_dir, _ = matched_freq
+    export_rtl_matching(tmp_path, "F-serial", vectors_dir=_COMMITTED_DIR)
+
+    assert _tree_bytes(tmp_path) == _tree_bytes(output_dir)
+
+
+@pytest.mark.parametrize(
+    ("fields", "error"),
+    [
+        ({"flush_samples": 7}, "accepted_input_samples"),
+        ({"flush_samples": 7, "accepted_input_samples": 2055, "raw_output_samples": 2055}, "frequency transport"),
+        ({"raw_output_samples": 2055}, "frequency transport"),
+        ({"raw_output_samples": 2057}, "frequency transport"),
+        ({"fft_pipeline_cycles": 0}, "fft_pipeline_cycles"),
+        ({"latency_samples": 8}, "latency_samples"),
+        ({"HOP": 9}, "HOP"),
+        ({"block_cadence": 9}, "block_cadence"),
+    ],
+)
+def test_f_serial_validator_rejects_bad_block_transport(matched_freq, fields, error):
+    with pytest.raises(ValueError, match=error):
+        validate_manifest(_load(matched_freq[1][0]) | fields)
 
 
 def test_rtl_matching_export_refuses_unknown_variants(tmp_path):
@@ -870,7 +983,7 @@ def test_cli_exports_rtl_matching_next_to_the_f2_frames(monkeypatch, tmp_path, c
     [
         (["--stage", "rtl_matching"], "--variant is required"),
         (["--stage", "fxp_expected", "--variant", "T-serial"], "--variant is required"),
-        (["--stage", "rtl_matching", "--variant", "F-serial"], "T33"),
+        (["--stage", "rtl_matching", "--variant", "F-U4"], "T42"),
     ],
 )
 def test_cli_rtl_matching_requires_an_owned_variant(monkeypatch, tmp_path, capsys, arguments, error):

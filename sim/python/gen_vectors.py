@@ -127,6 +127,20 @@ _SVH_FIELDS = (
 # time_opt_filter for T-S4P1/T-S8P1); the runner passes it to the testbench.
 # It stays out of the .svh and never uses the legacy name "S".
 _RTL_VARIANTS = {
+    "F-serial": {
+        "model_domain": "frequency",
+        "rtl_variant": "freq_serial",
+        "SPC": 1,
+        # Block fill is cycle latency, not an index shift: y[0] is the first output (latency_samples=0).
+        "latency_samples": 0,
+        # Accept edge of the first sample to the first valid output: 8 ACCEPT + 1 LOAD + 89 RUN + 1 EMIT load.
+        "latency_cycles": 99,
+        # FFT + spectral product + IFFT: the 89 cycles of RUN (rtl/freq_serial/README.md state table).
+        "fft_pipeline_cycles": 89,
+        # One more block of eight zeros flushes the tail: 257 blocks, 2056 accepted samples.
+        "flush_samples": 8,
+        "evidence_file": "sim/python/artifacts/t33-freq-matching/evidence_manifest.json",
+    },
     "T-serial": {
         "model_domain": "time",
         "rtl_variant": "time_serial",
@@ -155,7 +169,6 @@ _RTL_VARIANTS = {
 }
 # Variants whose matching metadata belongs to another task: refused, never guessed.
 _RESERVED_VARIANTS = {
-    "F-serial": "T33 (#50)",
     "F-U4": "T42 (#53)",
     "F-U8": "T42 (#53)",
 }
@@ -305,6 +318,16 @@ def _validate_transport(manifest: dict) -> None:
         raise ValueError("raw_output_samples: must be whole beats covering the valid window")
     if manifest["model_domain"] == "time" and (flush, raw) != (_STIMULUS_CONSTANTS["output_samples"] - source, accepted):
         raise ValueError("time transport: 7 flush zeros and one raw output per accepted sample")
+    if manifest["model_domain"] == "frequency":
+        # Schema section 7: whole blocks of HOP samples cover the causal window, so the flush rounds the
+        # source plus the tail up to a block (257 blocks, 8 zeros); every block emits HOP raw outputs and the
+        # last one lies beyond the valid window (index 2055 is block padding, not an expected code).
+        hop, valid_len = manifest["HOP"], manifest["valid_len"]
+        blocks = -(-valid_len // hop)
+        if (flush, accepted, raw) != (blocks * hop - source, blocks * hop, blocks * hop):
+            raise ValueError("frequency transport: flush zeros complete the last block and every block emits HOP outputs")
+        if manifest["fft_pipeline_cycles"] < 1:
+            raise ValueError("fft_pipeline_cycles: a frequency variant records its FFT + product + IFFT cycles")
 
 
 def _source_hashes() -> dict[str, str]:
@@ -739,7 +762,8 @@ def export_rtl_matching(output_dir: Path, variant_id: str, vectors_dir: Path | N
             "flush_samples": flush,
             "transport_padding_samples": padding,
             "accepted_input_samples": accepted,
-            # Time domain: one output per accepted sample.
+            # One raw output per accepted sample: the time filters stream them, the frequency block
+            # engine emits HOP outputs per accepted block of HOP samples.
             "raw_output_samples": accepted,
             "component_sign_extension": f2["component_sign_extension"],
         }

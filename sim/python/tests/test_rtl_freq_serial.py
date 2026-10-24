@@ -1,12 +1,11 @@
-"""T32 (#49): freq_serial against the T22 vectors, its rounding primitives and a reset in mid block.
+"""T32 (#49): freq_serial runner limits, its rounding primitives and a reset in mid block.
 
-The structural fixture is built from the committed ``sim/vectors/fxp_expected``
-codes into ``tmp_path``; nothing is written to ``sim/vectors/``. The committed
-``rtl_matching`` manifest and the formal matching report are T33 (#50).
+The vector matching of every frame is T33 (#50): ``test_rtl_freq_matching.py``.
+Here the canonical frame is staged from the committed ``rtl_matching/F-serial``
+metadata into ``tmp_path``; nothing is written to ``sim/vectors/``.
 Standard library only, so it runs in the RTL CI job without NumPy.
 """
 
-import hashlib
 from fractions import Fraction
 from pathlib import Path
 import random
@@ -17,7 +16,7 @@ import sys
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import rtl_freq_fixture as fixture  # noqa: E402
+import rtl_matching_stage as matching  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -40,11 +39,6 @@ def run_variant(*arguments):
     )
 
 
-def rehash(path: Path) -> None:
-    path.with_name(path.name + ".sha256").write_text(
-        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n", encoding="utf-8")
-
-
 def compile_and_run(tmp_path, sources, top, defines=(), arguments=()):
     binary = tmp_path / f"{top}.out"
     compiled = subprocess.run(
@@ -59,54 +53,7 @@ def compile_and_run(tmp_path, sources, top, defines=(), arguments=()):
     )
 
 
-# Vector matching against the T22 expected codes -----------------------------
-
-
-@pytest.mark.parametrize("frame", sorted(fixture.FRAMES))
-def test_freq_serial_matches_the_t22_codes_on_every_frame(tmp_path, frame):
-    vectors = fixture.write_fixture(tmp_path / frame, frame)
-    result = run_variant("--vectors", str(vectors))
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert "PASS: vector window W=16 SPC=1 compared=2055" in result.stdout
-    frames = [line for line in result.stdout.splitlines() if line.startswith("Frame robustness=")]
-    assert len(frames) == 2
-    for line in frames:
-        # 257 blocks: 2048 source records + 8 flush zeros in, 2056 raw outputs, 2055 compared.
-        assert ("compared=2055 accepted_beats=2056 emitted_beats=2056" in line), line
-        assert "source_samples=2048 flush_samples=8 transport_padding_samples=0" in line, line
-    assert "cycles=27499 " in frames[0]
-
-
-def test_default_runner_uses_the_canonical_structural_fixture():
-    result = run_variant()
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert "PASS: vector window W=16 SPC=1 compared=2055" in result.stdout
-
-
-def test_a_latency_change_fails_the_testbench(tmp_path):
-    vectors = fixture.write_fixture(tmp_path / "canonical")
-    manifest = vectors / "vector_manifest.svh"
-    manifest.write_text(manifest.read_text().replace(
-        f"latency_cycles = {fixture.LATENCY_CYCLES};", f"latency_cycles = {fixture.LATENCY_CYCLES - 1};"))
-    rehash(manifest)
-    result = run_variant("--vectors", str(vectors))
-    assert result.returncode != 0
-    assert f"Latency mismatch expected={fixture.LATENCY_CYCLES - 1} got={fixture.LATENCY_CYCLES}" in result.stdout
-
-
-def test_a_wrong_expected_code_fails_the_testbench(tmp_path):
-    vectors = fixture.write_fixture(tmp_path / "canonical")
-    expected = vectors / "expected.hex"
-    lines = expected.read_text().splitlines()
-    lines[100] = "%08x" % (int(lines[100], 16) ^ 1)
-    expected.write_text("\n".join(lines) + "\n")
-    rehash(expected)
-    result = run_variant("--vectors", str(vectors))
-    assert result.returncode != 0
-    assert "Mismatch index=100" in result.stdout
-
-
-# Runner and fixture limits --------------------------------------------------
+# Runner limits --------------------------------------------------
 
 
 @pytest.mark.parametrize("option", [("--data-width", "8"), ("--spc", "2"), ("--data-width", "12", "--spc", "4")])
@@ -125,22 +72,6 @@ def test_top_level_runner_skips_the_serial_filters_for_diagnostic_options():
     assert result.returncode == 0, result.stdout + result.stderr
     for variant in ("time_serial", "freq_serial"):
         assert f"skipping {variant}: it implements only production DATA_WIDTH=16 at SPC=1" in result.stdout
-
-
-def test_fixture_never_writes_into_sim_vectors():
-    with pytest.raises(ValueError, match="never go into sim/vectors"):
-        fixture.write_fixture(ROOT / "sim" / "vectors" / "freq_serial_fixture")
-    assert not (ROOT / "sim" / "vectors" / "freq_serial_fixture").exists()
-
-
-def test_fixture_has_the_declared_counts_and_a_marker(tmp_path):
-    vectors = fixture.write_fixture(tmp_path / "canonical")
-    assert len((vectors / "input.hex").read_text().split()) == 2048
-    assert len((vectors / "expected.hex").read_text().split()) == 2055
-    manifest = (vectors / "vector_manifest.svh").read_text()
-    assert "`define RRC_STRUCTURAL_FIXTURE" in manifest
-    assert "RRC_SHELL_FIXTURE" not in manifest
-    assert "localparam integer accepted_input_samples = 2056;" in manifest
 
 
 # Directed check of the narrowing primitives ---------------------------------
@@ -353,7 +284,7 @@ endmodule
 
 @pytest.mark.parametrize("scenario,name", [(0, "RUN"), (1, "EMIT"), (2, "DRAIN")])
 def test_reset_in_the_middle_of_a_block_leaves_no_trace(tmp_path, scenario, name):
-    vectors = fixture.write_fixture(tmp_path / "canonical")
+    vectors = matching.stage(tmp_path / "canonical", "F-serial", "canonical", "none")
     bench = tmp_path / "reset_tb.sv"
     bench.write_text(RESET_TB % {})
     result = compile_and_run(

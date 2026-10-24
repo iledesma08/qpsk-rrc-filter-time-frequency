@@ -18,7 +18,7 @@ module rrc_stream_tb;
   logic [SPC-1:0][2*DATA_WIDTH-1:0] sample_o;
   logic [31:0] input_codes [0:input_samples-1];
   logic [31:0] expected_codes [0:output_samples-1];
-  string vector_dir, capture_file;
+  string vector_dir, capture_file, vcd_file;
   // Optional +capture_file=<path>: the continuous run writes every captured
   // output lane there, one packed record per line, as evidence independent of
   // this comparator. Without the plusarg nothing is written.
@@ -140,6 +140,10 @@ module rrc_stream_tb;
     integer bubbles, stalls, backpressure, absolute_index;
     integer accepted_source, accepted_flush, accepted_padding, emitted_samples;
     integer interval_count, ii_min, ii_max, interval_cycles, tail_stalls;
+    // Block-level timing of the unstalled run (frequency lane): the cycle of the first accepted
+    // sample of each block, the intervals between consecutive blocks and the last output beat.
+    integer block_start_prev, block_interval, block_ii_count, block_ii_min, block_ii_max;
+    integer blocks_started, last_output, last_source_input, last_valid_output;
     string measured_ii, measured_latency;
     logic input_fire, output_stalled;
     logic [SPC-1:0][2*DATA_WIDTH-1:0] held_output;
@@ -151,6 +155,8 @@ module rrc_stream_tb;
       first_input = -1; first_output = -1; last_input = -1;
       bubbles = 0; stalls = 0; backpressure = 0;
       interval_count = 0; ii_min = -1; ii_max = -1; tail_stalls = 0;
+      block_start_prev = -1; block_ii_count = 0; block_ii_min = -1; block_ii_max = -1;
+      blocks_started = 0; last_output = -1; last_source_input = -1; last_valid_output = -1;
       accepted_source = 0; accepted_flush = 0; accepted_padding = 0; emitted_samples = 0;
       input_fire = 1'b1; rng = 32'd2026;
       while (received < OUTPUT_BEATS || sent < INPUT_BEATS) begin
@@ -201,6 +207,20 @@ module rrc_stream_tb;
             $fatal(1, "Shell II must be measured as one cycle, not inferred from SPC");
 `endif
           last_input = cycle;
+`ifdef FREQ_SERIAL_DUT
+          // The first sample of block b is sample b*HOP; the interval from block b to block b+1 is the
+          // block II, so 257 blocks give 256 intervals (the first 256 blocks).
+          if (!robustness && (sent * SPC) % HOP == 0) begin
+            if (block_start_prev >= 0) begin
+              block_interval = cycle - block_start_prev;
+              if (block_ii_count == 0 || block_interval < block_ii_min) block_ii_min = block_interval;
+              if (block_ii_count == 0 || block_interval > block_ii_max) block_ii_max = block_interval;
+              block_ii_count = block_ii_count + 1;
+            end
+            block_start_prev = cycle;
+            blocks_started = blocks_started + 1;
+          end
+`endif
           for (integer lane = 0; lane < SPC; lane = lane + 1) begin
             if (sent * SPC + lane < input_samples)
               accepted_source = accepted_source + 1;
@@ -208,6 +228,8 @@ module rrc_stream_tb;
               accepted_flush = accepted_flush + 1;
             else accepted_padding = accepted_padding + 1;
           end
+          // The last source sample x[input_samples-1]: the tail-flush block still has to run after it.
+          if ((sent + 1) * SPC >= input_samples && sent * SPC < input_samples) last_source_input = cycle;
           sent = sent + 1;
         end
         if (valid_o) begin
@@ -229,10 +251,12 @@ module rrc_stream_tb;
                 $fatal(1, "Mismatch index=%0d expected=%08h got=%08h", absolute_index,
                        expected_codes[absolute_index], got);
               matched = matched + 1;
+              if (absolute_index == valid_start + valid_len - 1) last_valid_output = cycle;
             end
           end
           received = received + 1;
           emitted_samples = emitted_samples + SPC;
+          last_output = cycle;
 `ifdef RRC_SHELL_FIXTURE
           if (received > sent) $fatal(1, "Shell invented an output");
 `endif
@@ -280,6 +304,17 @@ module rrc_stream_tb;
                 robustness, matched, sent, received, cycle, accepted_source, accepted_flush,
                 accepted_padding, accepted_source + accepted_flush + accepted_padding, emitted_samples,
                 interval_count, ii_min, ii_max, measured_ii, tail_stalls, measured_latency);
+`ifdef FREQ_SERIAL_DUT
+      // fill: first accepted input to first valid output (asserted above as latency_cycles);
+      // tail: last accepted input (the last flush beat) to the last output beat (the block padding, so it
+      //   only mirrors the fill when HOP == EMIT_LEN);
+      // source tail: last source sample to the last valid output y[valid_start+valid_len-1], which is what
+      //   the tail-flush block costs.
+      if (!robustness)
+        $display("Block timing blocks=%0d hop=%0d block_ii_count=%0d block_ii_min=%0d block_ii_max=%0d fill_latency_cycles=%0d tail_latency_cycles=%0d source_tail_latency_cycles=%0d",
+                 blocks_started, HOP, block_ii_count, block_ii_min, block_ii_max,
+                 first_output - first_input, last_output - last_input, last_valid_output - last_source_input);
+`endif
     end
   endtask
 
@@ -337,7 +372,23 @@ module rrc_stream_tb;
       capture_fd = $fopen(capture_file, "w");
       if (capture_fd == 0) $fatal(1, "Cannot open capture file %s", capture_file);
     end
+`ifdef FREQ_SERIAL_DUT
+    // Optional +vcd_file=<path>: dump the ports and the engine control state over the whole
+    // unstalled run (all blocks). Not the full-design activity file of T43.
+    if ($value$plusargs("vcd_file=%s", vcd_file)) begin
+      $dumpfile(vcd_file);
+      $dumpvars(0, clk, rst_n, valid_i, ready_o, sample_i, valid_o, ready_i, sample_o,
+                dut.datapath.engine.state, dut.datapath.engine.cnt, dut.datapath.engine.pass,
+                dut.datapath.engine.step, dut.datapath.engine.emit_idx);
+    end
+`endif
     run_frame(1'b0);
+`ifdef FREQ_SERIAL_DUT
+    if (vcd_file != "") begin
+      $dumpoff;
+      $dumpflush;
+    end
+`endif
     if (capture_fd != 0) begin
       $fclose(capture_fd);
       capture_fd = 0;
