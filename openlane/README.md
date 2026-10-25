@@ -289,7 +289,10 @@ Every run used one machine: WSL with 4 CPUs and 7.8 GiB.
 - **OpenLane only globs inside the design directory.**
   `dir::../../rtl/<variant>/*.sv` fails with "not located any path readable to
   OpenLane", while a named file outside it is fine. The time configs now name
-  their filter source; the frequency configs still use the glob (T43).
+  their filter source. `openlane/freq_opt/config.json` names its sources too (T42);
+  `openlane/freq_serial/config.json` still uses the glob and the 200x200 die and
+  100 MHz SDC of the T02 skeleton, so T43 must update it (relative sizing, the
+  10 MHz SDC as main target) before the first frequency run.
 - **A flow that ends with deferred errors writes no `final/`.** Setup
   violations at the typical corners are such an error. Every step still runs,
   including DRC and LVS. The last step's `state_out.json` holds the metrics and

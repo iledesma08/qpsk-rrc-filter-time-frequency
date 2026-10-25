@@ -11,10 +11,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[3]
 VARIANTS = ("time_serial", "time_opt", "freq_serial", "freq_opt")
 # time_serial carries the T30 filter (its reset test is in test_rtl_time_serial.py),
-# freq_serial the T32 engine (test_rtl_freq_serial.py) and time_opt the T40 filter
-# (test_rtl_time_opt.py): none of them is a T03 transport shell.
-TRANSPORT_VARIANTS = ("freq_opt",)
-FREQUENCY = ("freq_serial", "freq_opt")
+# freq_serial the T32 engine (test_rtl_freq_serial.py), time_opt the T40 filter
+# (test_rtl_time_opt.py) and freq_opt the T42 engine rows (test_rtl_freq_opt.py): none of them is a
+# T03 transport shell. "transport" is the test-only shell wrapper (sim/python/tests/transport).
+TRANSPORT_VARIANTS = ("transport",)
+FREQUENCY = ("freq_serial", "freq_opt", "transport")
+ENGINE_VARIANTS = ("freq_serial", "freq_opt")
 
 
 def simulate(tmp_path, body, variant=None, sources=None):
@@ -25,10 +27,12 @@ def simulate(tmp_path, body, variant=None, sources=None):
     if sources is None:
         # Packages first; the T32 engine files are only for freq_serial.
         names = ["rrc_pkg", "rrc_reset_sync", "rrc_stream_shell"]
-        if variant == "freq_serial":
+        if variant in ENGINE_VARIANTS:
             names = ["rrc_pkg", "rrc_reset_sync", "rrc_freq_pkg", "rrc_freq_engine"]
         sources = [ROOT / f"rtl/common/{name}.sv" for name in names]
-        if variant:
+        if variant == "transport":
+            sources.append(ROOT / "sim/python/tests/transport/transport_filter.sv")
+        elif variant:
             sources.append(ROOT / f"rtl/{variant}/{variant}_filter.sv")
     binary = tmp_path / "sim.out"
     compiled = subprocess.run(
@@ -134,8 +138,8 @@ TRANSPORT_ONLY_TUPLES = [
     (".FFT_LEN(32), .HOP(24)", 8, 24),
     (".FFT_LEN(16), .HOP(16), .DISCARD_PREFIX(0)", 0, 16),
 ]
-VALID_TUPLES = [("freq_serial", *entry) for entry in ENGINE_TUPLES] + [
-    ("freq_opt", *entry) for entry in ENGINE_TUPLES + TRANSPORT_ONLY_TUPLES]
+VALID_TUPLES = [(variant, *entry) for variant in ENGINE_VARIANTS for entry in ENGINE_TUPLES] + [
+    ("transport", *entry) for entry in ENGINE_TUPLES + TRANSPORT_ONLY_TUPLES]
 
 
 @pytest.mark.parametrize("variant,overrides,start,length", VALID_TUPLES)
@@ -179,8 +183,9 @@ def test_invalid_frequency_tuple_fails_at_time_zero(tmp_path, variant, overrides
     assert "INVALID TUPLE SURVIVED" not in result.stdout
 
 
-# T32 (#49) param-override check: freq_serial is an FFT16 engine for the
-# production Q2.14 interface, so anything else must fail at time zero.
+# T32 (#49) param-override check: freq_serial (and the T42 rows of freq_opt) is an FFT16
+# engine for the production Q2.14 interface, so anything else must fail at time zero.
+@pytest.mark.parametrize("variant", ENGINE_VARIANTS)
 @pytest.mark.parametrize("overrides,message", [
     (".FFT_LEN(32), .HOP(24)", "Invalid frequency parameters"),
     (".FFT_LEN(16), .HOP(16), .DISCARD_PREFIX(0)", "Invalid frequency parameters"),
@@ -189,17 +194,32 @@ def test_invalid_frequency_tuple_fails_at_time_zero(tmp_path, variant, overrides
     (".DATA_WIDTH(8)", "implements only production DATA_WIDTH=16 at SPC=1"),
     (".SAMPLES_PER_CLOCK(2)", "implements only production DATA_WIDTH=16 at SPC=1"),
 ])
-def test_freq_serial_rejects_what_its_datapath_does_not_implement(tmp_path, overrides, message):
+def test_frequency_engines_reject_what_their_datapath_does_not_implement(tmp_path, variant, overrides, message):
     result = simulate(tmp_path, f"""
-  freq_serial_filter #({overrides}) dut (
+  {variant}_filter #({overrides}) dut (
     .clk(1'b0), .rst_n(1'b0), .valid_i(1'b0), .ready_o(),
     .sample_i('0), .valid_o(), .ready_i(1'b0), .sample_o());
   initial begin #1; $display("UNSUPPORTED CONFIGURATION SURVIVED"); $finish; end
-""", "freq_serial")
+""", variant)
     assert result.returncode != 0, "configuration survived: " + result.stdout
     assert message in result.stdout
     assert "Time: 0" in result.stdout
     assert "UNSUPPORTED CONFIGURATION SURVIVED" not in result.stdout
+
+
+# T42 (#53): freq_opt is the matrix row of its lane count, only F-U4 and F-U8.
+@pytest.mark.parametrize("lanes", [0, 1, 2, 3, 6, 16])
+def test_freq_opt_rejects_a_lane_count_that_is_not_a_base_row(tmp_path, lanes):
+    result = simulate(tmp_path, f"""
+  freq_opt_filter #(.U({lanes})) dut (
+    .clk(1'b0), .rst_n(1'b0), .valid_i(1'b0), .ready_o(),
+    .sample_i('0), .valid_o(), .ready_i(1'b0), .sample_o());
+  initial begin #1; $display("UNSUPPORTED ROW SURVIVED"); $finish; end
+""", "freq_opt")
+    assert result.returncode != 0, "row survived: " + result.stdout
+    assert "only the rows F-U4 and F-U8" in result.stdout
+    assert "Time: 0" in result.stdout
+    assert "UNSUPPORTED ROW SURVIVED" not in result.stdout
 
 
 def test_unknown_runner_variant_reports_error(tmp_path):

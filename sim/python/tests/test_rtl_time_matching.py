@@ -194,7 +194,7 @@ def test_staging_refuses_the_protected_vector_directory():
 
 def test_staging_refuses_a_variant_without_committed_metadata(tmp_path):
     with pytest.raises(ValueError, match="exactly one rtl_matching manifest"):
-        matching.stage(tmp_path, "F-U4", "canonical", "none")
+        matching.stage(tmp_path, "F-U2", "canonical", "none")
 
 
 # Committed evidence ---------------------------------------------------------------

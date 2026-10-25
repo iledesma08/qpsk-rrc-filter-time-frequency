@@ -124,7 +124,8 @@ _SVH_FIELDS = (
 # latency_* is the variant's declared design latency. The matching testbench
 # asserts it in the unstalled ready_i=1 run, so a wrong value fails matching.
 # rtl_parameters names the matrix row of a parameterized RTL source (T40: one
-# time_opt_filter for T-S4P1/T-S8P1); the runner passes it to the testbench.
+# time_opt_filter for T-S4P1/T-S8P1; T42: one freq_opt_filter for F-U4/F-U8); the
+# runner passes it to the testbench.
 # It stays out of the .svh and never uses the legacy name "S".
 _RTL_VARIANTS = {
     "F-serial": {
@@ -140,6 +141,23 @@ _RTL_VARIANTS = {
         # One more block of eight zeros flushes the tail: 257 blocks, 2056 accepted samples.
         "flush_samples": 8,
         "evidence_file": "sim/python/artifacts/t33-freq-matching/evidence_manifest.json",
+    },
+    # F-U4/F-U8 (T42): the same engine with U butterfly lanes. A pass takes 8/U + 1 cycles (16/U + 1
+    # for the product), so RUN is 80/U + 9 cycles (29 and 19), and the first output follows the accept
+    # edge by RUN + 10 (8 ACCEPT + 1 LOAD + RUN + 1 EMIT load), like F-serial's 89 and 99.
+    **{
+        variant_id: {
+            "model_domain": "frequency",
+            "rtl_variant": "freq_opt",
+            "rtl_parameters": {"U": lanes},
+            "SPC": 1,
+            "latency_samples": 0,
+            "latency_cycles": 80 // lanes + 19,
+            "fft_pipeline_cycles": 80 // lanes + 9,
+            "flush_samples": 8,
+            "evidence_file": f"sim/python/artifacts/t42-freq-opt-matching/{variant_id}/evidence_manifest.json",
+        }
+        for variant_id, lanes in (("F-U4", 4), ("F-U8", 8))
     },
     "T-serial": {
         "model_domain": "time",
@@ -167,10 +185,11 @@ _RTL_VARIANTS = {
         for variant_id, pes in (("T-S4P1", 4), ("T-S8P1", 8))
     },
 }
-# Variants whose matching metadata belongs to another task: refused, never guessed.
+# Variants whose matching metadata belongs to another task: refused, never guessed. The base matrix is
+# complete; the extension rows return only on an approved scope extension (ppa-matrix-18).
 _RESERVED_VARIANTS = {
-    "F-U4": "T42 (#53)",
-    "F-U8": "T42 (#53)",
+    "F-U2": "the scope extension (ppa-matrix-18)",
+    "F-F2": "the scope extension (ppa-matrix-18)",
 }
 
 
@@ -322,10 +341,11 @@ def _validate_transport(manifest: dict) -> None:
         # Schema section 7: whole blocks of HOP samples cover the causal window, so the flush rounds the
         # source plus the tail up to a block (257 blocks, 8 zeros); every block emits HOP raw outputs and the
         # last one lies beyond the valid window (index 2055 is block padding, not an expected code).
-        hop, valid_len = manifest["HOP"], manifest["valid_len"]
+        hop, emit, valid_len = manifest["HOP"], manifest["EMIT_LEN"], manifest["valid_len"]
         blocks = -(-valid_len // hop)
-        if (flush, accepted, raw) != (blocks * hop - source, blocks * hop, blocks * hop):
-            raise ValueError("frequency transport: flush zeros complete the last block and every block emits HOP outputs")
+        if (flush, accepted, raw) != (blocks * hop - source, blocks * hop, blocks * emit):
+            raise ValueError(
+                "frequency transport: flush zeros complete the last block and every block emits EMIT_LEN outputs")
         if manifest["fft_pipeline_cycles"] < 1:
             raise ValueError("fft_pipeline_cycles: a frequency variant records its FFT + product + IFFT cycles")
 
@@ -763,8 +783,9 @@ def export_rtl_matching(output_dir: Path, variant_id: str, vectors_dir: Path | N
             "transport_padding_samples": padding,
             "accepted_input_samples": accepted,
             # One raw output per accepted sample: the time filters stream them, the frequency block
-            # engine emits HOP outputs per accepted block of HOP samples.
-            "raw_output_samples": accepted,
+            # engine emits EMIT_LEN outputs per accepted block of HOP samples.
+            "raw_output_samples": accepted // _RTL_CONSTANTS["HOP"] * _RTL_CONSTANTS["EMIT_LEN"]
+            if domain == "frequency" else accepted,
             "component_sign_extension": f2["component_sign_extension"],
         }
         svh_bytes = _svh_text(manifest).encode("ascii")

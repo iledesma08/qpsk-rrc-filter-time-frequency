@@ -1,4 +1,4 @@
-"""T31 (#48) and T33 (#50): review plots of the RTL vector matching evidence.
+"""T31 (#48), T33 (#50) and T42 (#53): review plots of the RTL vector matching evidence.
 
 The plots draw RTL outputs captured by the matching runs, so they must refuse
 any capture whose hash differs from the one the evidence recorded. The
@@ -23,6 +23,8 @@ VECTORS = ROOT / "sim/vectors"
 VARIANTS = {
     "T-serial": (ROOT / "sim/python/artifacts/t31-time-matching", "time", ""),
     "F-serial": (ROOT / "sim/python/artifacts/t33-freq-matching", "freq", "00000000\n"),
+    "F-U4": (ROOT / "sim/python/artifacts/t42-freq-opt-matching/F-U4", "freq", "00000000\n"),
+    "F-U8": (ROOT / "sim/python/artifacts/t42-freq-opt-matching/F-U8", "freq", "00000000\n"),
 }
 variants = pytest.mark.parametrize("variant", sorted(VARIANTS))
 

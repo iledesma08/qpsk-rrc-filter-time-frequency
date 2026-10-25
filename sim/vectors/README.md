@@ -91,7 +91,7 @@ carries no RTL latency, transport counts or `vector_manifest.svh`, and the
 per-domain manifests do not carry `sqnr_cross_db`. T31/T33 bind these payloads
 by hash and add the measured per-variant metadata.
 
-## F3 RTL matching metadata (T31, T33, T40)
+## F3 RTL matching metadata (T31, T33, T40, T42)
 
 Regenerate after F2, with the F2 frames already in the output directory
 (Matias is the sole regenerator):
@@ -101,11 +101,13 @@ python sim/python/gen_vectors.py --stage rtl_matching --variant T-serial --outpu
 python sim/python/gen_vectors.py --stage rtl_matching --variant T-S4P1 --output-dir sim/vectors
 python sim/python/gen_vectors.py --stage rtl_matching --variant T-S8P1 --output-dir sim/vectors
 python sim/python/gen_vectors.py --stage rtl_matching --variant F-serial --output-dir sim/vectors
+python sim/python/gen_vectors.py --stage rtl_matching --variant F-U4 --output-dir sim/vectors
+python sim/python/gen_vectors.py --stage rtl_matching --variant F-U8 --output-dir sim/vectors
 ```
 
-`T-serial` (T31, #48), `T-S4P1` and `T-S8P1` (T40, #51) and `F-serial` (T33, #50) are
-implemented. `F-U4`/`F-U8` belong to T42 (#53); they refuse
-instead of guessing their data.
+`T-serial` (T31, #48), `T-S4P1` and `T-S8P1` (T40, #51), `F-serial` (T33, #50) and
+`F-U4`/`F-U8` (T42, #53) are implemented: the whole base matrix. The extension rows
+(`F-U2`, `F-F2`) refuse instead of guessing their data.
 
 Layout: `rtl_matching/<variant_id>/<vector_set>/<vector_case>/`, metadata only:
 
@@ -116,11 +118,15 @@ Layout: `rtl_matching/<variant_id>/<vector_set>/<vector_case>/`, metadata only:
   (`flush_samples`, `transport_padding_samples`, `accepted_input_samples`,
   `raw_output_samples`). For `T-serial`: `SPC=1`, latency 0 samples / 9 cycles,
   7 flush zeros, 2055 accepted and raw samples.
-- `manifest_freq.json` (`F-serial`, T33): the same fields for the frequency
-  domain: `SPC=1`, latency 0 samples / 99 cycles, `fft_pipeline_cycles=89`,
-  8 flush zeros, 2056 accepted and raw samples (257 blocks). Index 2055 is the
-  block padding, outside the compared window (`valid_len=2055`) and not an
-  expected code.
+- `manifest_freq.json` (`F-serial`, T33; `F-U4`/`F-U8`, T42): the same fields for
+  the frequency domain: `SPC=1`, latency 0 samples, 8 flush zeros, 2056 accepted
+  and raw samples (257 blocks). Index 2055 is the block padding, outside the
+  compared window (`valid_len=2055`) and not an expected code. The rows differ in
+  `latency_cycles` / `fft_pipeline_cycles`: 99 / 89 for `F-serial`, 39 / 29 for
+  `F-U4` and 29 / 19 for `F-U8` (RUN is `80/U + 9` cycles). `F-U4`/`F-U8` are two
+  rows of one RTL source (`rtl_variant: freq_opt`); their manifests add
+  `rtl_parameters {"U": 4|8}`, which the runner turns into `--lanes`, and bind
+  the same payloads as `F-serial`, since the three are bit-exact.
 - `T-S4P1`/`T-S8P1` are two rows of one RTL source (`rtl_variant: time_opt`).
   Their manifests add `rtl_parameters` (`SYSTOLIC_PES` 4 or 8,
   `PIPELINE_DEPTH` 1), which the runner turns into the module parameters. It

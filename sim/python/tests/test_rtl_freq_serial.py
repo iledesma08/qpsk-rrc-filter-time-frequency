@@ -1,4 +1,4 @@
-"""T32 (#49): freq_serial runner limits, its rounding primitives and a reset in mid block.
+"""T32 (#49): freq_serial runner limits, the rounding primitives and a reset in mid block (also the F-U rows, T42).
 
 The vector matching of every frame is T33 (#50): ``test_rtl_freq_matching.py``.
 Here the canonical frame is staged from the committed ``rtl_matching/F-serial``
@@ -24,6 +24,7 @@ COMMON = ROOT / "rtl" / "common"
 DUT_SOURCES = [
     COMMON / "rrc_pkg.sv", COMMON / "rrc_reset_sync.sv", COMMON / "rrc_freq_pkg.sv",
     COMMON / "rrc_freq_engine.sv", ROOT / "rtl" / "freq_serial" / "freq_serial_filter.sv",
+    ROOT / "rtl" / "freq_opt" / "freq_opt_filter.sv",
 ]
 TB = ROOT / "rtl" / "tb" / "rrc_stream_tb.sv"
 pytestmark = pytest.mark.skipif(
@@ -205,7 +206,7 @@ module reset_tb;
   wire [3:0] emit_count = dut.datapath.engine.emit_idx;
 
   always #5 clk = ~clk;
-  freq_serial_filter dut (.clk(clk), .rst_n(rst_n), .valid_i(valid_i), .ready_o(ready_o),
+  `DUT_MODULE `DUT_PARAMS dut (.clk(clk), .rst_n(rst_n), .valid_i(valid_i), .ready_o(ready_o),
     .sample_i(sample_i), .valid_o(valid_o), .ready_i(ready_i), .sample_o(sample_o));
 
   task automatic release_reset;
@@ -228,7 +229,7 @@ module reset_tb;
       @(negedge clk);
       valid_i = 1'b1; sample_i = input_codes[idx]; ready_i = 1'b1;
       case (`SCENARIO)
-        0: hit = (st == 3'd2 && pass_count == 4'd4 && step_count == 5'd3);   // RUN, spectral product
+        0: hit = (st == 3'd2 && pass_count == 4'd4 && step_count == `PRODUCT_STEP);   // RUN, spectral product
         1: hit = (st == 3'd3 && emit_count == 4'd3);                         // EMIT, mid emission
         default: if (st == 3'd4) begin ready_i = 1'b0; hit = 1'b1; end       // DRAIN, last output pending
       endcase
@@ -282,13 +283,25 @@ endmodule
 """
 
 
+# One row per engine: the module, its parameters and a step inside the product pass (the pass has
+# 16/U fetch steps, so the middle of it moves with the lane count).
+RESET_ROWS = [
+    ("freq_serial_filter", "#(.DATA_WIDTH(16))", 3),
+    ("freq_opt_filter", "#(.U(4))", 2),
+    ("freq_opt_filter", "#(.U(8))", 1),
+]
+
+
+@pytest.mark.parametrize("module,parameters,product_step", RESET_ROWS, ids=["F-serial", "F-U4", "F-U8"])
 @pytest.mark.parametrize("scenario,name", [(0, "RUN"), (1, "EMIT"), (2, "DRAIN")])
-def test_reset_in_the_middle_of_a_block_leaves_no_trace(tmp_path, scenario, name):
+def test_reset_in_the_middle_of_a_block_leaves_no_trace(tmp_path, scenario, name, module, parameters, product_step):
     vectors = matching.stage(tmp_path / "canonical", "F-serial", "canonical", "none")
     bench = tmp_path / "reset_tb.sv"
     bench.write_text(RESET_TB % {})
     result = compile_and_run(
-        tmp_path, [*DUT_SOURCES, bench], "reset_tb", defines=[f"SCENARIO={scenario}"],
+        tmp_path, [*DUT_SOURCES, bench], "reset_tb",
+        defines=[f"SCENARIO={scenario}", f"DUT_MODULE={module}", f"DUT_PARAMS={parameters}",
+                 f"PRODUCT_STEP={product_step}"],
         arguments=[f"+vector_dir={vectors}"])
     assert result.returncode == 0, f"reset in {name}\n" + result.stdout + result.stderr
     assert f"PASS: reset scenario {scenario}, 40 outputs after restart" in result.stdout

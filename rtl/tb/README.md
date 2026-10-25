@@ -2,14 +2,16 @@
 
 ## T03 shell tests (#42)
 
-`rrc_stream_tb.sv` is the shared manifest-driven family for all four wrappers.
-It replaces `rrc_placeholder_tb.sv`. Runs of the transport wrappers test
-transport, **not RRC vector matching**. Since T30 (#47), `time_serial` runs real
+`rrc_stream_tb.sv` is the shared manifest-driven family for the four filter
+wrappers and the test-only transport wrapper. It replaces
+`rrc_placeholder_tb.sv`. Runs of the transport wrapper test transport, **not RRC
+vector matching**. Since T30 (#47), `time_serial` runs real
 filter arithmetic against structural fixtures from an exact integer reference
 of the accepted time policy (including the impulse check `x[0] => y[0:8] = h`); see
 `rtl/time_serial/README.md`. Since T31 (#48), `time_serial` also matches the
 committed `sim/vectors/rtl_matching/T-serial` vectors (see below); frequency
-matching against `sim/vectors/` is T33 (#50). Since T40 (#51), `time_opt` runs
+matching against `sim/vectors/` is T33 (#50), and the F-U4/F-U8 rows of `freq_opt`
+are T42 (#53, see below). Since T40 (#51), `time_opt` runs
 the T-S4P1/T-S8P1 filter on the same structural frames and matches its own
 `rtl_matching` vectors (see the T40 section below and `rtl/time_opt/README.md`).
 
@@ -17,7 +19,7 @@ From the repository root:
 
 ```bash
 bash rtl/run.sh
-bash rtl/freq_opt/run.sh --data-width 8 --spc 4
+bash rtl/run_variant.sh transport --data-width 8 --spc 4
 python -m pytest sim/python/tests/test_rtl_stream.py -v
 ```
 
@@ -27,8 +29,10 @@ original source records under `.build/rtl/<variant>/`, not `sim/vectors/`.
 metadata-only `vector_manifest.svh`, and SHA-256 sidecars. Expected output is
 identity transport, not filtered QPSK. Python 3 is needed for generation.
 
-To consume an existing **shell fixture**, use
-`bash rtl/freq_opt/run.sh --vectors /path/to/fixture`. Files and sidecars
+The transport wrapper is `sim/python/tests/transport/transport_filter.sv`
+(runner variant `transport`, a test vehicle that was the body of `freq_opt`
+until T42). To consume an existing **shell fixture**, use
+`bash rtl/run_variant.sh transport --vectors /path/to/fixture`. Files and sidecars
 must exist and hashes must pass before compilation. Width/SPC overrides cannot
 be combined with `--vectors`: the manifest owns those values. Transport
 wrappers reject metadata without `RRC_SHELL_FIXTURE`; real RRC manifests are
@@ -40,10 +44,17 @@ and by default generates the canonical structural fixture
 `freq_serial` carries the T32 datapath and no longer uses the identity shell
 fixtures. `bash rtl/freq_serial/run.sh` stages the committed `rtl_matching/F-serial`
 canonical frame under `.build/` (T33) and runs this testbench on it; it rejects the
-width/SPC overrides. Compiled with `FREQ_SERIAL_DUT`, the TB also prints a
+width/SPC overrides. Compiled with `FREQ_ENGINE_DUT` (the runner sets it for
+`freq_serial` and `freq_opt`), the TB also prints a
 `Block timing` line (block-start intervals, fill, tail and source-tail latency) and, with
 `+vcd_file=<path>` (`--vcd` in `run_variant.sh`), dumps the ports and the engine
 control state of the unstalled run.
+
+`freq_opt` (T42, #53) is the same engine with `U` lanes: `bash rtl/freq_opt/run.sh`
+runs F-U4 and F-U8 on their committed `rtl_matching` vectors, one row per run with
+`--lanes U` (the runner defines `FREQ_OPT_DUT` and `FREQ_LANES`, which the TB passes
+to the instance, and the TB prints `DUT parameters U=...`). It has the same
+`Block timing` line and `--vcd` as `freq_serial`.
 
 ## T31 vector matching (#48)
 

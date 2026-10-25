@@ -7,7 +7,7 @@
       "sys_corners/single_symbol_perturbation": "69e4dcaa4f550f4f27ee62bdfffbf84472e7160b62f925c95cd372be122a1986"
     },
     "file": "evidence_manifest.json",
-    "sha256": "b87f0110460fc66fc48d5dc045a99423a28dbc4d03d9def437407c7bfbdc6aca"
+    "sha256": "56c81a09ad35059046734cddc21f49511e438534285c9418f3a18125b9b6d018"
   },
   "evidence_for": "T33 (#50)",
   "exact_codes": {
@@ -39,7 +39,7 @@
     "I": "#0057B8",
     "Q": "#E65100"
   },
-  "source_sha256": "c71cb3793b15d563d113a701fb8585f4be3c00e80cdfe39215f1336e3d8a0fc6",
+  "source_sha256": "2e50e56f21f4b911a9c8b067d886d8d8fd6c5b5e57d63d8185a80511d35bb5bd",
   "variant_id": "F-serial",
   "versions": {
     "matplotlib": "3.11.2",

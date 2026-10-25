@@ -167,8 +167,8 @@ supported or verified configurations.
   the frozen rule (DFT16 of the zero-padded codes, one RNE) is identical too. The
   committed matching and the `rtl_matching` metadata are T33 (#50): see "Vector
   matching (T33)" below, which records `fft_pipeline_cycles = 89`.
-- `U` is a parameter of the engine for the F-U4/F-U8 rows (T42); only `U=1`
-  elaborates.
+- `U` is the lane count of the engine: `U=1` here, and the F-U4/F-U8 rows of
+  `rtl/freq_opt` (T42) use `U=4` and `U=8` of the same source.
 - Declared deviation from "no duplicated constants" (`rtl-streaming-17` D8,
   CONTRIBUTING section 7): `rrc_freq_pkg` repeats `FREQ_FFT_LEN` and `FREQ_IN_W`
   because the Yosys of OpenLane 0.46 cannot parse a package parameter that refers

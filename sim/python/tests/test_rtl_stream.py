@@ -15,8 +15,8 @@ ROOT = Path(__file__).resolve().parents[3]
 # the T30 filter (see test_rtl_time_serial.py), freq_serial the T32 engine
 # (see test_rtl_freq_serial.py) and time_opt the T40 filter (see
 # test_rtl_time_opt.py); TB mechanics use a transport DUT.
-TRANSPORT_VARIANTS = ["freq_opt"]
-TRANSPORT_VARIANT = "freq_opt"
+TRANSPORT_VARIANTS = ["transport"]
+TRANSPORT_VARIANT = "transport"
 pytestmark = pytest.mark.skipif(
     not shutil.which("iverilog") or not shutil.which("vvp"),
     reason="Icarus/vvp checks run in the required RTL CI job",
@@ -25,7 +25,7 @@ pytestmark = pytest.mark.skipif(
 
 def run_variant(variant=TRANSPORT_VARIANT, *arguments):
     return subprocess.run(
-        ["bash", str(ROOT / f"rtl/{variant}/run.sh"), *arguments],
+        ["bash", str(ROOT / "rtl/run_variant.sh"), variant, *arguments],
         cwd=ROOT, capture_output=True, text=True, timeout=30, check=False,
     )
 

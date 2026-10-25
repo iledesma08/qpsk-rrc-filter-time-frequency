@@ -63,7 +63,8 @@ flowchart LR
 ## 3. Frequency-Domain Datapath
 
 One complex FFT over `I + jQ` filters both components at once. The serial
-version is `U=1`; the optimized architecture is pending (section 5).
+version is `U=1`; the optimized rows `F-U4` and `F-U8` run the same
+datapath with `U` butterfly lanes (T42).
 
 ```mermaid
 flowchart LR
@@ -170,9 +171,13 @@ flowchart LR
   (bit-reversed bins), `H[k]` stored at bit-reversed addresses, radix-2 DIT
   IFFT, `Q2.14` twiddles, and one RNE cast after an exact /16
   (`fxp-policy-16.md` T20 freeze amendment, #44).
-- RTL versions: serial `F-serial` (`U=1`) and an optimized version whose
-  parallelization degree is pending (section 5). All variants share one
-  numeric policy and are bit-exact with the serial version.
+- RTL versions: serial `F-serial` (`U=1`) and the unfolded rows `F-U4` and
+  `F-U8` (T42), one source with `U` butterfly lanes. A pass fetches `U`
+  butterflies per cycle (8/U cycles per FFT/IFFT stage, 16/U for the spectral
+  product, plus one drain cycle), so RUN takes 89, 29 and 19 cycles and a block
+  47 and 37 cycles for `U=4` and `U=8` against 107 for the serial. The block
+  accept and emit phases (8 cycles each) are not replicated. All variants share
+  one numeric policy and are bit-exact with the serial version.
 - Source: `fxp-policy-16.md` D5 and production-A integer freeze amendment;
   `frequency-block-contract-14.md` D3; T20, T32, T42.
 
@@ -221,10 +226,11 @@ exactly, the RTL inherits the per-domain and cross-domain SQNR results.
 
 ## 5. Open Items
 
-- **Optimized frequency architecture:** the revised assignment asks for the
-  highest possible parallelization of the FFT, spectral multiply and IFFT.
-  The current matrix holds `F-U4`/`F-U8`; the team decision for T42 (#53)
-  will update section 3 and section 4.8.
+- **Optimized frequency architecture:** decided in T42 (#53): `F-U4` and
+  `F-U8`, the lanes sharing the butterfly datapath of the FFT, the spectral
+  multiply and the IFFT (section 4.8). Whether the multiply stage needs an
+  extra pipeline register to close FAST 100 MHz is decided by the target runs
+  (T43).
 - **PPA scope:** clock targets and run coverage will be reviewed later; this
   document does not restate them.
 
