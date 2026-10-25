@@ -1,6 +1,6 @@
-"""T33 (#50): F-serial vector matching against the committed rtl_matching vectors.
+"""T33 (#50) and T42 (#53): F-serial, F-U4 and F-U8 vector matching against the committed rtl_matching vectors.
 
-Each frame is staged from ``sim/vectors/rtl_matching/F-serial`` (metadata) and
+Each frame is staged from ``sim/vectors/rtl_matching/<row>`` (metadata) and
 ``sim/vectors/fxp_expected`` (payloads, bound by hash) into ``tmp_path`` and run
 on the shared testbench. The negative cases edit only the staged copy.
 Standard library only, so it runs in the RTL CI job without NumPy.
@@ -20,12 +20,37 @@ import rtl_matching_stage as matching  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[3]
-VARIANT = "F-serial"
-EVIDENCE = ROOT / "sim/python/artifacts/t33-freq-matching/evidence_manifest.json"
-BLOCKS, HOP, BLOCK_CYCLES, LATENCY = 257, 8, 107, 99
-# Last source sample x[2047] to the last valid output y[2054]: one block (107) + the fill (99) + the positions
-# of the two inside their blocks (6 - 7). The tail-flush block's cost, unlike the tail to the padding output.
-SOURCE_TAIL = 205
+BLOCKS, HOP = 257, 8
+# One row of the frequency matrix per run of every test below (the autouse fixture ``row``): the variant, its
+# RTL source and parameters, the declared fill latency, the block II (8 ACCEPT + 1 LOAD + RUN + 8 EMIT + 1
+# DRAIN with RUN = 80/U + 9 cycles), the cycles of a whole frame (257 blocks plus the 8-cycle accept of the
+# first and the drain tail) and the last source sample x[2047] to the last valid output y[2054]: one block
+# (block II) + the fill + the positions of the two inside their blocks (6 - 7). That is the cost of the
+# tail-flush block, unlike the tail to the padding output, which only mirrors the fill (HOP == EMIT_LEN).
+ROWS = {
+    "F-serial": {"RTL_VARIANT": "freq_serial", "PARAMETERS": None, "LATENCY": 99, "BLOCK_CYCLES": 107,
+                 "FRAME_CYCLES": 27499, "SOURCE_TAIL": 205,
+                 "EVIDENCE": ROOT / "sim/python/artifacts/t33-freq-matching/evidence_manifest.json"},
+    "F-U4": {"RTL_VARIANT": "freq_opt", "PARAMETERS": {"U": 4}, "LATENCY": 39, "BLOCK_CYCLES": 47,
+             "FRAME_CYCLES": 12079, "SOURCE_TAIL": 85,
+             "EVIDENCE": ROOT / "sim/python/artifacts/t42-freq-opt-matching/F-U4/evidence_manifest.json"},
+    "F-U8": {"RTL_VARIANT": "freq_opt", "PARAMETERS": {"U": 8}, "LATENCY": 29, "BLOCK_CYCLES": 37,
+             "FRAME_CYCLES": 9509, "SOURCE_TAIL": 65,
+             "EVIDENCE": ROOT / "sim/python/artifacts/t42-freq-opt-matching/F-U8/evidence_manifest.json"},
+}
+VARIANT = RTL_VARIANT = PARAMETERS = EVIDENCE = None
+LATENCY = BLOCK_CYCLES = FRAME_CYCLES = SOURCE_TAIL = None
+
+
+@pytest.fixture(autouse=True, params=sorted(ROWS))
+def row(request, monkeypatch):
+    """Select the matrix row: the module constants above are the row's, for the duration of one test."""
+    monkeypatch.setattr(sys.modules[__name__], "VARIANT", request.param)
+    for name, value in ROWS[request.param].items():
+        monkeypatch.setattr(sys.modules[__name__], name, value)
+    return request.param
+
+
 requires_icarus = pytest.mark.skipif(
     not shutil.which("iverilog") or not shutil.which("vvp"),
     reason="Icarus/vvp checks run in the required RTL CI job",
@@ -33,7 +58,7 @@ requires_icarus = pytest.mark.skipif(
 
 
 def run_freq_serial(staged: Path, capture: Path | None = None, vcd: Path | None = None) -> subprocess.CompletedProcess:
-    return matching.run_matching("freq_serial", staged, capture, vcd=vcd)
+    return matching.run_matching(RTL_VARIANT, staged, capture, PARAMETERS, vcd=vcd)
 
 
 def rehash(path: Path) -> None:
@@ -64,7 +89,7 @@ def copy_vectors(tmp_path: Path) -> Path:
 
 @pytest.mark.parametrize("vector_set,vector_case", matching.FRAMES)
 @requires_icarus
-def test_f_serial_matches_the_t22_frequency_codes_on_every_frame(tmp_path, vector_set, vector_case):
+def test_frequency_rows_matches_the_t22_frequency_codes_on_every_frame(tmp_path, vector_set, vector_case):
     manifest = matching.load_matching(VARIANT, vector_set, vector_case)["manifest"]
     staged = matching.stage(tmp_path, VARIANT, vector_set, vector_case)
     capture = tmp_path / matching.CAPTURE_FILE
@@ -88,7 +113,7 @@ def test_f_serial_matches_the_t22_frequency_codes_on_every_frame(tmp_path, vecto
                 frame["accepted_input_samples"], frame["raw_output_samples"]) == (2048, 8, 0, 2056, 2056), run
     continuous = report["continuous"]
     assert continuous["measured_latency_cycles"] == manifest["latency_cycles"] == LATENCY
-    assert continuous["cycles"] == 27499
+    assert continuous["cycles"] == FRAME_CYCLES
     # The serial engine is block-rate limited: no per-sample II exists, the block II does.
     assert continuous["measured_ii"] == "undefined"
     assert report["block_timing"] == {
@@ -223,6 +248,9 @@ def test_expected_block_timing_is_scoped_to_the_serial_engine():
         BLOCK_CYCLES, LATENCY, SOURCE_TAIL)
     # An unrolled variant (T42) must not inherit the serial schedule, nor a time variant any block timing.
     assert matching.expected_block_timing({**manifest, "rtl_variant": "freq_unrolled"}) is None
+    # The declared RUN cycles are checked against the lane count: 80/U + 9 (89, 29, 19 for U = 1, 4, 8).
+    with pytest.raises(ValueError, match="fft_pipeline_cycles"):
+        matching.expected_block_timing({**manifest, "fft_pipeline_cycles": manifest["fft_pipeline_cycles"] + 1})
     assert matching.expected_block_timing({**manifest, "model_domain": "time", "rtl_variant": "time_serial"}) is None
 
 
@@ -231,7 +259,7 @@ def test_expected_block_timing_is_scoped_to_the_serial_engine():
 
 def test_committed_evidence_binds_the_committed_vectors_and_the_measured_timing():
     evidence = json.loads(EVIDENCE.read_text(encoding="utf-8"))
-    assert (evidence["variant_id"], evidence["rtl_variant"], evidence["model_domain"]) == (VARIANT, "freq_serial", "frequency")
+    assert (evidence["variant_id"], evidence["rtl_variant"], evidence["model_domain"]) == (VARIANT, RTL_VARIANT, "frequency")
     assert sorted(evidence["frames"]) == sorted(f"{s}/{c}" for s, c in matching.FRAMES)
     assert evidence["summary"] == {
         "frames": 4, "passed": 4, "compared_codes": 4 * 2055, "captured_equal_to_expected": 4, "mismatches": 0,
@@ -253,6 +281,8 @@ def test_committed_evidence_binds_the_committed_vectors_and_the_measured_timing(
         # Regression sentinel, not a contract value (see the matching test above).
         assert frame["block_padding_records"] == ["00000000"]
         assert frame["block_timing"]["blocks"] == BLOCKS
+        if PARAMETERS:
+            assert frame["dut_parameters"] == PARAMETERS    # the testbench read the row back from the instance
         assert frame["continuous"]["compared"] == frame["robustness"]["compared"] == manifest["valid_len"]
         assert frame["robustness"]["tail_stalls"] >= 1
     assert evidence["frames"]["canonical/none"]["vcd"]["covers_all_blocks"] is True
