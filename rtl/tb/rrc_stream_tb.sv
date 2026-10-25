@@ -45,6 +45,10 @@ module rrc_stream_tb;
     // Matrix row of time_opt (T40): the runner defines both from its arguments.
     , .SYSTOLIC_PES(`SYSTOLIC_PES), .PIPELINE_DEPTH(`PIPELINE_DEPTH)
 `endif
+`ifdef FREQ_OPT_DUT
+    // Matrix row of freq_opt (T42): the runner defines the lane count from --lanes.
+    , .U(`FREQ_LANES)
+`endif
   ) dut (.*);
 `endif
 
@@ -207,7 +211,7 @@ module rrc_stream_tb;
             $fatal(1, "Shell II must be measured as one cycle, not inferred from SPC");
 `endif
           last_input = cycle;
-`ifdef FREQ_SERIAL_DUT
+`ifdef FREQ_ENGINE_DUT
           // The first sample of block b is sample b*HOP; the interval from block b to block b+1 is the
           // block II, so 257 blocks give 256 intervals (the first 256 blocks).
           if (!robustness && (sent * SPC) % HOP == 0) begin
@@ -304,7 +308,7 @@ module rrc_stream_tb;
                 robustness, matched, sent, received, cycle, accepted_source, accepted_flush,
                 accepted_padding, accepted_source + accepted_flush + accepted_padding, emitted_samples,
                 interval_count, ii_min, ii_max, measured_ii, tail_stalls, measured_latency);
-`ifdef FREQ_SERIAL_DUT
+`ifdef FREQ_ENGINE_DUT
       // fill: first accepted input to first valid output (asserted above as latency_cycles);
       // tail: last accepted input (the last flush beat) to the last output beat (the block padding, so it
       //   only mirrors the fill when HOP == EMIT_LEN);
@@ -359,6 +363,11 @@ module rrc_stream_tb;
     $display("DUT parameters SYSTOLIC_PES=%0d PIPELINE_DEPTH=%0d", dut.SYSTOLIC_PES, dut.PIPELINE_DEPTH);
 `endif
 `endif
+`ifdef FREQ_OPT_DUT
+`ifndef GATE_LEVEL
+    $display("DUT parameters U=%0d", dut.U);
+`endif
+`endif
     activity_dump = $value$plusargs("activity_vcd=%s", activity_vcd);
     reset_dut();
 `ifdef RRC_SHELL_FIXTURE
@@ -372,7 +381,7 @@ module rrc_stream_tb;
       capture_fd = $fopen(capture_file, "w");
       if (capture_fd == 0) $fatal(1, "Cannot open capture file %s", capture_file);
     end
-`ifdef FREQ_SERIAL_DUT
+`ifdef FREQ_ENGINE_DUT
     // Optional +vcd_file=<path>: dump the ports and the engine control state over the whole
     // unstalled run (all blocks). Not the full-design activity file of T43.
     if ($value$plusargs("vcd_file=%s", vcd_file)) begin
@@ -383,7 +392,7 @@ module rrc_stream_tb;
     end
 `endif
     run_frame(1'b0);
-`ifdef FREQ_SERIAL_DUT
+`ifdef FREQ_ENGINE_DUT
     if (vcd_file != "") begin
       $dumpoff;
       $dumpflush;

@@ -44,7 +44,7 @@ _BOUND_PAYLOADS = (
 _LOCALPARAM = re.compile(r"^localparam integer (\w+) = (-?\d+);$", re.M)
 _FIELD = re.compile(r"(\w+)=(\S+)")
 # Runner argument of each rtl_parameters entry (rtl/run_variant.sh).
-_RUNNER_FLAGS = {"SYSTOLIC_PES": "--systolic-pes", "PIPELINE_DEPTH": "--pipeline-depth"}
+_RUNNER_FLAGS = {"SYSTOLIC_PES": "--systolic-pes", "PIPELINE_DEPTH": "--pipeline-depth", "U": "--lanes"}
 TIME_TAPS = 8
 # The ports and the engine control state of a frequency variant over the unstalled run (T33, #50).
 # It is the proof that the run covers every block, not the activity file of T43.
@@ -142,23 +142,25 @@ def expected_ii(manifest: dict) -> int | None:
 def expected_block_timing(manifest: dict) -> dict | None:
     """Return the block-level timing a frequency variant must measure, from its own manifest.
 
-    ``None`` unless the variant is the serial frequency engine: the schedule below is its own, and the
-    unrolled variants (F-U4/F-U8, T42) must declare theirs instead of inheriting this one. One block of the serial engine takes ``HOP``
-    cycles to accept, one to load, ``fft_pipeline_cycles`` to run, ``EMIT_LEN`` to
-    emit and one to drain, so a continuous run starts a block every
-    ``HOP + 1 + fft_pipeline_cycles + EMIT_LEN + 1`` cycles. The first 257 - 1 = 256
-    intervals are the steady-state ones (ppa-matrix-18, Workload). Fill is the
-    first accepted sample to the first valid output; tail is the last accepted
-    sample (the last flush beat) to the last output beat, which is the fill
-    without the other ``HOP - 1`` accept cycles and plus the other ``EMIT_LEN - 1``
-    (it ends on the block padding, so it equals the fill only because
-    ``HOP == EMIT_LEN``). The source tail is what the tail-flush block costs: the
-    last source sample to the last valid output, ``block_ii`` later than the
-    block of that sample plus the fill and the difference of the two positions
-    inside their blocks (``valid_start == 0`` and ``latency_samples == 0``).
+    ``None`` unless the variant is one of the frequency engines (F-serial and the F-U rows, one source):
+    the schedule below is theirs, and a different architecture must declare its own instead of inheriting
+    it. With ``U`` lanes (``rtl_parameters``, 1 for F-serial) a pass takes ``8/U + 1`` cycles, ``16/U + 1``
+    for the product, so ``fft_pipeline_cycles`` must be ``80/U + 9`` (89, 29, 19). One block takes ``HOP``
+    cycles to accept, one to load, ``fft_pipeline_cycles`` to run, ``EMIT_LEN`` to emit and one to drain,
+    so a continuous run starts a block every ``HOP + 1 + fft_pipeline_cycles + EMIT_LEN + 1`` cycles. The
+    first 257 - 1 = 256 intervals are the steady-state ones (ppa-matrix-18, Workload). Fill is the first
+    accepted sample to the first valid output; tail is the last accepted sample (the last flush beat) to
+    the last output beat, which is the fill without the other ``HOP - 1`` accept cycles and plus the other
+    ``EMIT_LEN - 1`` (it ends on the block padding, so it equals the fill only because
+    ``HOP == EMIT_LEN``). The source tail is what the tail-flush block costs: the last source sample to
+    the last valid output, ``block_ii`` later than the block of that sample plus the fill and the
+    difference of the two positions inside their blocks (``valid_start == 0``, ``latency_samples == 0``).
     """
-    if manifest["rtl_variant"] != "freq_serial":
+    if manifest["rtl_variant"] not in ("freq_serial", "freq_opt"):
         return None
+    lanes = manifest.get("rtl_parameters", {}).get("U", 1)
+    if manifest["fft_pipeline_cycles"] != 80 // lanes + 9:
+        raise ValueError(f"fft_pipeline_cycles: {lanes} lanes run FFT + product + IFFT in {80 // lanes + 9} cycles")
     hop, emit = manifest["HOP"], manifest["EMIT_LEN"]
     blocks = manifest["accepted_input_samples"] // hop
     block_ii = hop + 1 + manifest["fft_pipeline_cycles"] + emit + 1

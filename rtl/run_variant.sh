@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Shared compile/run path. Generated fixtures are not RRC golden vectors: the
-# transport wrapper (freq_opt) uses identity shell fixtures, time_serial (T30)
-# and time_opt (T40) use structural frames from an exact integer reference of
-# the accepted policy, and freq_serial (T32/T33) runs the committed rtl_matching
-# vectors of F-serial (see rtl_matching_stage.py). time_opt needs its matrix row:
-# --systolic-pes S (4 for T-S4P1, 8 for T-S8P1) and --pipeline-depth P (1).
+# test-only transport wrapper (variant "transport", sim/python/tests/transport)
+# uses identity shell fixtures, time_serial (T30) and time_opt (T40) use
+# structural frames from an exact integer reference of the accepted policy, and
+# freq_serial (T32/T33) and freq_opt (T42) run the committed rtl_matching vectors
+# of F-serial and F-U4/F-U8 (see rtl_matching_stage.py). time_opt needs its matrix
+# row: --systolic-pes S (4 for T-S4P1, 8 for T-S8P1) and --pipeline-depth P (1);
+# freq_opt needs --lanes U (4 for F-U4, 8 for F-U8).
 # PPA target runs (T41): --clock-period-ns sets the testbench clock (10 ns by
 # default), --netlist runs the final netlist of an OpenLane run instead of the
 # RTL (with the Sky130 cell models of --cell-models) and --activity-vcd dumps
@@ -15,10 +17,11 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 variant="${1:?variant is required}"
 shift
 case "$variant" in
-  time_serial|freq_serial|time_opt|freq_opt) ;;
+  time_serial|freq_serial|time_opt|freq_opt|transport) ;;
   *) printf 'Unknown variant: %s\n' "$variant" >&2; exit 2 ;;
 esac
 BUILD_DIR="$ROOT/.build/rtl/$variant"
+lanes=""
 vector_dir=""
 capture=""
 vcd=""
@@ -33,7 +36,7 @@ cell_models=""
 activity=""
 while (($#)); do
   case "$1" in
-    --vectors|--data-width|--spc|--capture|--vcd|--systolic-pes|--pipeline-depth|--clock-period-ns|--netlist|--cell-models|--activity-vcd)
+    --vectors|--data-width|--spc|--capture|--vcd|--systolic-pes|--pipeline-depth|--lanes|--clock-period-ns|--netlist|--cell-models|--activity-vcd)
       if (($# < 2)); then printf 'Missing value for %s\n' "$1" >&2; exit 2; fi
       case "$1" in
         --vectors) vector_dir="$2" ;;
@@ -43,6 +46,7 @@ while (($#)); do
         --spc) spc="$2"; override=1 ;;
         --systolic-pes) pes="$2" ;;
         --pipeline-depth) depth="$2" ;;
+        --lanes) lanes="$2" ;;
         --clock-period-ns) period="$2" ;;
         --netlist) netlist="$2" ;;
         --cell-models) cell_models="$2" ;;
@@ -80,6 +84,21 @@ elif [[ -n "$pes" || -n "$depth" ]]; then
   printf -- '--systolic-pes and --pipeline-depth apply only to time_opt\n' >&2
   exit 2
 fi
+if [[ "$variant" == freq_opt ]]; then
+  if [[ "$override" == 1 ]]; then
+    printf 'freq_opt implements only production DATA_WIDTH=16 at SPC=1\n' >&2
+    exit 2
+  fi
+  if [[ "$lanes" != 4 && "$lanes" != 8 ]]; then
+    printf 'freq_opt needs its row: --lanes U (4 for F-U4, 8 for F-U8)\n' >&2
+    exit 2
+  fi
+  # One build directory per row, so the two rows never share a binary.
+  BUILD_DIR="$BUILD_DIR/U${lanes}"
+elif [[ -n "$lanes" ]]; then
+  printf -- '--lanes applies only to freq_opt\n' >&2
+  exit 2
+fi
 if [[ -n "$period" ]] && ! awk -v p="$period" 'BEGIN { exit !(p ~ /^[0-9]+(\.[0-9]+)?$/ && p > 0) }'; then
   printf -- '--clock-period-ns must be a positive number of ns, got %s\n' "$period" >&2
   exit 2
@@ -103,10 +122,13 @@ if [[ -z "$vector_dir" && ( "$variant" == time_serial || "$variant" == time_opt 
   vector_dir="$BUILD_DIR/fixture-canonical"
   "${PYTHON:-python3}" "$ROOT/sim/python/tests/rtl_filter_fixture.py" \
     --output "$vector_dir" --frame canonical --variant "$variant"
-elif [[ -z "$vector_dir" && "$variant" == freq_serial ]]; then
-  # The committed rtl_matching vectors of F-serial (T33): metadata in rtl_matching/, payloads in fxp_expected/.
+elif [[ -z "$vector_dir" && ( "$variant" == freq_serial || "$variant" == freq_opt ) ]]; then
+  # The committed rtl_matching vectors of the row (T33 F-serial, T42 F-U4/F-U8): metadata in
+  # rtl_matching/, payloads in fxp_expected/.
+  row=F-serial
+  if [[ "$variant" == freq_opt ]]; then row="F-U${lanes}"; fi
   "${PYTHON:-python3}" "$ROOT/sim/python/tests/rtl_matching_stage.py" \
-    --variant F-serial --output "$BUILD_DIR/matching" >/dev/null
+    --variant "$row" --output "$BUILD_DIR/matching" >/dev/null
   vector_dir="$BUILD_DIR/matching/canonical-none"
 elif [[ -z "$vector_dir" ]]; then
   vector_dir="$BUILD_DIR/fixture-w${width}-spc${spc}"
@@ -123,18 +145,22 @@ done
 bash "$ROOT/scripts/check-vectors.sh" "$vector_dir"
 defines=(-D "DUT_MODULE=${variant}_filter")
 sources=("$ROOT/rtl/common/rrc_pkg.sv" "$ROOT/rtl/common/rrc_reset_sync.sv")
-if [[ "$variant" == freq_serial ]]; then
+dut_file="$ROOT/rtl/$variant/${variant}_filter.sv"
+if [[ "$variant" == freq_serial || "$variant" == freq_opt ]]; then
   sources+=("$ROOT/rtl/common/rrc_freq_pkg.sv" "$ROOT/rtl/common/rrc_freq_engine.sv")
+  if [[ "$variant" == freq_opt ]]; then defines+=(-D FREQ_OPT_DUT -D "FREQ_LANES=$lanes"); fi
 elif [[ "$variant" == time_opt ]]; then
   defines+=(-D TIME_OPT_DUT -D "SYSTOLIC_PES=$pes" -D "PIPELINE_DEPTH=$depth")
-elif [[ "$variant" == freq_opt ]]; then
+elif [[ "$variant" == transport ]]; then
+  # Test vehicle of the TB mechanics (identity shell), not a filter.
   defines+=(-D RRC_TRANSPORT_DUT)
   sources+=("$ROOT/rtl/common/rrc_stream_shell.sv")
+  dut_file="$ROOT/sim/python/tests/transport/transport_filter.sv"
 fi
-if [[ "$variant" == freq_* ]]; then defines+=(-D FREQ_DUT); fi
-if [[ "$variant" == freq_serial ]]; then defines+=(-D FREQ_SERIAL_DUT); fi
+if [[ "$variant" == freq_* || "$variant" == transport ]]; then defines+=(-D FREQ_DUT); fi
+if [[ "$variant" == freq_serial || "$variant" == freq_opt ]]; then defines+=(-D FREQ_ENGINE_DUT); fi
 if [[ -n "$period" ]]; then defines+=(-D "CLK_PERIOD_NS=$period"); fi
-dut_sources=("${sources[@]}" "$ROOT/rtl/$variant/${variant}_filter.sv")
+dut_sources=("${sources[@]}" "$dut_file")
 if [[ -n "$netlist" ]]; then
   # Functional cell models; the 0.1 ns flop delay keeps every register update
   # after the testbench samples at the clock edge and before its +1 ns checks.
@@ -151,9 +177,11 @@ if [[ -n "$capture" ]]; then
   mkdir -p "$(dirname "$(realpath -m "$capture")")"
   plusargs+=("+capture_file=$(realpath -m "$capture")")
 fi
-# --vcd <file> (freq_serial): ports and engine control state over the unstalled run.
+# --vcd <file> (freq_serial, freq_opt): ports and engine control state over the unstalled run.
 if [[ -n "$vcd" ]]; then
-  if [[ "$variant" != freq_serial ]]; then printf -- '--vcd applies only to freq_serial\n' >&2; exit 2; fi
+  if [[ "$variant" != freq_serial && "$variant" != freq_opt ]]; then
+    printf -- '--vcd applies only to freq_serial and freq_opt\n' >&2; exit 2
+  fi
   # Both open the simulator's single VCD dump.
   if [[ -n "$activity" ]]; then printf -- '--vcd and --activity-vcd cannot be combined\n' >&2; exit 2; fi
   mkdir -p "$(dirname "$(realpath -m "$vcd")")"
