@@ -28,9 +28,11 @@ serial filter (T30) and the optimized rows T-S4P1/T-S8P1 (T40) share these
 definitions, so their arithmetic stays bit-exact by construction.
 
 `rrc_stream_shell.sv` replaces the inactive toolchain placeholder with a
-one-stage elastic **transport-only** register. Only `freq_opt`, the wrapper
-without a datapath, still uses it; `time_serial` replaced it with the T30
-filter, `freq_serial` with the T32 engine and `time_opt` with the T40 filter.
+one-stage elastic **transport-only** register. Only the test-only wrapper
+`sim/python/tests/transport/transport_filter.sv` still uses it (the body of
+`freq_opt` until T42); `time_serial` replaced it with the T30 filter,
+`freq_serial` with the T32 engine, `time_opt` with the T40 filter and `freq_opt`
+with the T42 engine rows.
 It forwards each accepted `{Q,I}` beat unchanged, with no FIR or FFT arithmetic.
 The packed bus is `[SAMPLES_PER_CLOCK-1:0][2*DATA_WIDTH-1:0]`, with I in the low
 bits, Q in the high bits, and lane 0 first.
@@ -65,17 +67,20 @@ F3 chooses ready-path cuts/skid buffering using its actual timing and PPA needs.
   shell, wrapper, then TB; OpenLane includes DUT/shared RTL only, never TB
   metadata or vectors.
 
-## Frequency engine (T32, #49)
+## Frequency engine (T32, #49; T42, #53)
 
 `rrc_freq_pkg.sv` holds the frozen production-A frequency arithmetic: the
 twiddle and `H[k]` tables (generated from `sim/python/fxp.py`; `H[k]` is read
 through a bit-reversed address), the container widths and the two shared
 narrowing functions (RNE shift by F, and the final cast with saturation).
-`rrc_freq_engine.sv` is the `U`-parameterized engine of the frequency lane;
-only `U=1` elaborates, and `rtl/freq_serial/` wraps it. They live here so that
-T42 (F-U4/F-U8) reuses one source instead of copying it. They are listed after
+`rrc_freq_engine.sv` is the `U`-parameterized engine of the frequency lane:
+`U` butterfly lanes, each with its own complex multiplier. `U=1` is the serial
+baseline wrapped by `rtl/freq_serial/`; `U=4` and `U=8` are the F-U4 and F-U8
+rows wrapped by `rtl/freq_opt/` (T42). Any other `U` stops at elaboration. All
+rows share this one source instead of copies, and they are bit-exact with each
+other (see `rtl/freq_opt/README.md`). They are listed after
 `rrc_pkg.sv`/`rrc_reset_sync.sv` in every source list; `rrc_stream_shell.sv` is
-no longer used by `freq_serial`. `rrc_freq_pkg` repeats `FFT_LEN` and `DATA_WIDTH` (the
+no longer used by `freq_serial` or `freq_opt`. `rrc_freq_pkg` repeats `FFT_LEN` and `DATA_WIDTH` (the
 Yosys of OpenLane cannot cross-reference packages); the engine checks them against
 `rrc_pkg`. See `rtl/freq_serial/README.md`.
 
