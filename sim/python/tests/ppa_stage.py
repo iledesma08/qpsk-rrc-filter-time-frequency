@@ -1,4 +1,4 @@
-"""PPA target runs of the matrix rows (T41 #52): OpenLane, gate-level activity, annotated power and rows.
+"""PPA target runs of the matrix rows (T41 #52 time, T43 #54 frequency): OpenLane, gate-level activity, annotated power and rows.
 
 ``openlane/ppa_runs.json`` declares every row (its OpenLane config, synthesis
 parameters and main target) and the two targets. A target run is one row at
@@ -13,7 +13,8 @@ the sizing rule, nothing else (ppa-matrix-18, Measurement Conditions).
     flow, fresh, in ``.build/ppa/<row>/<target>/openlane``, timed.
 ``collect``
     The final netlist on the shared testbench at the run's period (canonical
-    frame, every check of the RTL run, ``II = 8/S``, outputs equal to the
+    frame, every check of the RTL run, ``II = 8/S`` in the time lane or the
+    block timing of the engine in the frequency lane, outputs equal to the
     expected codes), its activity window as SAIF (``ppa_activity.py``),
     OpenSTA power with that activity at the power corner
     (``openlane/scripts/annotated_power.tcl``), and the evidence in
@@ -412,6 +413,7 @@ def gate_level(spec: dict, resolved: dict, netlist: Path, base: Path, table: dic
     outcome = {"command": ["rtl/run_variant.sh", spec["rtl_variant"], *[_display_path(item) for item in arguments]],
                "netlist_sha256": _file_sha256(netlist), "wall_time_s": round(time.monotonic() - started, 1),
                "log_sha256": _sha256(log.encode("utf-8")), "expected_ii": matching.expected_ii(manifest),
+               "expected_block_timing": matching.expected_block_timing(manifest),
                "testbench_sha256": {name: _file_sha256(ROOT / name)
                                     for name in ("rtl/tb/rrc_stream_tb.sv", "rtl/run_variant.sh")},
                "declared_latency_cycles": manifest["latency_cycles"], "failures": []}
@@ -426,8 +428,20 @@ def gate_level(spec: dict, resolved: dict, netlist: Path, base: Path, table: dic
                     "midtraffic_reset": report["midtraffic_reset"]})
     if continuous["measured_latency_cycles"] != manifest["latency_cycles"]:
         outcome["failures"].append("measured latency differs from the rtl_matching manifest")
-    if continuous["measured_ii"] != outcome["expected_ii"]:
-        outcome["failures"].append(f"measured II {continuous['measured_ii']} is not {outcome['expected_ii']}")
+    block = outcome["expected_block_timing"]
+    if block is None:
+        if continuous["measured_ii"] != outcome["expected_ii"]:
+            outcome["failures"].append(f"measured II {continuous['measured_ii']} is not {outcome['expected_ii']}")
+    else:
+        # The block engines have no per-sample II: the block II, the fill and the tail are the row's identity.
+        wanted = {"blocks": block["blocks"], "block_ii_count": block["block_ii_count"], "block_ii_min": block["block_ii"],
+                  "block_ii_max": block["block_ii"], "fill_latency_cycles": block["fill_latency_cycles"],
+                  "tail_latency_cycles": block["tail_latency_cycles"],
+                  "source_tail_latency_cycles": block["source_tail_latency_cycles"]}
+        measured = {name: (report.get("block_timing") or {}).get(name) for name in wanted}
+        outcome["block_timing"] = report.get("block_timing")
+        if measured != wanted:
+            outcome["failures"].append(f"block timing {measured} is not {wanted}")
     outcome["captured_output_sha256"] = _file_sha256(capture)
     if outcome["captured_output_sha256"] != manifest["hashes"]["expected_hex_sha256"]:
         outcome["failures"].append("captured gate-level outputs differ from the bound expected codes")
@@ -605,7 +619,8 @@ def collect(table: dict, spec: dict, openlane_dir: Path, keep_vcd: bool = False)
         reasons.append(f"OpenLane exited {record['exit_code']}" + (f": {errors[0]}" if errors else ""))
     metrics = state["metrics"] if state is not None else None
     evidence = {
-        "evidence_for": f"T41 target run {spec['run_tag']} ({spec['target_role']} target of {spec['row']})",
+        "evidence_for": f"{table['tasks'][spec['lane']]} target run {spec['run_tag']} "
+                        f"({spec['target_role']} target of {spec['row']})",
         "run_tag": spec["run_tag"],
         "spec": {key: spec[key] for key in ("row", "target", "lane", "rtl_variant", "config", "factors",
                                             "synth_parameters", "target_role", "clock_target", "clock_period_ns",
@@ -735,7 +750,8 @@ def normalized_row(table: dict, spec: dict, status: str, reasons: list[str], met
         "fft_n": factors.get("fft_n"), "hop": factors.get("hop"),
         "clock_target": spec["clock_target"], "clock_period_ns": spec["clock_period_ns"],
         "target_class": spec["target"], "target_role": spec["target_role"],
-        "corner": table["signoff"]["corner"], "workload": table["activity"]["workload"],
+        "corner": table["signoff"]["corner"],
+        "workload": table["activity"].get("workload_by_lane", {}).get(spec["lane"], table["activity"]["workload"]),
         "run_status": status, "failure_or_unrun_reason": "; ".join(reasons) or None,
         "timing_status": timing_result["status"] if timing_result else "not-run",
         "run_tag": spec["run_tag"], "serial_run_tag": spec["serial_run_tag"],
@@ -756,7 +772,14 @@ def normalized_row(table: dict, spec: dict, status: str, reasons: list[str], met
             "fmax_mhz": timing_result["fmax_mhz"],
             "drc": signoff_result["drc"], "lvs": signoff_result["lvs"], "antenna": signoff_result["antenna"],
         })
-    if gl is not None and "continuous" in gl:
+    if gl is not None and gl.get("block_timing"):
+        # A block engine issues a work group (HOP samples) every block II: that is its II and its throughput.
+        timing_block = gl["block_timing"]
+        ii = timing_block["block_ii_min"]
+        row["ii_cycles"] = ii
+        row["samples_per_cycle"] = timing_block["hop"] / ii
+        row["effective_outputs_per_s"] = 1e9 / spec["clock_period_ns"] * timing_block["hop"] / ii
+    elif gl is not None and "continuous" in gl:
         ii = gl["continuous"]["measured_ii"]
         if isinstance(ii, int):
             row["ii_cycles"] = ii
@@ -786,7 +809,8 @@ def unrun(table: dict, spec: dict, reason: str) -> Path:
         shutil.rmtree(out)
     out.mkdir(parents=True)
     evidence = {
-        "evidence_for": f"T41 target run {spec['run_tag']} ({spec['target_role']} target of {spec['row']})",
+        "evidence_for": f"{table['tasks'][spec['lane']]} target run {spec['run_tag']} "
+                        f"({spec['target_role']} target of {spec['row']})",
         "run_tag": spec["run_tag"],
         "spec": {key: spec[key] for key in ("row", "target", "lane", "rtl_variant", "config", "factors",
                                             "synth_parameters", "target_role", "clock_target", "clock_period_ns",
@@ -887,7 +911,7 @@ def _csv_value(value) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="PPA target runs of the matrix rows (T41)")
+    parser = argparse.ArgumentParser(description="PPA target runs of the matrix rows (T41 time, T43 frequency)")
     parser.add_argument("command", choices=("run", "collect", "unrun", "rows"))
     parser.add_argument("--row", help="matrix row, e.g. T-S8P1")
     parser.add_argument("--target", choices=("SLOW", "FAST"))

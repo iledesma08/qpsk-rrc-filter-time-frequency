@@ -5,12 +5,12 @@
     "dir::../../rtl/common/rrc_reset_sync.sv",
     "dir::../../rtl/common/rrc_freq_pkg.sv",
     "dir::../../rtl/common/rrc_freq_engine.sv",
-    "dir::../../rtl/freq_serial/*.sv"
+    "dir::../../rtl/freq_serial/freq_serial_filter.sv"
   ],
   "CLOCK_PORT": "clk",
-  "CLOCK_PERIOD": 10.0,
-  "FP_SIZING": "absolute",
-  "DIE_AREA": [0, 0, 200, 200],
-  "PNR_SDC_FILE": "dir::../sdc/sky130_100MHz.sdc",
-  "SIGNOFF_SDC_FILE": "dir::../sdc/sky130_100MHz.sdc"
+  "CLOCK_PERIOD": 100.0,
+  "FP_SIZING": "relative",
+  "FP_CORE_UTIL": 55,
+  "PNR_SDC_FILE": "dir::../sdc/sky130_10MHz.sdc",
+  "SIGNOFF_SDC_FILE": "dir::../sdc/sky130_10MHz.sdc"
 }
