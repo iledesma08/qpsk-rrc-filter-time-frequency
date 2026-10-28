@@ -289,28 +289,32 @@ The pipeline is adapted to the block engines; `F-serial` has both runs, `F-U4` a
   that reads the window back as a VCD (`read_vcd`) keeps every value change in memory, about 11.5 bytes of RSS per VCD
   byte, so it only runs on windows up to `VCD_CROSS_CHECK_MAX_BYTES` (150 MB). Above that it is skipped and the evidence
   records `vcd_cross_check.executed: false` with the reason; the power is still `annotated` when the coverage is met.
-  The window of `F-serial` SLOW is 2.19 GB, so its cross-check is skipped. `collect --skip-activity --reason "..."`
-  records a flow without the gate-level run and the power (`vector_status` and `power_status` `not-run`).
+  The windows of `F-serial` SLOW and FAST are 2.19 and 2.21 GB, so their cross-checks are skipped.
+  `collect --skip-activity --reason "..."` records a flow without the gate-level run and the power (`vector_status` and
+  `power_status` `not-run`).
 - **Results so far.** Two runs went through the flow, both of `F-serial`; `F-U4` and `F-U8` stay `unrun`
   (`rows.json` has no comparable pair yet).
 
   | Item | `F-serial` SLOW (10 MHz, main) | `F-serial` FAST (100 MHz, secondary) |
   | --- | --- | --- |
   | Run status | passed | failed: timing |
-  | Flow time and peak memory | 63.0 min, about 2 GiB (detailed routing) | 86.9 min, 2 GiB (detailed routing) |
+  | Flow time and peak memory | 63.0 min, about 2 GiB (detailed routing) | 160.8 min on a second machine (86.9 min in the first run), 2 GiB (detailed routing) |
   | Cell area | 314,206 um2 (41,989 cells, 2,230 sequential) | 317,850 um2 |
   | Setup at the tt corners | +80.87 ns | -7.20 ns (nom), -7.75 ns worst of the tt corners |
-  | Hold at tt | +0.359 ns | +0.363 ns |
+  | Hold at tt | +0.359 ns | +0.361 ns |
   | fmax | 52.3 MHz (26.8 MHz at the slowest ss corner) | 56.3 MHz (from the worst tt corner) |
   | Signoff | DRC 0, LVS 0, 117 antenna nets | DRC 0, LVS 0, 129 antenna nets |
-  | Gate-level matching | 2055/2055 codes, block II 107, fill 99, source tail 205 | not run |
-  | Activity window | 27,499 cycles, a 2.19 GB VCD, SAIF coverage 100 % | not run |
-  | Annotated power | 3.604 mW (SAIF; VCD cross-check skipped) | not run |
-  | Throughput, energy per output | 0.748 MS/s, 4.82 nJ | not run |
+  | Gate-level matching | 2055/2055 codes, block II 107, fill 99, source tail 205 | 2055/2055 codes, block II 107, fill 99, source tail 205 |
+  | Activity window | 27,499 cycles, a 2.19 GB VCD, SAIF coverage 100 % | 27,499 cycles, a 2.21 GB VCD, SAIF coverage 100 % |
+  | Annotated power | 3.604 mW (SAIF; VCD cross-check skipped) | 36.48 mW (SAIF; VCD cross-check skipped) |
+  | Throughput, energy per output | 0.748 MS/s, 4.82 nJ | 7.48 MS/s, 4.88 nJ |
 
-  The `F-serial` FAST run is recorded as failed by timing with the gate-level activity and the power left out: the
-  period is not met, and the power step is the heaviest of the flow on the development machine. A SLOW pass does not
-  fulfil it. The run directories stay in `.build/ppa/F-serial/{slow,fast}/`.
+  `F-serial` FAST fails its 100 MHz target, and a SLOW pass does not fulfil it. Like the failed FAST runs of T41, it
+  still carries its gate-level matching, activity and annotated power at the actual 10 ns period, so it is the FAST
+  power baseline of the `F-U4` and `F-U8` pairs. Its evidence comes from a second run on another machine of the same
+  class (WSL, 4 CPUs, 7.8 GiB). Its flow metrics equal those of the first run, which left the activity out, so the
+  160.8 min flow time measures the machine, and the flow times of SLOW and FAST are not comparable. Its gate-level run
+  took 43 min. The run directories stay in `.build/ppa/F-serial/{slow,fast}/`.
 - **Why the machine was not enough for the rest.** The T41 rows had 47,000 to 73,000 um2 of cells, flows of 8 to 17 min
   and window VCDs of 56 to 286 MB on the same machine class (4 CPUs, 7.8 GiB). `F-serial` has about 4 to 7 times the
   cells and a 63 min flow, and the size of the netlist makes the Yosys ABC step grow faster than linearly: it measured
@@ -324,7 +328,8 @@ The pipeline is adapted to the block engines; `F-serial` has both runs, `F-U4` a
   ```bash
   python3 sim/python/tests/ppa_stage.py run     --row F-serial --target SLOW --lane freq
   python3 sim/python/tests/ppa_stage.py collect --row F-serial --target SLOW --lane freq
-  python3 sim/python/tests/ppa_stage.py collect --row F-serial --target FAST --lane freq --skip-activity --reason "..."
+  python3 sim/python/tests/ppa_stage.py run     --row F-serial --target FAST --lane freq
+  python3 sim/python/tests/ppa_stage.py collect --row F-serial --target FAST --lane freq
   python3 sim/python/tests/ppa_stage.py rows --lane freq
   python -m pytest sim/python/tests/test_ppa_freq.py -v
   ```
