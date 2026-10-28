@@ -1,4 +1,4 @@
-"""PPA target runs of the matrix rows (T41 #52): OpenLane, gate-level activity, annotated power and rows.
+"""PPA target runs of the matrix rows (T41 #52 time, T43 #54 frequency): OpenLane, gate-level activity, annotated power and rows.
 
 ``openlane/ppa_runs.json`` declares every row (its OpenLane config, synthesis
 parameters and main target) and the two targets. A target run is one row at
@@ -13,7 +13,8 @@ the sizing rule, nothing else (ppa-matrix-18, Measurement Conditions).
     flow, fresh, in ``.build/ppa/<row>/<target>/openlane``, timed.
 ``collect``
     The final netlist on the shared testbench at the run's period (canonical
-    frame, every check of the RTL run, ``II = 8/S``, outputs equal to the
+    frame, every check of the RTL run, ``II = 8/S`` in the time lane or the
+    block timing of the engine in the frequency lane, outputs equal to the
     expected codes), its activity window as SAIF (``ppa_activity.py``),
     OpenSTA power with that activity at the power corner
     (``openlane/scripts/annotated_power.tcl``), and the evidence in
@@ -54,6 +55,9 @@ import rtl_matching_stage as matching  # noqa: E402
 ROOT = Path(__file__).resolve().parents[3]
 TABLE = ROOT / "openlane" / "ppa_runs.json"
 BUILD = ROOT / ".build" / "ppa"
+# OpenSTA read_vcd keeps every value change in memory (about 11.5 bytes of RSS per VCD byte), so the VCD
+# cross-check of the SAIF only runs on windows up to this size; the SAIF is the measurement either way.
+VCD_CROSS_CHECK_MAX_BYTES = 150_000_000
 POWER_SCRIPT = ROOT / "openlane" / "scripts" / "annotated_power.tcl"
 NIX_BIN = "/nix/var/nix/profiles/default/bin"
 EVIDENCE_FILE = "evidence_manifest.json"
@@ -412,6 +416,7 @@ def gate_level(spec: dict, resolved: dict, netlist: Path, base: Path, table: dic
     outcome = {"command": ["rtl/run_variant.sh", spec["rtl_variant"], *[_display_path(item) for item in arguments]],
                "netlist_sha256": _file_sha256(netlist), "wall_time_s": round(time.monotonic() - started, 1),
                "log_sha256": _sha256(log.encode("utf-8")), "expected_ii": matching.expected_ii(manifest),
+               "expected_block_timing": matching.expected_block_timing(manifest),
                "testbench_sha256": {name: _file_sha256(ROOT / name)
                                     for name in ("rtl/tb/rrc_stream_tb.sv", "rtl/run_variant.sh")},
                "declared_latency_cycles": manifest["latency_cycles"], "failures": []}
@@ -426,10 +431,30 @@ def gate_level(spec: dict, resolved: dict, netlist: Path, base: Path, table: dic
                     "midtraffic_reset": report["midtraffic_reset"]})
     if continuous["measured_latency_cycles"] != manifest["latency_cycles"]:
         outcome["failures"].append("measured latency differs from the rtl_matching manifest")
-    if continuous["measured_ii"] != outcome["expected_ii"]:
-        outcome["failures"].append(f"measured II {continuous['measured_ii']} is not {outcome['expected_ii']}")
+    block = outcome["expected_block_timing"]
+    if block is None:
+        if continuous["measured_ii"] != outcome["expected_ii"]:
+            outcome["failures"].append(f"measured II {continuous['measured_ii']} is not {outcome['expected_ii']}")
+    else:
+        # The block engines have no per-sample II: the block II, the fill and the tail are the row's identity.
+        wanted = {"blocks": block["blocks"], "block_ii_count": block["block_ii_count"], "block_ii_min": block["block_ii"],
+                  "block_ii_max": block["block_ii"], "fill_latency_cycles": block["fill_latency_cycles"],
+                  "tail_latency_cycles": block["tail_latency_cycles"],
+                  "source_tail_latency_cycles": block["source_tail_latency_cycles"]}
+        measured = {name: (report.get("block_timing") or {}).get(name) for name in wanted}
+        outcome["block_timing"] = report.get("block_timing")
+        if measured != wanted:
+            outcome["failures"].append(f"block timing {measured} is not {wanted}")
     outcome["captured_output_sha256"] = _file_sha256(capture)
-    if outcome["captured_output_sha256"] != manifest["hashes"]["expected_hex_sha256"]:
+    # As in rtl_matching_stage: only the records of the valid window are expected codes; any others are the
+    # declared block padding (the last frequency output), recorded in the capture but never compared.
+    records = capture.read_text(encoding="ascii").split()
+    first = manifest["valid_start"] - manifest["latency_samples"]
+    window_records = records[first:first + manifest["valid_len"]]
+    window_sha256 = _sha256(("\n".join(window_records) + "\n").encode("ascii"))
+    if len(records) != manifest["raw_output_samples"]:
+        outcome["failures"].append(f"{len(records)} captured gate-level outputs, {manifest['raw_output_samples']} declared")
+    elif window_sha256 != manifest["hashes"]["expected_hex_sha256"]:
         outcome["failures"].append("captured gate-level outputs differ from the bound expected codes")
     if window is None:
         outcome["failures"].append("the testbench reported no activity window")
@@ -453,9 +478,9 @@ def _display_path(item: str) -> str:
     return item
 
 
-def annotated_power(table: dict, resolved: dict, state: dict, base: Path, saif: Path, window_vcd: Path,
+def annotated_power(table: dict, resolved: dict, state: dict, base: Path, saif: Path, window_vcd: Path | None,
                     openlane_dir: Path) -> dict:
-    """OpenSTA power at the power corner: unannotated, with the SAIF and with the window VCD (cross-check)."""
+    """OpenSTA power at the power corner: unannotated, with the SAIF and, when given, with the window VCD (cross-check)."""
     corner = table["signoff"]["power_corner"]
     top = resolved["DESIGN_NAME"]
     libs = [lib for pattern, files in resolved["LIB"].items() if fnmatch.fnmatch(corner, pattern) for lib in files]
@@ -478,10 +503,11 @@ def annotated_power(table: dict, resolved: dict, state: dict, base: Path, saif: 
         "spef": str(spef[0]),
         "sdc": resolved["SIGNOFF_SDC_FILE"],
         "saif": str(saif),
-        "vcd": str(window_vcd),
         "scope": table["activity"]["scope"],
         "out": str(out),
     }
+    if window_vcd is not None:
+        inputs["vcd"] = str(window_vcd)
     lines = [f"set ppa({name}) {{{' '.join(value) if isinstance(value, list) else value}}}"
              for name, value in inputs.items()]
     lines.append(f"source {{{POWER_SCRIPT}}}")
@@ -502,7 +528,8 @@ def annotated_power(table: dict, resolved: dict, state: dict, base: Path, saif: 
         "sta_version": (out / "sta_version.txt").read_text(encoding="utf-8").strip(),
         "unannotated": parse_power_report((out / "power_unannotated.rpt").read_text(encoding="utf-8")),
         "annotated": parse_power_report((out / "power_annotated.rpt").read_text(encoding="utf-8")),
-        "vcd_check": parse_power_report((out / "power_vcd_check.rpt").read_text(encoding="utf-8")),
+        "vcd_check": parse_power_report((out / "power_vcd_check.rpt").read_text(encoding="utf-8"))
+        if window_vcd is not None else None,
         "vcd_annotated_pins": int(vcd_annotated.group(1)) if vcd_annotated else None,
         # Liberty internal pins (a flop's IQ/IQ_N state) are no netlist ports and get no activity.
         "pins": {name for name, direction in directions.items() if direction != "internal"},
@@ -584,8 +611,13 @@ def _dut_sources(resolved: dict) -> dict[str, str]:
     return {_repo_path(Path(path)): _file_sha256(Path(path)) for path in resolved["VERILOG_FILES"]}
 
 
-def collect(table: dict, spec: dict, openlane_dir: Path, keep_vcd: bool = False) -> Path:
-    """Gate-level activity, annotated power and the committed evidence of one executed target run."""
+def collect(table: dict, spec: dict, openlane_dir: Path, keep_vcd: bool = False,
+            skip_activity: str | None = None) -> Path:
+    """Gate-level activity, annotated power and the committed evidence of one executed target run.
+
+    ``skip_activity`` (a reason) records the flow's reports without the gate-level run and the power: the
+    row then has ``vector_status`` and ``power_status`` ``not-run`` and the reason.
+    """
     base = BUILD / spec["row"] / spec["target"].lower()
     record = json.loads((base / "run.json").read_text(encoding="utf-8"))
     run_dir = base / "openlane"
@@ -605,7 +637,8 @@ def collect(table: dict, spec: dict, openlane_dir: Path, keep_vcd: bool = False)
         reasons.append(f"OpenLane exited {record['exit_code']}" + (f": {errors[0]}" if errors else ""))
     metrics = state["metrics"] if state is not None else None
     evidence = {
-        "evidence_for": f"T41 target run {spec['run_tag']} ({spec['target_role']} target of {spec['row']})",
+        "evidence_for": f"{table['tasks'][spec['lane']]} target run {spec['run_tag']} "
+                        f"({spec['target_role']} target of {spec['row']})",
         "run_tag": spec["run_tag"],
         "spec": {key: spec[key] for key in ("row", "target", "lane", "rtl_variant", "config", "factors",
                                             "synth_parameters", "target_role", "clock_target", "clock_period_ns",
@@ -650,27 +683,40 @@ def collect(table: dict, spec: dict, openlane_dir: Path, keep_vcd: bool = False)
             evidence["signoff"]["antenna_violations"] = antenna_violations(target.read_text(encoding="utf-8"))
             evidence["signoff"]["antenna_report"] = "openroad-checkantennas/antenna_summary.rpt"
             evidence["signoff"]["antenna_report_sha256"] = _file_sha256(target)
-        gl = gate_level(spec, resolved, state["nl"], base, table)
-        reasons += gl["failures"]
-        if "window" in gl:
+        if skip_activity:
+            evidence["activity_skipped"] = skip_activity
+            reasons.append(f"gate-level activity and power not run: {skip_activity}")
+        else:
+            gl = gate_level(spec, resolved, state["nl"], base, table)
+            reasons += gl["failures"]
+        if gl is not None and "window" in gl:
             saif, window_vcd = out / SAIF_FILE, base / "gl" / "window.vcd"
+            vcd_bytes = gl["vcd"].stat().st_size
+            cross_check = vcd_bytes <= VCD_CROSS_CHECK_MAX_BYTES
             activity = ppa_activity.vcd_to_saif(gl["vcd"], saif, tuple(table["activity"]["scope"].split("/")),
-                                                (gl["window"]["start_ns"], gl["window"]["end_ns"]), window_vcd)
-            activity["vcd_bytes"] = gl["vcd"].stat().st_size
+                                                (gl["window"]["start_ns"], gl["window"]["end_ns"]),
+                                                window_vcd if cross_check else None)
+            activity["vcd_bytes"] = vcd_bytes
+            if not cross_check:
+                window_vcd = None
             power = annotated_power(table, resolved, state, base, saif, window_vcd, openlane_dir)
             if not keep_vcd:
                 gl["vcd"].unlink()
-                window_vcd.unlink()
+                if window_vcd is not None:
+                    window_vcd.unlink()
     evidence["gate_level"] = None if gl is None else {key: value for key, value in gl.items() if key != "vcd"}
     if power is not None:
         written = set(activity["written_names"])
         annotated = power["pins"] & written
         coverage = len(annotated) / len(power["pins"])
-        vcd_total = power["vcd_check"]["Total"]["total_w"]
+        vcd_total = power["vcd_check"]["Total"]["total_w"] if power["vcd_check"] else None
         openlane_power = _step_dir(run_dir, "openroad-stapostpnr") / power["corner"] / "power.rpt"
         reference = parse_power_report(openlane_power.read_text(encoding="utf-8"))["Total"]["total_w"]
         reproduced = power["unannotated"]["Total"]["total_w"]
-        for name in ("power_unannotated.rpt", "power_annotated.rpt", "power_vcd_check.rpt"):
+        report_names = ["power_unannotated.rpt", "power_annotated.rpt"]
+        if vcd_total is not None:
+            report_names.append("power_vcd_check.rpt")
+        for name in report_names:
             target = out / "power" / name
             target.parent.mkdir(exist_ok=True)
             shutil.copyfile(power["out"] / name, target)
@@ -706,14 +752,19 @@ def collect(table: dict, spec: dict, openlane_dir: Path, keep_vcd: bool = False)
             "annotation_coverage": coverage,
             "unannotated_pins_sample": sorted(power["pins"] - written)[:20],
             "vcd_cross_check": {
-                "method": "the same window as a VCD from time 0, read with OpenSTA read_vcd after the SAIF",
+                "executed": vcd_total is not None,
+                "method": "the same window as a VCD from time 0, read with OpenSTA read_vcd after the SAIF"
+                if vcd_total is not None else
+                f"skipped: the window VCD is {activity['vcd_bytes']} bytes, above the "
+                f"{VCD_CROSS_CHECK_MAX_BYTES} bytes read_vcd is run on (it keeps every value change in memory); "
+                "the SAIF is the measurement",
                 "total_w": vcd_total,
                 "opensta_annotated_pins": power["vcd_annotated_pins"],
-                "agrees": abs(vcd_total - power["annotated"]["Total"]["total_w"]) <= 1e-4 * vcd_total
+                "agrees": None if vcd_total is None else
+                abs(vcd_total - power["annotated"]["Total"]["total_w"]) <= 1e-4 * vcd_total
                 and power["vcd_annotated_pins"] == len(annotated),
             },
-            "reports": ["power/power_unannotated.rpt", "power/power_annotated.rpt", "power/power_vcd_check.rpt",
-                        "power/run.tcl"],
+            "reports": [f"power/{name}" for name in report_names] + ["power/run.tcl"],
             "scope": "core + clock tree (report_power Total; this design has no Pad or Macro power)",
         }
     evidence["row"] = normalized_row(table, spec, "failed" if reasons else "passed", reasons, metrics,
@@ -735,7 +786,8 @@ def normalized_row(table: dict, spec: dict, status: str, reasons: list[str], met
         "fft_n": factors.get("fft_n"), "hop": factors.get("hop"),
         "clock_target": spec["clock_target"], "clock_period_ns": spec["clock_period_ns"],
         "target_class": spec["target"], "target_role": spec["target_role"],
-        "corner": table["signoff"]["corner"], "workload": table["activity"]["workload"],
+        "corner": table["signoff"]["corner"],
+        "workload": table["activity"].get("workload_by_lane", {}).get(spec["lane"], table["activity"]["workload"]),
         "run_status": status, "failure_or_unrun_reason": "; ".join(reasons) or None,
         "timing_status": timing_result["status"] if timing_result else "not-run",
         "run_tag": spec["run_tag"], "serial_run_tag": spec["serial_run_tag"],
@@ -756,7 +808,14 @@ def normalized_row(table: dict, spec: dict, status: str, reasons: list[str], met
             "fmax_mhz": timing_result["fmax_mhz"],
             "drc": signoff_result["drc"], "lvs": signoff_result["lvs"], "antenna": signoff_result["antenna"],
         })
-    if gl is not None and "continuous" in gl:
+    if gl is not None and gl.get("block_timing"):
+        # A block engine issues a work group (HOP samples) every block II: that is its II and its throughput.
+        timing_block = gl["block_timing"]
+        ii = timing_block["block_ii_min"]
+        row["ii_cycles"] = ii
+        row["samples_per_cycle"] = timing_block["hop"] / ii
+        row["effective_outputs_per_s"] = 1e9 / spec["clock_period_ns"] * timing_block["hop"] / ii
+    elif gl is not None and "continuous" in gl:
         ii = gl["continuous"]["measured_ii"]
         if isinstance(ii, int):
             row["ii_cycles"] = ii
@@ -767,7 +826,7 @@ def normalized_row(table: dict, spec: dict, status: str, reasons: list[str], met
         row.update({
             "power_total": power["annotated_w"]["Total"]["total_w"],
             "power_status": "annotated" if coverage >= table["signoff"]["min_annotation_coverage"]
-            and power["vcd_cross_check"]["agrees"] else "partially-annotated",
+            and power["vcd_cross_check"]["agrees"] is not False else "partially-annotated",
             "activity_file": f"{spec['evidence_dir']}/{activity['file']}",
             "activity_period_ns": activity["period_ns"],
             "annotation_coverage": coverage,
@@ -786,7 +845,8 @@ def unrun(table: dict, spec: dict, reason: str) -> Path:
         shutil.rmtree(out)
     out.mkdir(parents=True)
     evidence = {
-        "evidence_for": f"T41 target run {spec['run_tag']} ({spec['target_role']} target of {spec['row']})",
+        "evidence_for": f"{table['tasks'][spec['lane']]} target run {spec['run_tag']} "
+                        f"({spec['target_role']} target of {spec['row']})",
         "run_tag": spec["run_tag"],
         "spec": {key: spec[key] for key in ("row", "target", "lane", "rtl_variant", "config", "factors",
                                             "synth_parameters", "target_role", "clock_target", "clock_period_ns",
@@ -887,13 +947,15 @@ def _csv_value(value) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="PPA target runs of the matrix rows (T41)")
+    parser = argparse.ArgumentParser(description="PPA target runs of the matrix rows (T41 time, T43 frequency)")
     parser.add_argument("command", choices=("run", "collect", "unrun", "rows"))
     parser.add_argument("--row", help="matrix row, e.g. T-S8P1")
     parser.add_argument("--target", choices=("SLOW", "FAST"))
     parser.add_argument("--reason", help="why an unrun target run was not executed")
     parser.add_argument("--lane", default="time")
     parser.add_argument("--openlane-dir", type=Path, default=Path.home() / "openlane2")
+    parser.add_argument("--skip-activity", action="store_true",
+                        help="collect: record the flow without the gate-level run and the power (needs --reason)")
     parser.add_argument("--keep-vcd", action="store_true", help="keep the gate-level VCD after writing the SAIF")
     arguments = parser.parse_args()
     table = load_table()
@@ -908,7 +970,10 @@ def main() -> None:
         if arguments.command == "run":
             print(run(table, spec, arguments.openlane_dir))
         elif arguments.command == "collect":
-            print(collect(table, spec, arguments.openlane_dir, arguments.keep_vcd))
+            if arguments.skip_activity and not (arguments.reason or "").strip():
+                parser.error("--skip-activity needs --reason")
+            print(collect(table, spec, arguments.openlane_dir, arguments.keep_vcd,
+                          arguments.reason if arguments.skip_activity else None))
         else:
             print(unrun(table, spec, arguments.reason or ""))
     except ValueError as error:

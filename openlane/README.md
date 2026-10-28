@@ -11,8 +11,14 @@ each at its main and its secondary target.
 | `T-S4P1` | `rtl/time_opt/time_opt_filter.sv`, `SYSTOLIC_PES=4`, `PIPELINE_DEPTH=1` | FAST 100 MHz | SLOW 10 MHz |
 | `T-S8P1` | `rtl/time_opt/time_opt_filter.sv`, `SYSTOLIC_PES=8`, `PIPELINE_DEPTH=1` | FAST 100 MHz | SLOW 10 MHz |
 
-The frequency lane (T43, #54) can reuse the pipeline by adding its rows to
-`ppa_runs.json`.
+The frequency lane (T43, #54) reuses the pipeline with its three rows, which are in
+`ppa_runs.json` (see "Frequency lane (T43)" below):
+
+| Row | RTL | Main target | Secondary target |
+| --- | --- | --- | --- |
+| `F-serial` | `rtl/freq_serial/freq_serial_filter.sv` | SLOW 10 MHz | FAST 100 MHz |
+| `F-U4` | `rtl/freq_opt/freq_opt_filter.sv`, `U=4` | FAST 100 MHz | SLOW 10 MHz |
+| `F-U8` | `rtl/freq_opt/freq_opt_filter.sv`, `U=8` | FAST 100 MHz | SLOW 10 MHz |
 
 | File | Role |
 | --- | --- |
@@ -263,6 +269,76 @@ Both SLOW pairs are `comparable` in `rows.json`. The FAST pairs are
 Both pairs depend on the antenna deviation. Under the ppa-matrix-18 rule,
 `T-serial` SLOW and `T-S8P1` SLOW would fail on antenna, and without a passing
 serial reference neither pair would be comparable.
+
+## Frequency lane (T43)
+
+The pipeline is adapted to the block engines; `F-serial` has both runs, `F-U4` and `F-U8` are not run yet.
+
+- **Rows and configs.** `F-serial`, `F-U4` and `F-U8` are in `ppa_runs.json` (`lane: freq`, evidence in
+  `sim/python/artifacts/t43-freq-ppa/`). `openlane/freq_serial/config.json` now names its sources, sizes the die
+  relatively at 55 % and has the 10 MHz SDC as its main target, like the time configs; `freq_opt` takes `U` through
+  `SYNTH_PARAMETERS` (`U=4` or `U=8`).
+- **What changes against the time lane.** A block engine has no per-sample `II`. The gate-level run must show the
+  block II (107, 47, 37 cycles), the fill and tail latency and the source tail of its row (`matching.expected_block_timing`),
+  and the normalized row takes its `II` and throughput from the block II: `ii_cycles` is the block II,
+  `samples_per_cycle` is `8 / II` and the throughput is `f * 8 / II` valid outputs per second. The activity window is the
+  whole continuous run, 257 blocks (27,499 cycles for `F-serial`).
+- **Testbench.** The control-signal VCD of the matching (`+vcd_file`) names RTL hierarchy that a flattened netlist does
+  not have, so the gate-level run only uses `+activity_vcd`.
+- **Power with the SAIF only.** The annotated power of a run comes from the SAIF (`read_saif`). The extra cross-check
+  that reads the window back as a VCD (`read_vcd`) keeps every value change in memory, about 11.5 bytes of RSS per VCD
+  byte, so it only runs on windows up to `VCD_CROSS_CHECK_MAX_BYTES` (150 MB). Above that it is skipped and the evidence
+  records `vcd_cross_check.executed: false` with the reason; the power is still `annotated` when the coverage is met.
+  The windows of `F-serial` SLOW and FAST are 2.19 and 2.21 GB, so their cross-checks are skipped.
+  `collect --skip-activity --reason "..."` records a flow without the gate-level run and the power (`vector_status` and
+  `power_status` `not-run`).
+- **Results so far.** Two runs went through the flow, both of `F-serial`; `F-U4` and `F-U8` stay `unrun`
+  (`rows.json` has no comparable pair yet).
+
+  | Item | `F-serial` SLOW (10 MHz, main) | `F-serial` FAST (100 MHz, secondary) |
+  | --- | --- | --- |
+  | Run status | passed | failed: timing |
+  | Flow time and peak memory | 63.0 min, about 2 GiB (detailed routing) | 160.8 min on a second machine (86.9 min in the first run), 2 GiB (detailed routing) |
+  | Cell area | 314,206 um2 (41,989 cells, 2,230 sequential) | 317,850 um2 |
+  | Setup at the tt corners | +80.87 ns | -7.20 ns (nom), -7.75 ns worst of the tt corners |
+  | Hold at tt | +0.359 ns | +0.361 ns |
+  | fmax | 52.3 MHz (26.8 MHz at the slowest ss corner) | 56.3 MHz (from the worst tt corner) |
+  | Signoff | DRC 0, LVS 0, 117 antenna nets | DRC 0, LVS 0, 129 antenna nets |
+  | Gate-level matching | 2055/2055 codes, block II 107, fill 99, source tail 205 | 2055/2055 codes, block II 107, fill 99, source tail 205 |
+  | Activity window | 27,499 cycles, a 2.19 GB VCD, SAIF coverage 100 % | 27,499 cycles, a 2.21 GB VCD, SAIF coverage 100 % |
+  | Annotated power | 3.604 mW (SAIF; VCD cross-check skipped) | 36.48 mW (SAIF; VCD cross-check skipped) |
+  | Throughput, energy per output | 0.748 MS/s, 4.82 nJ | 7.48 MS/s, 4.88 nJ |
+
+  `F-serial` FAST fails its 100 MHz target, and a SLOW pass does not fulfil it. Like the failed FAST runs of T41, it
+  still carries its gate-level matching, activity and annotated power at the actual 10 ns period, so it is the FAST
+  power baseline of the `F-U4` and `F-U8` pairs. Its evidence comes from a second run on another machine of the same
+  class (WSL, 4 CPUs, 7.8 GiB). Its flow metrics equal those of the first run, which left the activity out, so the
+  160.8 min flow time measures the machine, and the flow times of SLOW and FAST are not comparable. Its gate-level run
+  took 43 min. The run directories stay in `.build/ppa/F-serial/{slow,fast}/`.
+- **Why the machine was not enough for the rest.** The T41 rows had 47,000 to 73,000 um2 of cells, flows of 8 to 17 min
+  and window VCDs of 56 to 286 MB on the same machine class (4 CPUs, 7.8 GiB). `F-serial` has about 4 to 7 times the
+  cells and a 63 min flow, and the size of the netlist makes the Yosys ABC step grow faster than linearly: it measured
+  864 MB for `F-serial`, was still running after 25 min at 3.3 GB for `F-U4`, and for `F-U8` (eight 45x16 complex
+  multipliers) it was in the ABC step after more than an hour with 6.3 GiB resident and was stopped by hand. A register
+  between the product and the add/sub does not lower that memory (ABC receives the same combinational logic); it is a
+  timing fix. What the rows need: a bigger machine for the synthesis of `F-U4` and `F-U8`, less logic, or `F-U8` out of the
+  base matrix (a scope decision of ppa-matrix-18).
+- **Commands.**
+
+  ```bash
+  python3 sim/python/tests/ppa_stage.py run     --row F-serial --target SLOW --lane freq
+  python3 sim/python/tests/ppa_stage.py collect --row F-serial --target SLOW --lane freq
+  python3 sim/python/tests/ppa_stage.py run     --row F-serial --target FAST --lane freq
+  python3 sim/python/tests/ppa_stage.py collect --row F-serial --target FAST --lane freq
+  python3 sim/python/tests/ppa_stage.py rows --lane freq
+  python -m pytest sim/python/tests/test_ppa_freq.py -v
+  ```
+
+  A run that cannot finish is recorded with `ppa_stage.py unrun --lane freq --reason "..."`; `collect` replaces the
+  committed `unrun` records.
+- **Timing risk.** `F-serial` has one complex multiplier per cycle and already reaches only 52.3 MHz at tt, so the FAST 100 MHz main
+  goal of `F-U4` and `F-U8` (the same single-cycle product, sum and rounding, with more lanes and wider muxes) is not
+  expected to close. A FAST failure is recorded as a failed main goal, and a SLOW pass never fulfils it.
 
 ## Runtime and capacity
 

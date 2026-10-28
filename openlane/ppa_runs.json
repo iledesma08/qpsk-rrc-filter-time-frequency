@@ -4,7 +4,8 @@
   "openlane_version": "2.3.10",
   "pdk": "sky130A",
   "scl": "sky130_fd_sc_hd",
-  "evidence_dirs": {"time": "sim/python/artifacts/t41-time-ppa"},
+  "tasks": {"time": "T41", "freq": "T43"},
+  "evidence_dirs": {"time": "sim/python/artifacts/t41-time-ppa", "freq": "sim/python/artifacts/t43-freq-ppa"},
   "targets": {
     "SLOW": {"clock_target": "10 MHz", "clock_period_ns": 100.0, "sdc": "openlane/sdc/sky130_10MHz.sdc"},
     "FAST": {"clock_target": "100 MHz", "clock_period_ns": 10.0, "sdc": "openlane/sdc/sky130_100MHz.sdc"}
@@ -20,7 +21,10 @@
     "vector_set": "canonical",
     "vector_case": "none",
     "scope": "rrc_stream_tb/dut",
-    "workload": "canonical #15 frame: 2048 input samples + flush, 2055 full causal outputs, continuous run after reset"
+    "workload": "canonical #15 frame: 2048 input samples + flush, 2055 full causal outputs, continuous run after reset",
+    "workload_by_lane": {
+      "freq": "canonical #15 frame: 2048 input samples + 8 flush zeros, 257 blocks (256 steady-state + 1 tail-flush), 2055 full causal outputs, continuous run after reset"
+    }
   },
   "rows": {
     "T-serial": {
@@ -49,6 +53,33 @@
       "synth_parameters": {"SYSTOLIC_PES": 8, "PIPELINE_DEPTH": 1},
       "main_target": "FAST",
       "serial": "T-serial"
+    },
+    "F-serial": {
+      "lane": "freq",
+      "rtl_variant": "freq_serial",
+      "config": "openlane/freq_serial/config.json",
+      "factors": {"U": 1, "fft_n": 16, "hop": 8},
+      "synth_parameters": {},
+      "main_target": "SLOW",
+      "serial": "F-serial"
+    },
+    "F-U4": {
+      "lane": "freq",
+      "rtl_variant": "freq_opt",
+      "config": "openlane/freq_opt/config.json",
+      "factors": {"U": 4, "fft_n": 16, "hop": 8},
+      "synth_parameters": {"U": 4},
+      "main_target": "FAST",
+      "serial": "F-serial"
+    },
+    "F-U8": {
+      "lane": "freq",
+      "rtl_variant": "freq_opt",
+      "config": "openlane/freq_opt/config.json",
+      "factors": {"U": 8, "fft_n": 16, "hop": 8},
+      "synth_parameters": {"U": 8},
+      "main_target": "FAST",
+      "serial": "F-serial"
     }
   }
 }
