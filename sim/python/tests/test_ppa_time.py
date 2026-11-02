@@ -621,3 +621,15 @@ def test_each_optimized_row_compares_only_with_the_serial_at_its_own_target():
         assert entry["comparison_status"] in ("comparable", "not-comparable")
         if entry["comparison_status"] == "not-comparable":
             assert entry["throughput_delta"] is None and entry["comparison_reason"]
+
+
+def test_the_antenna_trial_is_opt_in_and_sizes_both_passes():
+    spec = ppa.target_run(TABLE, "T-serial", "SLOW")
+    trial = TABLE["antenna_trial"]["overrides"]
+    assert ppa.overrides(spec) == ppa.overrides(spec, trial=None)
+    values = ppa.overrides(spec, [0, 0, 200, 200], trial)
+    assert values[-2:] == ["FP_SIZING=absolute", "DIE_AREA=0 0 200 200"]
+    assert values[:len(ppa.overrides(spec))] == ppa.overrides(spec)
+    added = dict(value.split("=", 1) for value in values[len(ppa.overrides(spec)):-2])
+    assert added == {"RUN_HEURISTIC_DIODE_INSERTION": "true", "GRT_ANTENNA_ITERS": "10",
+                     "GRT_ANTENNA_MARGIN": "20", "FP_CORE_UTIL": "45"}

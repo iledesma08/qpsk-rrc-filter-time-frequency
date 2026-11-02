@@ -139,16 +139,27 @@ def target_run(table: dict, row: str, target: str) -> dict:
     }
 
 
-def overrides(spec: dict, die_area: list[float] | None = None) -> list[str]:
-    """Return the OpenLane ``-c`` overrides of a target run; the row's config supplies everything else."""
+def overrides(spec: dict, die_area: list[float] | None = None, trial: dict | None = None) -> list[str]:
+    """Return the OpenLane ``-c`` overrides of a target run; the row's config supplies everything else.
+
+    ``trial`` is the table's ``antenna_trial.overrides`` (``run --antenna-trial``):
+    extra flow variables applied to the pre-pass and the full run alike.
+    """
     sdc = ROOT / spec["sdc"]
     values = [f"CLOCK_PERIOD={spec['clock_period_ns']}", f"PNR_SDC_FILE={sdc}", f"SIGNOFF_SDC_FILE={sdc}"]
     if spec["synth_parameters"]:
         values.append("SYNTH_PARAMETERS=" + ",".join(
             f"{name}={value}" for name, value in sorted(spec["synth_parameters"].items())))
+    if trial:
+        values += [f"{name}={_flow_value(value)}" for name, value in trial.items()]
     if die_area is not None:
         values += ["FP_SIZING=absolute", "DIE_AREA=" + " ".join(f"{value:g}" for value in die_area)]
     return values
+
+
+def _flow_value(value) -> str:
+    """An OpenLane ``-c`` value: JSON booleans as ``true``/``false``, the rest as written."""
+    return str(value).lower() if isinstance(value, bool) else str(value)
 
 
 def die_floor(bbox: list[float], floor: list[float]) -> list[float] | None:
@@ -227,14 +238,20 @@ def resource_use(run_dir: Path) -> dict:
     return {"peak_rss_mib": round(peak / 2 ** 20, 1), "peak_rss_step": step, "summed_step_runtime_s": round(runtime, 1)}
 
 
-def run(table: dict, spec: dict, openlane_dir: Path) -> Path:
-    """Floorplan pre-pass for the die floor, then the full Classic flow; write ``run.json``."""
+def run(table: dict, spec: dict, openlane_dir: Path, antenna_trial: bool = False) -> Path:
+    """Floorplan pre-pass for the die floor, then the full Classic flow; write ``run.json``.
+
+    With ``antenna_trial`` both passes add the table's ``antenna_trial.overrides``
+    (docs/ppa/antenna-diodes-comparison.md); the default run is unchanged.
+    """
+    trial = table["antenna_trial"]["overrides"] if antenna_trial else None
+    core_util = (trial or {}).get("FP_CORE_UTIL", table["sizing"]["FP_CORE_UTIL"])
     base = BUILD / spec["row"] / spec["target"].lower()
     if base.exists():
         shutil.rmtree(base)
     floorplan = base / "floorplan"
     floorplan.mkdir(parents=True)
-    pre_values = overrides(spec)
+    pre_values = overrides(spec, trial=trial)
     pre_command = shlex.join(openlane_arguments(table, spec, floorplan, pre_values, to="OpenROAD.Floorplan"))
     clock = time.monotonic()
     if _nix_shell(openlane_dir, pre_command, base / "floorplan.stdout") != 0:
@@ -244,7 +261,7 @@ def run(table: dict, spec: dict, openlane_dir: Path) -> Path:
     sized = [float(value) for value in metrics["design__die__bbox"].split()]
     prepass_s = round(time.monotonic() - clock, 1)
     die_area = die_floor(sized, table["sizing"]["die_floor_um"])
-    values = overrides(spec, die_area)
+    values = overrides(spec, die_area, trial)
     run_dir = base / "openlane"
     run_dir.mkdir()
     command = shlex.join(openlane_arguments(table, spec, run_dir, values))
@@ -256,9 +273,10 @@ def run(table: dict, spec: dict, openlane_dir: Path) -> Path:
         "run_tag": spec["run_tag"],
         "openlane_command": command,
         "overrides": values,
+        "antenna_trial": antenna_trial,
         "sizing": {
             "rule": "relative sizing at FP_CORE_UTIL; absolute max(sized, floor) per side under the PDN floor",
-            "FP_CORE_UTIL": table["sizing"]["FP_CORE_UTIL"],
+            "FP_CORE_UTIL": core_util,
             "sized_die_bbox_um": sized,
             "sized_instance_utilization": metrics["design__instance__utilization"],
             "die_floor_um": table["sizing"]["die_floor_um"],
@@ -894,6 +912,8 @@ def main() -> None:
     parser.add_argument("--reason", help="why an unrun target run was not executed")
     parser.add_argument("--lane", default="time")
     parser.add_argument("--openlane-dir", type=Path, default=Path.home() / "openlane2")
+    parser.add_argument("--antenna-trial", action="store_true",
+                        help="run with the table's antenna_trial overrides (heuristic diodes, more GRT repair)")
     parser.add_argument("--keep-vcd", action="store_true", help="keep the gate-level VCD after writing the SAIF")
     arguments = parser.parse_args()
     table = load_table()
@@ -906,7 +926,7 @@ def main() -> None:
             parser.error(f"{arguments.command} needs --row and --target")
         spec = target_run(table, arguments.row, arguments.target)
         if arguments.command == "run":
-            print(run(table, spec, arguments.openlane_dir))
+            print(run(table, spec, arguments.openlane_dir, arguments.antenna_trial))
         elif arguments.command == "collect":
             print(collect(table, spec, arguments.openlane_dir, arguments.keep_vcd))
         else:
