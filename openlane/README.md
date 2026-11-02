@@ -287,7 +287,7 @@ The pipeline is adapted to the block engines; `F-serial` has both runs, `F-U4` a
   not have, so the gate-level run only uses `+activity_vcd`.
 - **Power with the SAIF only.** The annotated power of a run comes from the SAIF (`read_saif`). The extra cross-check
   that reads the window back as a VCD (`read_vcd`) keeps every value change in memory, about 11.5 bytes of RSS per VCD
-  byte, so it only runs on windows up to `VCD_CROSS_CHECK_MAX_BYTES` (150 MB). Above that it is skipped and the evidence
+  byte, so it only runs on windows up to `VCD_CROSS_CHECK_MAX_BYTES` (300 MB, above the largest T41 window). Above that it is skipped and the evidence
   records `vcd_cross_check.executed: false` with the reason; the power is still `annotated` when the coverage is met.
   The windows of `F-serial` SLOW and FAST are 2.19 and 2.21 GB, so their cross-checks are skipped.
   `collect --skip-activity --reason "..."` records a flow without the gate-level run and the power (`vector_status` and

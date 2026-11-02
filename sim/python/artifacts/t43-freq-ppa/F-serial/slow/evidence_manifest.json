@@ -6,7 +6,7 @@
     "period_ns": 100.0,
     "saif_names": 252912,
     "scope": "rrc_stream_tb/dut",
-    "sha256": "b6422177243f0a11e92ea7669d92fa7b437047dd96d75c5987b69ac6b997893c",
+    "sha256": "adca01bdd063c55d2748de5b1ddb096797c0ef2e53caf1967d24bdce7e112066",
     "source": "gate-level simulation of the run's final netlist at its period, continuous canonical run, from its first cycle to the negedge after its last output (whole cycles)",
     "unrepresentable_names": 2198,
     "vcd_bytes": 2188190645,
@@ -114,6 +114,7 @@
       "--activity-vcd",
       ".build/ppa/F-serial/slow/gl/activity.vcd"
     ],
+    "compared_window_sha256": "6e17aab73e5cca9c22d4a167a9d0f1b0ee656450f1783a1bbba9a0b3edc0aa51",
     "continuous": {
       "accepted_beats": 2056,
       "accepted_input_samples": 2056,
@@ -172,7 +173,7 @@
       "rtl/run_variant.sh": "a555ad211bef34125acb68ae6da704169699294223b98b51c4d5e212ce5cc9b0",
       "rtl/tb/rrc_stream_tb.sv": "d57c417a7e04fcb85502cc6f48e659daa774dbc379180a73f4967cbd7f6e0dd6"
     },
-    "wall_time_s": 1320.2,
+    "wall_time_s": 1310.4,
     "window": {
       "cycles": 27499,
       "end_ns": 2750400.0,
@@ -242,6 +243,7 @@
       "power/power_annotated.rpt",
       "power/run.tcl"
     ],
+    "saif_applied": true,
     "scope": "core + clock tree (report_power Total; this design has no Pad or Macro power)",
     "spef": "53-openroad-rcx/nom/freq_serial_filter.nom.spef",
     "sta_version": "2.6.0",
@@ -288,7 +290,7 @@
     "vcd_cross_check": {
       "agrees": null,
       "executed": false,
-      "method": "skipped: the window VCD is 2188190645 bytes, above the 150000000 bytes read_vcd is run on (it keeps every value change in memory); the SAIF is the measurement",
+      "method": "skipped: the gate-level VCD is 2188190645 bytes, above the 300000000 bytes read_vcd is run on (it keeps every value change in memory); the SAIF is the measurement",
       "opensta_annotated_pins": null,
       "total_w": null
     }
