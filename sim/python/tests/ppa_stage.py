@@ -113,8 +113,12 @@ def load_table(path: Path = TABLE) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
-def target_run(table: dict, row: str, target: str) -> dict:
-    """Return one row at one target as resolved from the table."""
+def target_run(table: dict, row: str, target: str, antenna_trial: bool = False) -> dict:
+    """Return one row at one target as resolved from the table.
+
+    With ``antenna_trial`` the evidence goes under ``antenna_trial.evidence_dir``
+    instead of the lane's, so a trial never overwrites the baseline evidence.
+    """
     if row not in table["rows"]:
         raise ValueError(f"unknown row {row}; the table has {sorted(table['rows'])}")
     if target not in table["targets"]:
@@ -135,8 +139,40 @@ def target_run(table: dict, row: str, target: str) -> dict:
         "run_tag": f"{row}-{target}",
         "serial": entry["serial"],
         "serial_run_tag": f"{entry['serial']}-{target}",
-        "evidence_dir": f"{table['evidence_dirs'][entry['lane']]}/{row}/{target.lower()}",
+        "evidence_dir": f"{_evidence_root(table, entry['lane'], antenna_trial)}/{row}/{target.lower()}",
     }
+
+
+def _evidence_root(table: dict, lane: str, antenna_trial: bool = False) -> str:
+    """The committed evidence directory of ``lane``, or of its antenna trial."""
+    if antenna_trial:
+        return f"{table['antenna_trial']['evidence_dir']}/{lane}"
+    return table["evidence_dirs"][lane]
+
+
+def _same_flow_value(resolved, wanted) -> bool:
+    if isinstance(wanted, bool):
+        return str(resolved).lower() == str(wanted).lower()
+    try:
+        return float(resolved) == float(wanted)
+    except (TypeError, ValueError):
+        return str(resolved) == str(wanted)
+
+
+def trial_mismatch(table: dict, resolved: dict, antenna_trial: bool) -> list[str]:
+    """Return why a run's resolved configuration is not (or, for the baseline, is) the antenna trial.
+
+    The trial is recognized from ``resolved.json``, not from ``run.json``: local
+    trial runs made before ``run --antenna-trial`` existed record no flag and a
+    copied ``FP_CORE_UTIL``.
+    """
+    trial = table["antenna_trial"]["overrides"]
+    applied = {name: _same_flow_value(resolved.get(name), value) for name, value in trial.items()}
+    if antenna_trial:
+        return [f"{name} is {resolved.get(name)}, not the trial's {trial[name]}" for name, ok in applied.items() if not ok]
+    if resolved.get("RUN_HEURISTIC_DIODE_INSERTION") is True or all(applied.values()):
+        return ["this run uses the antenna trial configuration: collect it with --antenna-trial"]
+    return []
 
 
 def overrides(spec: dict, die_area: list[float] | None = None, trial: dict | None = None) -> list[str]:
@@ -602,19 +638,23 @@ def _dut_sources(resolved: dict) -> dict[str, str]:
     return {_repo_path(Path(path)): _file_sha256(Path(path)) for path in resolved["VERILOG_FILES"]}
 
 
-def collect(table: dict, spec: dict, openlane_dir: Path, keep_vcd: bool = False) -> Path:
-    """Gate-level activity, annotated power and the committed evidence of one executed target run."""
+def collect(table: dict, spec: dict, openlane_dir: Path, keep_vcd: bool = False, antenna_trial: bool = False) -> Path:
+    """Gate-level activity, annotated power and the committed evidence of one executed target run.
+
+    ``antenna_trial`` collects a run of the antenna trial into the trial's
+    evidence directory; each mode refuses a run made with the other one.
+    """
     base = BUILD / spec["row"] / spec["target"].lower()
     record = json.loads((base / "run.json").read_text(encoding="utf-8"))
     run_dir = base / "openlane"
+    resolved = json.loads((run_dir / "resolved.json").read_text(encoding="utf-8"))
+    mismatch = _check_resolved(spec, resolved) + trial_mismatch(table, resolved, antenna_trial)
+    if mismatch:
+        raise ValueError(f"{run_dir} is not the run of {spec['run_tag']}: {mismatch}")
     out = ROOT / spec["evidence_dir"]
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
-    resolved = json.loads((run_dir / "resolved.json").read_text(encoding="utf-8"))
-    mismatch = _check_resolved(spec, resolved)
-    if mismatch:
-        raise ValueError(f"{run_dir} is not the run of {spec['run_tag']}: {mismatch}")
     state = final_state(run_dir)
     copied = _copy_reports(run_dir, out, state)
     reasons = []
@@ -640,6 +680,16 @@ def collect(table: dict, spec: dict, openlane_dir: Path, keep_vcd: bool = False)
         "compressed_reports": sorted(name for name in copied if Path(name).name in COMPRESSED_REPORTS),
         "metrics_source": state["source"] if state is not None else None,
     }
+    if antenna_trial:
+        evidence["evidence_for"] += " with the antenna trial (docs/ppa/antenna-diodes-comparison.md)"
+        evidence["antenna_trial"] = dict(table["antenna_trial"]["overrides"])
+        sizing = evidence["run"]["sizing"]
+        applied = float(resolved["FP_CORE_UTIL"])
+        if float(sizing["FP_CORE_UTIL"]) != applied:
+            # Runs made before `run --antenna-trial` copied the table's value into run.json.
+            sizing["FP_CORE_UTIL_in_run_json"] = sizing["FP_CORE_UTIL"]
+            sizing["FP_CORE_UTIL"] = applied
+            sizing["FP_CORE_UTIL_source"] = "resolved.json (run.json recorded the table value, not the applied one)"
     gl = power = activity = None
     if metrics is None:
         reasons.append("the flow produced no metrics")
@@ -856,14 +906,14 @@ def _conditions(evidence: dict) -> tuple:
     return (evidence.get("openlane_version"), json.dumps(evidence.get("pdk"), sort_keys=True), evidence.get("sdc_sha256"))
 
 
-def rows(table: dict, lane: str) -> list[dict]:
+def rows(table: dict, lane: str, antenna_trial: bool = False) -> list[dict]:
     """Every row of ``lane`` at every target, from its evidence, with same-target serial comparisons."""
     evidence = {}
     for row in table["rows"]:
         if table["rows"][row]["lane"] != lane:
             continue
         for target in table["targets"]:
-            spec = target_run(table, row, target)
+            spec = target_run(table, row, target, antenna_trial)
             path = ROOT / spec["evidence_dir"] / EVIDENCE_FILE
             if not path.is_file():
                 raise ValueError(f"{spec['run_tag']} has no evidence: collect it or record it as unrun")
@@ -882,9 +932,9 @@ def rows(table: dict, lane: str) -> list[dict]:
     return result
 
 
-def write_rows(table: dict, lane: str) -> list[Path]:
-    result = rows(table, lane)
-    out = ROOT / table["evidence_dirs"][lane]
+def write_rows(table: dict, lane: str, antenna_trial: bool = False) -> list[Path]:
+    result = rows(table, lane, antenna_trial)
+    out = ROOT / _evidence_root(table, lane, antenna_trial)
     _write_json(out / "rows.json", {"fields": list(ROW_FIELDS), "delta_convention": DELTA_CONVENTION, "rows": result})
     with open(out / "rows.csv", "w", encoding="utf-8", newline="") as stream:
         writer = csv.writer(stream)
@@ -913,22 +963,23 @@ def main() -> None:
     parser.add_argument("--lane", default="time")
     parser.add_argument("--openlane-dir", type=Path, default=Path.home() / "openlane2")
     parser.add_argument("--antenna-trial", action="store_true",
-                        help="run with the table's antenna_trial overrides (heuristic diodes, more GRT repair)")
+                        help="run, collect or tabulate with the table's antenna_trial overrides (heuristic diodes, "
+                        "more GRT repair); its evidence goes under antenna_trial.evidence_dir")
     parser.add_argument("--keep-vcd", action="store_true", help="keep the gate-level VCD after writing the SAIF")
     arguments = parser.parse_args()
     table = load_table()
     try:
         if arguments.command == "rows":
-            for path in write_rows(table, arguments.lane):
+            for path in write_rows(table, arguments.lane, arguments.antenna_trial):
                 print(path)
             return
         if not arguments.row or not arguments.target:
             parser.error(f"{arguments.command} needs --row and --target")
-        spec = target_run(table, arguments.row, arguments.target)
+        spec = target_run(table, arguments.row, arguments.target, arguments.antenna_trial)
         if arguments.command == "run":
             print(run(table, spec, arguments.openlane_dir, arguments.antenna_trial))
         elif arguments.command == "collect":
-            print(collect(table, spec, arguments.openlane_dir, arguments.keep_vcd))
+            print(collect(table, spec, arguments.openlane_dir, arguments.keep_vcd, arguments.antenna_trial))
         else:
             print(unrun(table, spec, arguments.reason or ""))
     except ValueError as error:

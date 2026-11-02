@@ -12,7 +12,8 @@
   "sizing": {"FP_CORE_UTIL": 55, "die_floor_um": [200, 200]},
   "antenna_trial": {
     "description": "Opt-in flow variables of `ppa_stage.py run --antenna-trial` (docs/ppa/antenna-diodes-comparison.md): heuristic diode insertion, more global-routing antenna repair and a lower core utilization for the extra diodes. Not part of the T44 baseline.",
-    "overrides": {"RUN_HEURISTIC_DIODE_INSERTION": true, "GRT_ANTENNA_ITERS": 10, "GRT_ANTENNA_MARGIN": 20, "FP_CORE_UTIL": 45}
+    "overrides": {"RUN_HEURISTIC_DIODE_INSERTION": true, "GRT_ANTENNA_ITERS": 10, "GRT_ANTENNA_MARGIN": 20, "FP_CORE_UTIL": 45},
+    "evidence_dir": "sim/python/artifacts/antenna-trial"
   },
   "signoff": {
     "timing_corners": ["nom_tt_025C_1v80", "min_tt_025C_1v80", "max_tt_025C_1v80"],
