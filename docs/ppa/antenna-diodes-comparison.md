@@ -1,9 +1,13 @@
 # Antenna trial: T44 baseline vs heuristic diodes at 45 % utilization
 
+> **Unverified exploratory trial.** The numbers below come from local runs
+> (`.build/ppa/`) whose manifests and `rows.json` are not committed, so nobody
+> else can check them from the repo. They are not T44 evidence and no gate,
+> Pareto front or D7 claim rests on them.
+
 Hand-written comparison of every target run executed with the antenna trial
 against the T44 baseline (`docs/ppa/t44-ppa-table.md`). It is **not** generated
-by `ppa_table.py` and does not replace the T44 table: the trial runs are not yet
-committed as lane evidence (`rows.json`).
+by `ppa_table.py` and does not replace the T44 table.
 
 ## What changed
 
@@ -67,19 +71,21 @@ F-serial-SLOW inserted 36,465 diodes. Its eight residual nets:
   5.13 to 3.11, still over the amendment (≤ 3 nets, ≤ 1.72), at +31 % area.
   F-serial-FAST does not complete routing. D7 for frequency stays not
   demonstrated with these settings.
-- **Efficiency.** MS/s per mm² with the trial areas: T-serial-SLOW 22.8,
-  T-S4P1-SLOW 64.7, T-S8P1-SLOW 123.8, T-S8P1-FAST 1,162.1 (T44: 26.6, 73.7,
-  143.1, 1,371.2).
+- **Energy.** Not compared: power was not re-measured for the trial runs, and
+  the T44 energy per output does not apply to them (+14 % to +18 % cell area,
+  36,465 diodes in F-serial).
 
 ## Caveats
 
 - **Sizing record.** Before this change, `run.json` copied `sizing.FP_CORE_UTIL`
   from `ppa_runs.json` (55) even when the run used another value. The trial runs
-  above were made with a local version of the same overrides, so their
-  `run.json` says 55 while the `overrides` list carries `FP_CORE_UTIL=45`.
-  Check `sizing.sized_instance_utilization` (≈ 0.45 means the die was sized at
-  45 %). `run --antenna-trial` now records the value actually applied and an
-  `antenna_trial` flag.
+  above were made with a local version of the same overrides, so **every
+  trial record in this document has a `run.json` that says 55 while its
+  `overrides` list carries `FP_CORE_UTIL=45`**: the record disagrees with the
+  configuration that produced it. Read `sizing.sized_instance_utilization`
+  (≈ 0.45 means the die was sized at 45 %). `run --antenna-trial` now records
+  the value actually applied and an `antenna_trial` flag; a re-run with it
+  produces consistent records.
 - **Power and energy per output** were not re-measured for the trial runs; the
   T44 values do not apply to them (more cells, diode capacitance).
 - **The cell area includes the diodes** and the extra tap/decap cells of the
@@ -87,10 +93,16 @@ F-serial-SLOW inserted 36,465 diodes. Its eight residual nets:
 - **Evidence.** The trial runs are local (`.build/ppa/`); their manifests and
   rows are not committed here.
 
-## Open decisions
+## Decisions (T44 owner, @AndresCesana, 2026-11-02)
 
-1. Adopt the trial as the T44 baseline for the time rows (drop the amendment,
-   accept +14-18 % area) or keep the amendment at 55 %.
-2. F-serial-SLOW: fix the eight residual nets (jumpers / layer change) or record
-   it as an antenna FAIL.
-3. F-serial-FAST: record as FAIL (timing and congestion) without rerunning.
+1. **Not adopted as the T44 baseline.** Adopting it would need every run
+   re-collected with committed evidence and power re-measured at gate level,
+   and it would still leave F-serial-SLOW over the bound (8 nets, 3.11), so it
+   would not remove the need for an antenna rule for frequency. T44 keeps the
+   amendment at 55 %, scoped as written in ppa-matrix-18 (frequency fails it;
+   D7 for frequency is not demonstrated).
+2. **F-serial-SLOW: no manual fix.** Hand jumpers on eight nets of one run
+   break the same-configuration rule of Measurement Conditions. Under the
+   baseline it is recorded as an antenna FAIL in T44.
+3. **F-serial-FAST trial: recorded here as FAIL** (global routing congestion
+   in antenna repair) and not re-run.
