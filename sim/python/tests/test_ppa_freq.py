@@ -314,8 +314,9 @@ def test_executed_rows_follow_from_their_reports_and_the_block_timing(row_id, ta
         assert gl["continuous"]["compared"] == gl["robustness"]["compared"] == 2055
         assert gl["block_timing"]["blocks"] == 257
         # The capture also holds the declared padding output; the valid window is what is compared.
+        manifest = matching.load_matching(row_id, "canonical", "none")["manifest"]
         assert gl["failures"] == []
-        assert re.fullmatch(r"[0-9a-f]{64}", gl["captured_output_sha256"])
+        assert gl["compared_window_sha256"] == manifest["hashes"]["expected_hex_sha256"]
     if entry["power_status"] in ("annotated", "partially-annotated"):
         power, window = record["power"], record["activity"]
         assert entry["activity_period_ns"] == window["period_ns"] == period
@@ -325,7 +326,13 @@ def test_executed_rows_follow_from_their_reports_and_the_block_timing(row_id, ta
         assert entry["power_per_valid_output"] == pytest.approx(entry["power_total"] / entry["effective_outputs_per_s"])
         assert power["unannotated_reproduces_openlane"]
         check = power["vcd_cross_check"]
-        assert check["agrees"] or check["executed"] is False
+        if check["executed"]:
+            assert check["agrees"]
+        else:
+            assert window["vcd_bytes"] > ppa.VCD_CROSS_CHECK_MAX_BYTES and check["agrees"] is None
+        # read_saif prints no count: the SAIF took effect when it lowered the combinational power.
+        assert power["saif_applied"]
+        assert power["annotated_w"]["Combinational"]["total_w"] < power["unannotated_w"]["Combinational"]["total_w"]
         saif = out / window["file"]
         assert hashlib.sha256(saif.read_bytes()).hexdigest() == window["sha256"]
         annotated = ppa.parse_power_report((out / "power/power_annotated.rpt").read_text(encoding="utf-8"))

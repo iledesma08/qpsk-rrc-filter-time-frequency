@@ -56,8 +56,8 @@ ROOT = Path(__file__).resolve().parents[3]
 TABLE = ROOT / "openlane" / "ppa_runs.json"
 BUILD = ROOT / ".build" / "ppa"
 # OpenSTA read_vcd keeps every value change in memory (about 11.5 bytes of RSS per VCD byte), so the VCD
-# cross-check of the SAIF only runs on windows up to this size; the SAIF is the measurement either way.
-VCD_CROSS_CHECK_MAX_BYTES = 150_000_000
+# cross-check of the SAIF only runs on windows up to this size (the largest T41 window is 286 MB); the SAIF is the measurement either way.
+VCD_CROSS_CHECK_MAX_BYTES = 300_000_000
 POWER_SCRIPT = ROOT / "openlane" / "scripts" / "annotated_power.tcl"
 NIX_BIN = "/nix/var/nix/profiles/default/bin"
 EVIDENCE_FILE = "evidence_manifest.json"
@@ -452,6 +452,7 @@ def gate_level(spec: dict, resolved: dict, netlist: Path, base: Path, table: dic
     first = manifest["valid_start"] - manifest["latency_samples"]
     window_records = records[first:first + manifest["valid_len"]]
     window_sha256 = _sha256(("\n".join(window_records) + "\n").encode("ascii"))
+    outcome["compared_window_sha256"] = window_sha256
     if len(records) != manifest["raw_output_samples"]:
         outcome["failures"].append(f"{len(records)} captured gate-level outputs, {manifest['raw_output_samples']} declared")
     elif window_sha256 != manifest["hashes"]["expected_hex_sha256"]:
@@ -750,12 +751,16 @@ def collect(table: dict, spec: dict, openlane_dir: Path, keep_vcd: bool = False,
             "liberty_internal_pins_excluded": power["internal_pins"],
             "annotated_pins": len(annotated),
             "annotation_coverage": coverage,
+            # read_saif prints no count and the coverage is a name match, so check the SAIF took effect:
+            # the unannotated estimate toggles every net at the default activity, a real activity lowers it.
+            "saif_applied": power["annotated"]["Combinational"]["total_w"]
+            < power["unannotated"]["Combinational"]["total_w"],
             "unannotated_pins_sample": sorted(power["pins"] - written)[:20],
             "vcd_cross_check": {
                 "executed": vcd_total is not None,
                 "method": "the same window as a VCD from time 0, read with OpenSTA read_vcd after the SAIF"
                 if vcd_total is not None else
-                f"skipped: the window VCD is {activity['vcd_bytes']} bytes, above the "
+                f"skipped: the gate-level VCD is {activity['vcd_bytes']} bytes, above the "
                 f"{VCD_CROSS_CHECK_MAX_BYTES} bytes read_vcd is run on (it keeps every value change in memory); "
                 "the SAIF is the measurement",
                 "total_w": vcd_total,
@@ -826,7 +831,7 @@ def normalized_row(table: dict, spec: dict, status: str, reasons: list[str], met
         row.update({
             "power_total": power["annotated_w"]["Total"]["total_w"],
             "power_status": "annotated" if coverage >= table["signoff"]["min_annotation_coverage"]
-            and power["vcd_cross_check"]["agrees"] is not False else "partially-annotated",
+            and power["saif_applied"] and power["vcd_cross_check"]["agrees"] is not False else "partially-annotated",
             "activity_file": f"{spec['evidence_dir']}/{activity['file']}",
             "activity_period_ns": activity["period_ns"],
             "annotation_coverage": coverage,
