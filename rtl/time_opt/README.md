@@ -81,7 +81,9 @@ systolic design B1: broadcast input, moving results, fixed weights).
   `S` that divides 8. The `S=1` and `S=2` schedules were checked on the scratch
   prototype of the #51 analysis; an extension row needs the guard relaxed and
   its own matching. The module defaults (`S=8`, `P=1`) only let lint and the
-  OpenLane source list elaborate; every run sets both.
+  OpenLane source list elaborate; every run sets both. `CAST_REGISTER` (0 by
+  default, which is the base rows) is 0 or 1; see
+  [the registered-cast variant](#proposed-variant-t-s4p1-c-registered-cast).
 
 Numerics are the accepted time policy (`docs/contracts/fxp-policy-16.md`):
 Q2.14 data and coefficients, 32-bit products, a 35-bit accumulator and one RNE
@@ -94,6 +96,88 @@ subset of products fits the 35-bit accumulator
 integer addition without overflow does not depend on the order. The P=1 cut
 therefore keeps the same rounding and saturation (open item of
 `ppa-matrix-18.md`).
+
+## Proposed variant T-S4P1-C (registered cast)
+
+`T-S4P1` misses FAST 100 MHz after routing by -0.56 ns (T41,
+`openlane/README.md`). Its critical path runs in one cycle from the `slot`
+counter through the operand selection of the four PEs, the 35-bit tap-0 add,
+the RNE/saturating cast and the output buffer into `sample_o`. `T-S4P1-C`
+(#55) is a proposal, not a base row of `ppa-matrix-18.md`: the same source
+with `CAST_REGISTER=1`, which cuts that path after the add.
+
+- **What is registered:** `y_acc_i`/`y_acc_q` take the full-precision 35-bit
+  `y[n]` of tap 0 on the slot-0 edge, with a valid flag `y_valid`. The cast
+  reads that register one edge later, and its Q2.14 result goes into the
+  two-entry output buffer on that edge. The slot-0 path now ends at a register
+  after the add, like the paths into `partial_*[k]` already did. The cast and
+  the buffer get a cycle that starts at a register.
+- **Unchanged:** the sums, the single cast after the full sum, the widths, the
+  schedule, `II = 8/S` and the streaming interface. The outputs are bit-exact
+  with `T-S4P1` and `T-serial` on every frame.
+- **Latency:** the accept edge loads `x_reg`, the slot-0 edge loads `y_acc` and
+  the next edge loads the output, so the first output appears 3 cycles after
+  its input (`latency_cycles=3`, `latency_samples=0`). The TB asserts it. The
+  F3 manifests declare it (`rtl_matching/T-S4P1-C`).
+- **Backpressure:** slot 0 runs only while `y_acc` is empty or its result
+  moves into the buffer on the same edge (`!y_valid || !out_full`). `y_acc`
+  moves only while an entry is free. Under a sink stall the filter therefore
+  holds three results (the cast register and both buffer entries), the next
+  sample waits at slot 0 with `ready_o` low, and nothing is lost or
+  duplicated. Under continuous traffic the result in `y_acc` moves into the
+  buffer on the same edge that the next `y[n]` enters it, so the II stays
+  `8/S`.
+- **Control paths:** `ready_o` and `valid_o` still come only from registers
+  (`busy`, `slot`, `y_valid`, the buffer flags).
+- **Reset:** `y_acc` and `y_valid` use the synchronized reset like every other
+  register.
+- **Cost:** 71 more flops (2 x 35 bits plus the flag) and one cycle of latency.
+- **Base rows:** with `CAST_REGISTER=0` the generate block elaborates the
+  T40 expressions unchanged. The runner names the parameter only when
+  `--cast-register` is given, so the base rows build and report as before.
+
+Running it (structural fixture, vector matching and evidence):
+
+```bash
+bash rtl/time_opt/run.sh --systolic-pes 4 --pipeline-depth 1 --cast-register 1
+python sim/python/tests/rtl_matching_stage.py --variant T-S4P1-C \
+  --evidence-dir sim/python/artifacts/t40-time-opt-matching/T-S4P1-C
+```
+
+`test_rtl_time_opt.py` runs every structural check on `T-S4P1-C` too, with
+latency 3 and three stored results under the sink stall. It also checks the
+cast register under reset, the `CAST_REGISTER` elaboration guard and the
+runner's `--cast-register` checks. `test_rtl_time_opt_matching.py` matches its
+four frames and refuses a run that drops the register: that run has the
+latency of `T-S4P1`. Evidence:
+`sim/python/artifacts/t40-time-opt-matching/T-S4P1-C/evidence_manifest.json`.
+It has 4/4 frames PASS, 8220 compared codes, latency 3 and `II` 2, with
+captures equal to the `T-serial` ones.
+
+FAST 100 MHz result. This is a proposal run: `T-S4P1` with
+`CAST_REGISTER=1`, under the same conditions as the T41 run (same config, SDC,
+sizing rule, default Classic flow). It is not in `openlane/ppa_runs.json` and
+its evidence is not committed.
+
+| Run | Worst tt setup WS (ns) | fmax tt (MHz) | Cell area (um²) | Util | Power (mW) | Energy/output (nJ) | Antenna nets |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `T-S4P1` FAST (T41) | -0.560 | 94.7 | 71,702.5 | 0.539 | 9.722 | 0.194 | 1 |
+| `T-S4P1-C` FAST | +1.556 | 118.4 | 78,380.2 (+9.3 %) | 0.562 | 10.202 (+4.9 %) | 0.204 | 1 |
+
+- **Timing:** met at all three tt corners (TNS 0). Hold is met (+0.354 ns),
+  DRC and LVS are 0, and the flow writes `final/`.
+- **Critical path:** it now runs from `x_reg` through the constant products
+  and the 35-bit add into a partial sum (`s[4]`) or `y_acc`. That is 7.2 ns of
+  logic after 1.0 ns of clock-to-Q and fanout. The cast path
+  (`y_acc` to the output buffer) has at least +4.96 ns of slack, and the
+  `slot` paths +6.5 ns.
+- **Gate level:** the final netlist matches the canonical frame (2055 codes,
+  latency 3, `II` 2).
+- **Power:** at `nom_tt` with SAIF activity at 100 % coverage.
+- **ss corner:** a diagnostic only. It improves from -10.45 to -6.28 ns but
+  is still not met.
+- **Area:** besides the 71 flops, the resizer adds repair buffers (536
+  against 386).
 
 ## Why this architecture
 
@@ -116,9 +200,10 @@ through OpenLane up to CTS (pre-route, 50% utilization, the repository's
   coefficients and needs eight accumulators, so it is dominated by B1.
 - **Slow corner.** At the slow corner (`nom_ss_100C_1v60`) no prototype reached
   100 MHz with `P=1` (transposed about 55/62 MHz, direct about 40/42 MHz).
-  Registering the cast gained less than 1 ns at the typical corner, so it was
-  not adopted. T41 signs off at the typical corners and reports ss as a
-  diagnostic (`openlane/README.md`).
+  Registering the cast gained less than 1 ns at the typical corner on these
+  pre-route prototypes, so the base rows do not have it. After routing it is
+  what closes `T-S4P1` at FAST (the proposed variant above). T41 signs off at
+  the typical corners and reports ss as a diagnostic (`openlane/README.md`).
 - **This file through the same flow.** Both rows closed 10 ns at the typical
   corner, with worst slack +0.37 ns (`S=4`) and +0.58 ns (`S=8`) and post-CTS
   areas of 74k and 75k um². That is less margin than the `S=8` prototype had,
