@@ -100,11 +100,13 @@ A run that misses a gate is `failed`, with its reasons. A target run that was
 not executed is `unrun`, with the reason. Every run stays in the table,
 whatever its status.
 
-### Antenna: recorded, not gated
+### Antenna: recorded, gated by the residual tolerance in T44
 
-⚠️ This deviates from ppa-matrix-18, whose Ranking Rule includes antenna in
-physical signoff. The lane owner approved the deviation on 2026-10-18 and left
-antenna to the T41 timing review (@AndresCesana, owner of T44 #55).
+The T41 runs record antenna without gating it (lane owner approval,
+2026-10-18). The T44 owner settled the deviation on 2026-10-24 as the
+ppa-matrix-18 amendment *Antenna Residual Tolerance*: at most 3 violating
+nets per run, each with ratio ≤ 1.72; `sim/python/tests/ppa_table.py` applies
+that gate (`docs/ppa/t44-ppa-table.md`).
 
 Every run still records its post-route antenna check:
 - the count of violating nets in the row;
