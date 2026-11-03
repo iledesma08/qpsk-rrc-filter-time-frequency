@@ -100,13 +100,15 @@ Regenerate after F2, with the F2 frames already in the output directory
 python sim/python/gen_vectors.py --stage rtl_matching --variant T-serial --output-dir sim/vectors
 python sim/python/gen_vectors.py --stage rtl_matching --variant T-S4P1 --output-dir sim/vectors
 python sim/python/gen_vectors.py --stage rtl_matching --variant T-S8P1 --output-dir sim/vectors
+python sim/python/gen_vectors.py --stage rtl_matching --variant T-S4P1-C --output-dir sim/vectors
 python sim/python/gen_vectors.py --stage rtl_matching --variant F-serial --output-dir sim/vectors
 python sim/python/gen_vectors.py --stage rtl_matching --variant F-U4 --output-dir sim/vectors
 python sim/python/gen_vectors.py --stage rtl_matching --variant F-U8 --output-dir sim/vectors
 ```
 
 `T-serial` (T31, #48), `T-S4P1` and `T-S8P1` (T40, #51), `F-serial` (T33, #50) and
-`F-U4`/`F-U8` (T42, #53) are implemented: the whole base matrix. The extension rows
+`F-U4`/`F-U8` (T42, #53) are implemented: the whole base matrix. `T-S4P1-C` (#55)
+is the proposed timing-closure variant of `T-S4P1`, not a base row. The extension rows
 (`F-U2`, `F-F2`) refuse instead of guessing their data.
 
 Layout: `rtl_matching/<variant_id>/<vector_set>/<vector_case>/`, metadata only:
@@ -133,6 +135,10 @@ Layout: `rtl_matching/<variant_id>/<vector_set>/<vector_case>/`, metadata only:
   stays out of the `.svh`, whose localparams are the T03 list, and never uses
   the legacy name `S`. Both rows declare latency 0 samples / 2 cycles and bind
   the same payloads as `T-serial`, since all three are bit-exact.
+- `T-S4P1-C` is the same source with `rtl_parameters`
+  `{SYSTOLIC_PES: 4, PIPELINE_DEPTH: 1, CAST_REGISTER: 1}`: the y[n] register
+  before the output cast adds one cycle, so it declares latency 0 samples /
+  3 cycles. It binds the same payloads as `T-serial` (bit-exact).
 - `vector_manifest.svh`: the integer localparams the testbench includes, the
   same values as the JSON manifest. Generated SystemVerilog is metadata only.
 - A `<file>.sha256` sidecar for each.
@@ -146,7 +152,7 @@ variant's declared design latency; the matching run asserts it in the unstalled
 run, and its evidence is
 `sim/python/artifacts/t31-time-matching/evidence_manifest.json` (T-serial) and
 `sim/python/artifacts/t40-time-opt-matching/<variant_id>/evidence_manifest.json`
-(T-S4P1, T-S8P1). The manifests
+(T-S4P1, T-S8P1, T-S4P1-C). The manifests
 carry no host tool versions, so a fresh export is byte-identical to the
 committed one. `sim/python/tests/rtl_matching_stage.py` stages a frame for the
 testbench after checking every binding; see `rtl/tb/README.md`.

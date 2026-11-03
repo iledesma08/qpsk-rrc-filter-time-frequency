@@ -184,6 +184,20 @@ _RTL_VARIANTS = {
         }
         for variant_id, pes in (("T-S4P1", 4), ("T-S8P1", 8))
     },
+    # Proposed timing-closure variant of T-S4P1 (#55), not a base row: the same source with
+    # CAST_REGISTER=1 registers y[n] before its output cast, so the first output follows the accept
+    # edge by three edges (accept, slot 0, cast register). Same codes, same II = 8/S.
+    "T-S4P1-C": {
+        "model_domain": "time",
+        "rtl_variant": "time_opt",
+        "rtl_parameters": {"SYSTOLIC_PES": 4, "PIPELINE_DEPTH": 1, "CAST_REGISTER": 1},
+        "SPC": 1,
+        "latency_samples": 0,
+        "latency_cycles": 3,
+        "fft_pipeline_cycles": 0,
+        "flush_samples": 7,
+        "evidence_file": "sim/python/artifacts/t40-time-opt-matching/T-S4P1-C/evidence_manifest.json",
+    },
 }
 # Variants whose matching metadata belongs to another task: refused, never guessed. The base matrix is
 # complete; the extension rows return only on an approved scope extension (ppa-matrix-18).

@@ -757,14 +757,22 @@ def test_committed_rtl_matching_is_current(tmp_path):
     for variant_id in gen_vectors._RTL_VARIANTS:
         export_rtl_matching(tmp_path, variant_id, vectors_dir=_COMMITTED_DIR)
 
-    assert sorted(path.name for path in (_COMMITTED_DIR / "rtl_matching").iterdir()) == ["F-U4", "F-U8", "F-serial", "T-S4P1", "T-S8P1", "T-serial"]
+    assert sorted(path.name for path in (_COMMITTED_DIR / "rtl_matching").iterdir()) == [
+        "F-U4", "F-U8", "F-serial", "T-S4P1", "T-S4P1-C", "T-S8P1", "T-serial"]
     assert _tree_bytes(_COMMITTED_DIR / "rtl_matching") == _tree_bytes(tmp_path / "rtl_matching")
 
 
-# T40 F3 rtl_matching export (T-S4P1/T-S8P1: one time_opt source, two rows)
+# T40 F3 rtl_matching export (T-S4P1/T-S8P1: one time_opt source, two rows; T-S4P1-C: the proposed
+# registered-cast variant of T-S4P1, #55)
 
 
-_T40_ROWS = {"T-S4P1": 4, "T-S8P1": 8}
+# variant_id -> (rtl_parameters, latency_cycles). T40 design latency: accept edge plus the slot-0 edge, for both
+# rows; the registered cast adds the edge of its register.
+_T40_ROWS = {
+    "T-S4P1": ({"SYSTOLIC_PES": 4, "PIPELINE_DEPTH": 1}, 2),
+    "T-S8P1": ({"SYSTOLIC_PES": 8, "PIPELINE_DEPTH": 1}, 2),
+    "T-S4P1-C": ({"SYSTOLIC_PES": 4, "PIPELINE_DEPTH": 1, "CAST_REGISTER": 1}, 3),
+}
 
 
 @pytest.mark.parametrize("variant_id", _T40_ROWS)
@@ -778,10 +786,10 @@ def test_t40_rows_declare_their_parameters_and_bind_the_t_serial_payloads(tmp_pa
         serial = _load(serial_path)
         assert (manifest["variant_id"], manifest["rtl_variant"]) == (variant_id, "time_opt")
         # The matrix row of the one parameterized source; never the legacy name "S".
-        assert manifest["rtl_parameters"] == {"SYSTOLIC_PES": _T40_ROWS[variant_id], "PIPELINE_DEPTH": 1}
+        parameters, latency = _T40_ROWS[variant_id]
+        assert manifest["rtl_parameters"] == parameters
         assert "S" not in manifest and "rtl_parameters" not in serial
-        # T40 design latency: accept edge plus the slot-0 edge, for both rows.
-        assert (manifest["latency_samples"], manifest["latency_cycles"]) == (0, 2)
+        assert (manifest["latency_samples"], manifest["latency_cycles"]) == (0, latency)
         assert manifest["latency_declaration"]["evidence_file"] == (
             f"sim/python/artifacts/t40-time-opt-matching/{variant_id}/evidence_manifest.json")
         # Bit-exact rows bind the same expected codes and transport as T-serial.
@@ -794,7 +802,7 @@ def test_t40_rows_declare_their_parameters_and_bind_the_t_serial_payloads(tmp_pa
         # The .svh carries only the T03 localparams: the row stays in the JSON manifest.
         fields = _svh_localparams(path.parent / "vector_manifest.svh")
         assert list(fields) == _SVH_LOCALPARAMS
-        assert fields == _svh_localparams(serial_path.parent / "vector_manifest.svh") | {"latency_cycles": 2}
+        assert fields == _svh_localparams(serial_path.parent / "vector_manifest.svh") | {"latency_cycles": latency}
 
 
 # T33/T42 F3 rtl_matching export (F-serial, F-U4, F-U8: frequency domain, 257 blocks of eight)

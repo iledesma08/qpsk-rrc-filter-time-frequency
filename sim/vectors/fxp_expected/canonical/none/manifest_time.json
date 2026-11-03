@@ -51,14 +51,14 @@
     "samples_dtype": "<c16"
   },
   "hashes": {
-    "coefficient_table_sha256": "d344d30d821231cc46ef5c702c53646937fe38e7f40e7140d2ff5c43c18ccdf6",
+    "coefficient_table_sha256": "741e6c12a41042d53affe17a369afdd9a3441036fbcc823b9082646f35ef588e",
     "expected_hex_sha256": "a1899d85e2d999e511070587d8135af350e1712f9b8acc0b4ff5e3f966d04d0c",
-    "f1_manifest_sha256": "1c4272cdf07d58d605f84b1dbcd3ae32fbb8e5551141cf1da390e57256deb930",
+    "f1_manifest_sha256": "f0f9551d8a25d55d6415a0726548292e99cecf0ba53992602a7dbf0c71664528",
     "input_codes_sha256": "68e95c6b8d6a79013cf88e4a57a5fb5cce741d6b4b161c2d7b8396bf58759fb9",
     "input_hex_sha256": "20944e8726af4412334af3f52c84414b29372a8cff4e57f18cd4580d9e6077ee",
     "output_codes_sha256": "874198a244236c4c48cc9aa26103254576203904f2c202074217d210c6dd9750",
     "rrc8_manifest_sha256": "9cc340c2ec210ec2648231f365a664bdafcb4ea1d3dde4c63bb735fa6e0e7a22",
-    "t21_evidence_sha256": "d143efd4d72836d51a5796e1e97dae62e698299657c19870029a0638a7e68270"
+    "t21_evidence_sha256": "41c76aa20e853bc1b7c06951c32dd87da42c410c01a7926185a32fc0e849830c"
   },
   "ifft_scale": "divide_by_16_then_cast_to_Q2.14",
   "input_samples": 2048,
@@ -80,7 +80,7 @@
     "model": "sim/python/fxp.py production-A integer models (fxp-policy-16 T20 freeze)",
     "source_sha256": {
       "fxp.py": "ed0646a50c6921d6e456a1be76ee46701b34bf4bf8d941205bdbb001bb3e3336",
-      "gen_vectors.py": "b6b76c82bd91828e894735751d1bad6c0c7b264c5f29de0effa6ea3b52728488",
+      "gen_vectors.py": "a495747438790aaa1143258db52eb68fafa30d3fb71d0fec3a3b4a2bd40c9b8b",
       "rrc_coefs.py": "5128ee400782bd990cfc474893928ec22694a2225539a7c7e96a1c386868742b",
       "sqnr.py": "aeb03aa6f579d8b67e096159e5a54351b0dddc19242e2b8ad2939aec15f2566d",
       "stimulus.py": "e1d285ecd2c5c257bed947f6c5c9751b53527959e41cc8b69840a04f3b82716e"
