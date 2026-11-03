@@ -6,7 +6,7 @@
     "period_ns": 10.0,
     "saif_names": 253111,
     "scope": "rrc_stream_tb/dut",
-    "sha256": "a42d009c9bdb571618bf13ad1779ee671d9bfb1a9aaf1399d1eeae370690ebc5",
+    "sha256": "b7688f2ec4e886725843b1e780d2f90f5287f879447aa0fea7ac03e3c3730baa",
     "source": "gate-level simulation of the run's final netlist at its period, continuous canonical run, from its first cycle to the negedge after its last output (whole cycles)",
     "unrepresentable_names": 2198,
     "vcd_bytes": 2207726629,
@@ -16,7 +16,7 @@
     ]
   },
   "committed_reports_sha256": {
-    "last-state/metrics.json": "19a392fabf477c9ed95a40569c543f607c7b041de337b951f9619275b9bcb3ee",
+    "last-state/metrics.json": "4332eca091f3b91f0a512de310e2ac88aa115eb7e3d6dc764bf28d575c7bcc31",
     "openroad-stapostpnr/max_ff_n40C_1v95/checks.rpt": "a6b4f5b0e89d46cf84c882e97ee689d03fd9967bab845ab91da82233b6c6f137",
     "openroad-stapostpnr/max_ff_n40C_1v95/max.rpt": "e5c803921e59de37fb0294934c5658f565de9606900f6a0c4285dfaf93cc930a",
     "openroad-stapostpnr/max_ff_n40C_1v95/min.rpt": "e920a9715874cf6cc196d4f981b10345c27294f9849570c91a6afd4b47e1da10",
@@ -54,7 +54,7 @@
     "openroad-stapostpnr/nom_tt_025C_1v80/min.rpt": "d7a6029654de776be602105b4fdea6be61368734f3b9ccf20fe9785428a1216a",
     "openroad-stapostpnr/nom_tt_025C_1v80/power.rpt": "44d9ff29d8c4e2d22c03326cd5fc736d5a233cff03a394b604e9579e709719e4",
     "openroad-stapostpnr/summary.rpt": "e39f6ee83065f69d150bfa17c6e1c911968ddbf2e8feff44d16f7c6e07d4c824",
-    "resolved.json": "e6ea75a5e121bee466c38541601b5b79177e098deb260d8c2fd0c7266f079866"
+    "resolved.json": "bc0c541b86d0c6e4bdb4d2a577b59844e0565c17e4cc0e243c75af0fc5eed98d"
   },
   "compressed_reports": [
     "openroad-stapostpnr/max_ff_n40C_1v95/max.rpt",
@@ -107,12 +107,13 @@
       "--netlist",
       ".build/ppa/F-serial/fast/openlane/51-openroad-fillinsertion/freq_serial_filter.nl.v",
       "--cell-models",
-      "/home/majac/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_fd_sc_hd/verilog",
+      "/home/juani/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_fd_sc_hd/verilog",
       "--capture",
       ".build/ppa/F-serial/fast/gl/captured.hex",
       "--activity-vcd",
       ".build/ppa/F-serial/fast/gl/activity.vcd"
     ],
+    "compared_window_sha256": "6e17aab73e5cca9c22d4a167a9d0f1b0ee656450f1783a1bbba9a0b3edc0aa51",
     "continuous": {
       "accepted_beats": 2056,
       "accepted_input_samples": 2056,
@@ -142,7 +143,7 @@
     },
     "expected_ii": null,
     "failures": [],
-    "log_sha256": "0e537bef4434d07a62d39076ac7dd4c79ce52e965b4155b04e278001a422ad0f",
+    "log_sha256": "abb79717cadff9c3f01c7f9dc6cc4bfbb46fe30b94c6256a3eaaa1cede6ab0ff",
     "midtraffic_reset": {
       "prefix_accepted": 2,
       "restart_index": 0
@@ -171,7 +172,7 @@
       "rtl/run_variant.sh": "a555ad211bef34125acb68ae6da704169699294223b98b51c4d5e212ce5cc9b0",
       "rtl/tb/rrc_stream_tb.sv": "d57c417a7e04fcb85502cc6f48e659daa774dbc379180a73f4967cbd7f6e0dd6"
     },
-    "wall_time_s": 2602.8,
+    "wall_time_s": 938.7,
     "window": {
       "cycles": 27499,
       "end_ns": 275040.0,
@@ -184,7 +185,7 @@
   "openlane_version": "2.3.10",
   "pdk": {
     "pdk": "sky130A",
-    "pdk_root": "/home/majac/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af",
+    "pdk_root": "/home/juani/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af",
     "scl": "sky130_fd_sc_hd"
   },
   "power": {
@@ -241,6 +242,7 @@
       "power/power_annotated.rpt",
       "power/run.tcl"
     ],
+    "saif_applied": true,
     "scope": "core + clock tree (report_power Total; this design has no Pad or Macro power)",
     "spef": "53-openroad-rcx/nom/freq_serial_filter.nom.spef",
     "sta_version": "2.6.0",
@@ -287,7 +289,7 @@
     "vcd_cross_check": {
       "agrees": null,
       "executed": false,
-      "method": "skipped: the window VCD is 2207726629 bytes, above the 150000000 bytes read_vcd is run on (it keeps every value change in memory); the SAIF is the measurement",
+      "method": "skipped: the gate-level VCD is 2207726629 bytes, above the 300000000 bytes read_vcd is run on (it keeps every value change in memory); the SAIF is the measurement",
       "opensta_annotated_pins": null,
       "total_w": null
     }
@@ -342,21 +344,21 @@
   },
   "run": {
     "exit_code": 2,
-    "finished": "2026-10-28T01:55:21-03:00",
+    "finished": "2026-10-26T12:04:58-03:00",
     "machine": {
       "cpus": 4,
       "memory_gib": 7.8
     },
-    "openlane_command": "openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir /home/majac/curso/qpsk-rrc-filter-time-frequency/.build/ppa/F-serial/fast/openlane -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc /home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/freq_serial/config.json",
+    "openlane_command": "openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir /home/juani/qpsk-rrc-filter-time-frequency/.build/ppa/F-serial/fast/openlane -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=/home/juani/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=/home/juani/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc /home/juani/qpsk-rrc-filter-time-frequency/openlane/freq_serial/config.json",
     "overrides": [
       "CLOCK_PERIOD=10.0",
-      "PNR_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc",
-      "SIGNOFF_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc"
+      "PNR_SDC_FILE=/home/juani/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc",
+      "SIGNOFF_SDC_FILE=/home/juani/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc"
     ],
     "resources": {
       "peak_rss_mib": 2048.0,
       "peak_rss_step": "43-openroad-detailedrouting",
-      "summed_step_runtime_s": 9141.5
+      "summed_step_runtime_s": 4984.2
     },
     "sizing": {
       "FP_CORE_UTIL": 55,
@@ -366,7 +368,7 @@
         200
       ],
       "floor_applied": false,
-      "prepass_wall_time_s": 155.5,
+      "prepass_wall_time_s": 85.1,
       "rule": "relative sizing at FP_CORE_UTIL; absolute max(sized, floor) per side under the PDN floor",
       "sized_die_bbox_um": [
         0.0,
@@ -376,8 +378,8 @@
       ],
       "sized_instance_utilization": 0.550648
     },
-    "started": "2026-10-27T23:22:51-03:00",
-    "wall_time_s": 9647.4
+    "started": "2026-10-26T10:41:50-03:00",
+    "wall_time_s": 5214.6
   },
   "run_tag": "F-serial-FAST",
   "sdc_sha256": "22f5c0d8b2e6b0804e9bf90989590aee6b49d7a4177ccfbbeb380bae7a7019a0",
