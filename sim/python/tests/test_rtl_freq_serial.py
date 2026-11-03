@@ -1,4 +1,5 @@
-"""T32 (#49): freq_serial runner limits, the rounding primitives and a reset in mid block (also the F-U rows, T42).
+"""T32 (#49): freq_serial runner limits, the rounding primitives and a reset in mid block (also the F-U rows, T42,
+and their pipelined variants, #55).
 
 The vector matching of every frame is T33 (#50): ``test_rtl_freq_matching.py``.
 Here the canonical frame is staged from the committed ``rtl_matching/F-serial``
@@ -185,7 +186,9 @@ def test_the_directed_check_catches_each_mutant(tmp_path, mutant):
 # Reset in the middle of a block ---------------------------------------------
 # rrc_stream_tb resets after two accepted samples, i.e. in ACCEPT. The work
 # buffer and operand registers have no reset (documented in the engine), so a
-# reset while a block is being computed or emitted must leave no trace.
+# reset while a block is being computed or emitted must leave no trace. The
+# pipelined variants (#55) also carry data registers without reset in their
+# execute stages: there the reset in RUN hits with butterflies in those stages.
 
 RESET_TB = """`timescale 1ns/1ps
 module reset_tb;
@@ -241,6 +244,10 @@ module reset_tb;
       cycles = cycles + 1;
     end
     if (!hit) $fatal(1, "Scenario %%0d never reached its state", `SCENARIO);
+`ifdef OCCUPIED
+    // #55: in RUN the reset must hit butterflies in flight in the execute stages.
+    if (`SCENARIO == 0 && !(`OCCUPIED)) $fatal(1, "No butterfly in the execute stages at the reset");
+`endif
     valid_i = 1'b0;
     #1 rst_n = 1'b0;
     #1;
@@ -283,25 +290,34 @@ endmodule
 """
 
 
-# One row per engine: the module, its parameters and a step inside the product pass (the pass has
-# 16/U fetch steps, so the middle of it moves with the lane count).
+# One row per engine: the module, its parameters, a step inside the product pass (the pass has 16/U
+# fetch steps, so the middle of it moves with the lane count) and, for a FAST variant (#55: pipelined lane,
+# sparse work-buffer ports), the execute stages that must hold a butterfly when the reset hits in RUN. At U=4
+# and EXEC_STAGES=3 step 3 is the last fetch of the product pass, so the operand registers and both execute
+# stages are full; a U=8 pass has at most two groups, so there step 2 (the first drain cycle) has the operand
+# registers and the first execute stage full.
+_VALID = "dut.datapath.engine.xv"   # valid bits: operand registers, then each execute register
 RESET_ROWS = [
-    ("freq_serial_filter", "#(.DATA_WIDTH(16))", 3),
-    ("freq_opt_filter", "#(.U(4))", 2),
-    ("freq_opt_filter", "#(.U(8))", 1),
+    ("freq_serial_filter", "#(.DATA_WIDTH(16))", 3, None),
+    ("freq_opt_filter", "#(.U(4))", 2, None),
+    ("freq_opt_filter", "#(.U(8))", 1, None),
+    ("freq_opt_filter", "#(.U(4),.EXEC_STAGES(3),.SPARSE_PORTS(1))", 3, f"{_VALID} == 3'b111"),
+    ("freq_opt_filter", "#(.U(8),.EXEC_STAGES(3),.SPARSE_PORTS(1))", 2, f"{_VALID} == 3'b011"),
 ]
 
 
-@pytest.mark.parametrize("module,parameters,product_step", RESET_ROWS, ids=["F-serial", "F-U4", "F-U8"])
+@pytest.mark.parametrize("module,parameters,product_step,occupied", RESET_ROWS,
+                         ids=["F-serial", "F-U4", "F-U8", "F-U4-E3S", "F-U8-E3S"])
 @pytest.mark.parametrize("scenario,name", [(0, "RUN"), (1, "EMIT"), (2, "DRAIN")])
-def test_reset_in_the_middle_of_a_block_leaves_no_trace(tmp_path, scenario, name, module, parameters, product_step):
+def test_reset_in_the_middle_of_a_block_leaves_no_trace(tmp_path, scenario, name, module, parameters, product_step,
+                                                        occupied):
     vectors = matching.stage(tmp_path / "canonical", "F-serial", "canonical", "none")
     bench = tmp_path / "reset_tb.sv"
     bench.write_text(RESET_TB % {})
     result = compile_and_run(
         tmp_path, [*DUT_SOURCES, bench], "reset_tb",
         defines=[f"SCENARIO={scenario}", f"DUT_MODULE={module}", f"DUT_PARAMS={parameters}",
-                 f"PRODUCT_STEP={product_step}"],
+                 f"PRODUCT_STEP={product_step}", *([f"OCCUPIED={occupied}"] if occupied else [])],
         arguments=[f"+vector_dir={vectors}"])
     assert result.returncode == 0, f"reset in {name}\n" + result.stdout + result.stderr
     assert f"PASS: reset scenario {scenario}, 40 outputs after restart" in result.stdout
