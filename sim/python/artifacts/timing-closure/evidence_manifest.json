@@ -1,0 +1,1636 @@
+{
+  "evidence_for": "#91 FAST timing-closure exploration of T-S4P1, F-U4 and F-U8 (follow-up of T44, #55)",
+  "summary": "docs/research/timing-closure-summary.md",
+  "flow": {
+    "tool": "OpenLane 2.3.10, Classic flow",
+    "pdk": "sky130A",
+    "scl": "sky130_fd_sc_hd",
+    "clock_period_ns": 10.0,
+    "sdc": "openlane/sdc/sky130_100MHz.sdc",
+    "signoff_corners": [
+      "nom_tt_025C_1v80",
+      "min_tt_025C_1v80",
+      "max_tt_025C_1v80"
+    ]
+  },
+  "machine": {
+    "cpus": 4,
+    "memory_gib": 7.8
+  },
+  "curation": {
+    "scope": "selected reports of each run directory; netlists, DEF/ODB/GDS and full STA trees are not kept",
+    "paths": "freq runs were launched from a second checkout of this repository; its absolute and relative path is written <checkout> (transform 'paths'). Time runs keep the paths of the main checkout, as T41 does.",
+    "gzip": "large reports are gzipped deterministically (mtime 0, no file name)",
+    "hashes": "source_sha256 is the original file, sha256 the published bytes",
+    "last_step_metrics": "runs without final/ publish the metrics object of their last completed step"
+  },
+  "related_evidence": {
+    "T-S4P1-C FAST (collected with ppa_stage)": "sim/python/artifacts/t41-time-ppa/T-S4P1-C/fast/evidence_manifest.json",
+    "F-serial FAST calibration (main)": "sim/python/artifacts/t43-freq-ppa/F-serial/fast/evidence_manifest.json",
+    "matching of the variants": [
+      "sim/python/artifacts/t40-time-opt-matching/T-S4P1-C/",
+      "sim/python/artifacts/t42-freq-opt-matching/F-U4-E3S/",
+      "sim/python/artifacts/t42-freq-opt-matching/F-U8-E3S/"
+    ]
+  },
+  "runs": {
+    "freq/A-proxy-U1-E3-fast": {
+      "label": "proxy (not a row)",
+      "row": "one pipelined lane: U=1, EXEC_STAGES=3, full ports",
+      "top": "freq_proxy_filter (freq_opt_filter without the U in {4,8} row check, freq/A-proxy-U1-E3-fast/freq_proxy_filter.sv)",
+      "conditions": "table conditions (FAST SDC, CLOCK_PERIOD 10, relative sizing FP_CORE_UTIL 55, default Classic)",
+      "outcome": "run to OpenROAD.STAMidPNR-3, then resumed from OpenROAD.DetailedRouting to the end; exit 0, final/ written",
+      "rtl": "earlier revision of rrc_freq_engine.sv (per-lane valid flops, full ports only; logically equivalent by simulation), not in this PR; top freq_proxy_filter.sv published next to the run",
+      "netlist_check": "not reproducible from this PR's RTL",
+      "synthesis_netlist_sha256": "0522c0b1378c48e208ab0d1f7b36a470c86b129a64a08eb6708b7630d7dcaeef",
+      "command": {
+        "log": [
+          "queued 2026-11-02T23:35:07-03:00: openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir <checkout>/.build/freq-proxy/runs/u1-L3-grt --to OpenROAD.STAMidPNR-3 -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SYNTH_PARAMETERS=U=1\\,EXEC_STAGES=3 <checkout>/.build/freq-proxy/config.json ",
+          "lock acquired 2026-11-02T23:38:39-03:00",
+          "exit 0 after 2067 s at 2026-11-03T00:13:06-03:00",
+          "queued resume 2026-11-03T01:44:13-03:00: openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir <checkout>/.build/freq-proxy/runs/u1-L3-grt --from OpenROAD.DetailedRouting -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SYNTH_PARAMETERS=U=1\\,EXEC_STAGES=3 <checkout>/.build/freq-proxy/config.json ",
+          "lock acquired (resume) 2026-11-03T01:45:53-03:00",
+          "exit-resume 0 after 6285 s at 2026-11-03T03:30:38-03:00"
+        ],
+        "peak_rss_kib": 1802776,
+        "resume_peak_rss_kib": 2846268,
+        "resume_wall_clock": "1:44:45",
+        "wall_clock": "34:26.93"
+      },
+      "results": {
+        "post_route_setup_ws_ns": {
+          "nom_tt_025C_1v80": 1.2771,
+          "min_tt_025C_1v80": 1.4688,
+          "max_tt_025C_1v80": 1.053
+        },
+        "post_route_hold_ws_ns": {
+          "nom_tt_025C_1v80": 0.2909,
+          "min_tt_025C_1v80": 0.2978,
+          "max_tt_025C_1v80": 0.2816
+        },
+        "post_route_setup_violators": {
+          "nom_tt_025C_1v80": 0,
+          "min_tt_025C_1v80": 0,
+          "max_tt_025C_1v80": 0
+        },
+        "route_drc_errors": 0,
+        "magic_drc_errors": 0,
+        "klayout_drc_errors": 0,
+        "lvs_errors": 0,
+        "antenna_violating_nets": 151,
+        "instance_area_um2": 328432,
+        "mid_pnr_setup_ws_nom_tt_ns": {
+          "openroad-stamidpnr": -12.0281,
+          "openroad-stamidpnr-1": 1.4773,
+          "openroad-stamidpnr-2": 2.143,
+          "openroad-stamidpnr-3": 1.9474
+        },
+        "detailed_routing_violations_per_iteration": [
+          34777,
+          22553,
+          21792,
+          5949,
+          2145,
+          1015,
+          560,
+          296,
+          199,
+          144,
+          38,
+          8,
+          3,
+          3,
+          1,
+          0
+        ],
+        "synthesis_cells": 30848,
+        "synthesis_area_um2": 334786.0864
+      },
+      "files": {
+        "final/metrics.json": {
+          "sha256": "a66359ffea0374960dbfc2bca946c6fa1dfe4815df7b8bdbe3fe460203be2415",
+          "source": "final/metrics.json",
+          "source_sha256": "a66359ffea0374960dbfc2bca946c6fa1dfe4815df7b8bdbe3fe460203be2415",
+          "transform": "verbatim"
+        },
+        "freq_proxy_filter.sv": {
+          "sha256": "3bb90cb4af2d523fec9d13f5cb3785e1ccdf102f1f3ed36c6980151f1f1e3712",
+          "source": "freq_proxy_filter.sv",
+          "source_sha256": "3bb90cb4af2d523fec9d13f5cb3785e1ccdf102f1f3ed36c6980151f1f1e3712",
+          "transform": "verbatim"
+        },
+        "misc-reportmanufacturability/manufacturability.rpt": {
+          "sha256": "5b272dce1bda61b23f78fee3b5fc7c4ced2cdd34bea6a3d50f148afc56a810fc",
+          "source": "74-misc-reportmanufacturability/manufacturability.rpt",
+          "source_sha256": "5b272dce1bda61b23f78fee3b5fc7c4ced2cdd34bea6a3d50f148afc56a810fc",
+          "transform": "verbatim"
+        },
+        "openlane-error.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source": "error.log",
+          "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "transform": "verbatim"
+        },
+        "openlane-flow.log": {
+          "sha256": "3211e9da2847dd827546231a53ebd435fdce2578d73c9184ab8fc0eb9925c5b7",
+          "source": "flow.log",
+          "source_sha256": "cdc81bda8cd946c9476b6ada9c500087d10351891eeef42b40d15caf6dff3108",
+          "transform": "paths"
+        },
+        "openlane-warning.log": {
+          "sha256": "405c64c95074933f123ac07c980e787a8e9bdbba792c8592d1b1a2da7c5a369f",
+          "source": "warning.log",
+          "source_sha256": "405c64c95074933f123ac07c980e787a8e9bdbba792c8592d1b1a2da7c5a369f",
+          "transform": "verbatim"
+        },
+        "openroad-checkantennas/antenna_summary.rpt": {
+          "sha256": "f4c95833711a50109840b41468f4072969668931c3e7dc4ec321018f86d8aef5",
+          "source": "45-openroad-checkantennas-1/reports/antenna_summary.rpt",
+          "source_sha256": "f4c95833711a50109840b41468f4072969668931c3e7dc4ec321018f86d8aef5",
+          "transform": "verbatim"
+        },
+        "openroad-detailedrouting/metrics.json": {
+          "sha256": "f6c0f27674d64e6722bcf585221b6aba3f3c1a1eed9eeba3a43f1f9562727be1",
+          "source": "43-openroad-detailedrouting/or_metrics_out.json",
+          "source_sha256": "f6c0f27674d64e6722bcf585221b6aba3f3c1a1eed9eeba3a43f1f9562727be1",
+          "transform": "verbatim"
+        },
+        "openroad-globalrouting/metrics.json": {
+          "sha256": "195ea3d05a1343522fb9e7ac7832db2c0f39a81bfa4d552cbe87ec9060e230f9",
+          "source": "38-openroad-globalrouting/or_metrics_out.json",
+          "source_sha256": "195ea3d05a1343522fb9e7ac7832db2c0f39a81bfa4d552cbe87ec9060e230f9",
+          "transform": "verbatim"
+        },
+        "openroad-globalrouting/openroad-globalrouting.log.gz": {
+          "sha256": "f614a1ac7d6ea3260b15b3ac2a36a9afd2b4dc7fdea4fe1f147efe2e927f2cb7",
+          "source": "38-openroad-globalrouting/openroad-globalrouting.log",
+          "source_sha256": "0ce9624b3b6aaded9d38933636ae14779f31600ecac2c1ab49296f96063d8312",
+          "transform": "paths+gzip"
+        },
+        "openroad-stamidpnr-1/metrics.json": {
+          "sha256": "ee31d755783c1c123b08e3d88243dc9db01d369cecc138d48e787907fc15fa15",
+          "source": "35-openroad-stamidpnr-1/or_metrics_out.json",
+          "source_sha256": "ee31d755783c1c123b08e3d88243dc9db01d369cecc138d48e787907fc15fa15",
+          "transform": "verbatim"
+        },
+        "openroad-stamidpnr-2/metrics.json": {
+          "sha256": "54eae1aa0417763f7450e26d0fcd9fecd9cf1635648681da4ee213c3e1862613",
+          "source": "37-openroad-stamidpnr-2/or_metrics_out.json",
+          "source_sha256": "54eae1aa0417763f7450e26d0fcd9fecd9cf1635648681da4ee213c3e1862613",
+          "transform": "verbatim"
+        },
+        "openroad-stamidpnr-3/max.rpt.gz": {
+          "sha256": "513c4441e56bb1099ae605d5d3ef2b62bce9386c77d2bf105082cce68f2de377",
+          "source": "42-openroad-stamidpnr-3/max.rpt",
+          "source_sha256": "ed89b50ae02454fa5e76e933aaf499706ad7d7c3e152d885db9cfcb913ee7abd",
+          "transform": "gzip"
+        },
+        "openroad-stamidpnr-3/metrics.json": {
+          "sha256": "0d660060d31ed791a108e12377f2710e2a1ee97c11be38e15240f1e9ade3cf9f",
+          "source": "42-openroad-stamidpnr-3/or_metrics_out.json",
+          "source_sha256": "0d660060d31ed791a108e12377f2710e2a1ee97c11be38e15240f1e9ade3cf9f",
+          "transform": "verbatim"
+        },
+        "openroad-stamidpnr/metrics.json": {
+          "sha256": "0292d4af6575a9f9dd8d13f4328e6de2bf15b60675418a89901ee8c820691f51",
+          "source": "30-openroad-stamidpnr/or_metrics_out.json",
+          "source_sha256": "0292d4af6575a9f9dd8d13f4328e6de2bf15b60675418a89901ee8c820691f51",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/max_tt_025C_1v80/checks.rpt": {
+          "sha256": "4fc5634b798bfe828cf67ef855ded1375d342239443a761eb5591dde3f9bc4cc",
+          "source": "54-openroad-stapostpnr/max_tt_025C_1v80/checks.rpt",
+          "source_sha256": "4fc5634b798bfe828cf67ef855ded1375d342239443a761eb5591dde3f9bc4cc",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/max_tt_025C_1v80/max.rpt.gz": {
+          "sha256": "2751ef6a9d49b417fde0a9d71545731a5f66919db6df911b86297bed664b3adf",
+          "source": "54-openroad-stapostpnr/max_tt_025C_1v80/max.rpt",
+          "source_sha256": "bf955614d861b0134822b1737b1841721a9cbf1cae07a98d56432e0d092aa553",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/max_tt_025C_1v80/min.rpt.gz": {
+          "sha256": "9f5f1c1a5859e948e9a5c49f0550ffb9f39d00c672b6abb75cce3fc7211cc133",
+          "source": "54-openroad-stapostpnr/max_tt_025C_1v80/min.rpt",
+          "source_sha256": "eb4293fda68a2017c5c0a9af396766e1b503f766a04d317392070e5c825074d8",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/max_tt_025C_1v80/violator_list.rpt": {
+          "sha256": "ad509148993d884e4fbf3729f30640d97ff8d99713fef0ad5813096f1f83b9d7",
+          "source": "54-openroad-stapostpnr/max_tt_025C_1v80/violator_list.rpt",
+          "source_sha256": "ad509148993d884e4fbf3729f30640d97ff8d99713fef0ad5813096f1f83b9d7",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/min_tt_025C_1v80/checks.rpt": {
+          "sha256": "8b58ed09e09951415564124a471d5696a7e3cc3b2a4d0493dbbe5b85d034cf07",
+          "source": "54-openroad-stapostpnr/min_tt_025C_1v80/checks.rpt",
+          "source_sha256": "8b58ed09e09951415564124a471d5696a7e3cc3b2a4d0493dbbe5b85d034cf07",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/min_tt_025C_1v80/max.rpt.gz": {
+          "sha256": "2d5e9af8a0eb1998cbca3055628d9d0617c594282eab472831b80db166d40d5e",
+          "source": "54-openroad-stapostpnr/min_tt_025C_1v80/max.rpt",
+          "source_sha256": "3253e0589f26af4042588d5a81b7960f6e0100e8881a54174d9a5f311d6bb0a5",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/min_tt_025C_1v80/min.rpt.gz": {
+          "sha256": "67c9343b2dbf8b242d0571b323fd886b7c4f31d1565e64ef7e4594afcbb8d5d9",
+          "source": "54-openroad-stapostpnr/min_tt_025C_1v80/min.rpt",
+          "source_sha256": "b8cc365c549cbc5282ecf4f988ac6035c1ec992d6e81a35456aa01484c54be04",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/min_tt_025C_1v80/violator_list.rpt": {
+          "sha256": "ad509148993d884e4fbf3729f30640d97ff8d99713fef0ad5813096f1f83b9d7",
+          "source": "54-openroad-stapostpnr/min_tt_025C_1v80/violator_list.rpt",
+          "source_sha256": "ad509148993d884e4fbf3729f30640d97ff8d99713fef0ad5813096f1f83b9d7",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/nom_tt_025C_1v80/checks.rpt": {
+          "sha256": "69a0da2218af433478fa5e06fa9011de9eb5a9a7dba598593c71f1f64bb8a189",
+          "source": "54-openroad-stapostpnr/nom_tt_025C_1v80/checks.rpt",
+          "source_sha256": "69a0da2218af433478fa5e06fa9011de9eb5a9a7dba598593c71f1f64bb8a189",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/nom_tt_025C_1v80/max.rpt.gz": {
+          "sha256": "bd3270d0aba62b45a9d96221cfef6e89716b82d601bae1ec3c8e5767fa133817",
+          "source": "54-openroad-stapostpnr/nom_tt_025C_1v80/max.rpt",
+          "source_sha256": "d757ab9c9ae64bde23b3e8eeeeb001835585df6b96b61f1b14e48a8ac0f92c2a",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/nom_tt_025C_1v80/min.rpt.gz": {
+          "sha256": "c5aa73f5d2c1324de936b7b0469e52a98edd3470aaff524b0bb68b8b9d4670ea",
+          "source": "54-openroad-stapostpnr/nom_tt_025C_1v80/min.rpt",
+          "source_sha256": "ad3d01420aac25acaff99bf12a3008153fe1a7276bd2917eeeba8ddd7e269867",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/nom_tt_025C_1v80/violator_list.rpt": {
+          "sha256": "ad509148993d884e4fbf3729f30640d97ff8d99713fef0ad5813096f1f83b9d7",
+          "source": "54-openroad-stapostpnr/nom_tt_025C_1v80/violator_list.rpt",
+          "source_sha256": "ad509148993d884e4fbf3729f30640d97ff8d99713fef0ad5813096f1f83b9d7",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/summary.rpt": {
+          "sha256": "75965907bca6905a7d176311b2649f9f58e093ce8ac1123d581ef10e3540f25f",
+          "source": "54-openroad-stapostpnr/summary.rpt",
+          "source_sha256": "75965907bca6905a7d176311b2649f9f58e093ce8ac1123d581ef10e3540f25f",
+          "transform": "verbatim"
+        },
+        "resolved.json": {
+          "sha256": "53d81d97380e2ad80d259a7015fcd31c5447e9869fa3f4ebe9cda5d66ec4e67e",
+          "source": "resolved.json",
+          "source_sha256": "e09ed10b163a3b7f9c7b3f41b222d28c20fa497cec8dd60472310de69b442463",
+          "transform": "paths"
+        },
+        "yosys-synthesis/stat.rpt": {
+          "sha256": "d2d59d44e452cac099e865fd31a28b03db723917f54b5f006b576444b3be69e8",
+          "source": "06-yosys-synthesis/reports/stat.rpt",
+          "source_sha256": "d2d59d44e452cac099e865fd31a28b03db723917f54b5f006b576444b3be69e8",
+          "transform": "verbatim"
+        }
+      }
+    },
+    "freq/B-F-U4-E3-fast": {
+      "label": "table conditions",
+      "row": "F-U4 with EXEC_STAGES=3, full ports",
+      "top": "freq_opt_filter",
+      "conditions": "table conditions",
+      "outcome": "OpenROAD.GlobalRouting failed with GRT-0118 (routing congestion too high), exit 2; a diagnostic resume of GlobalRouting with GRT_ALLOW_CONGESTION=1 was stopped by hand after 34 min (exit 143), so resolved.json and openroad-globalrouting-resume/ belong to that resume",
+      "rtl": "the same earlier revision of rrc_freq_engine.sv as run A, not in this PR",
+      "netlist_check": "not reproducible from this PR's RTL",
+      "synthesis_netlist_sha256": "e908db9b9adff28103b2f3e0c88a346678f82a74c59d8deb4b3e3a86e2c539f0",
+      "command": {
+        "log": [
+          "queued 2026-11-03T00:15:05-03:00: openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir <checkout>/.build/freq-proxy/runs/F-U4-E3-fast --to OpenROAD.STAMidPNR-3 -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SYNTH_PARAMETERS=EXEC_STAGES=3\\,U=4 <checkout>/openlane/freq_opt/config.json ",
+          "lock acquired 2026-11-03T00:31:54-03:00",
+          "exit 2 after 4339 s at 2026-11-03T01:44:13-03:00",
+          "queued resume 2026-11-03T03:43:56-03:00: openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir <checkout>/.build/freq-proxy/runs/F-U4-E3-fast --from OpenROAD.GlobalRouting --to OpenROAD.GlobalRouting -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SYNTH_PARAMETERS=EXEC_STAGES=3\\,U=4 -c GRT_ALLOW_CONGESTION=1 <checkout>/openlane/freq_opt/config.json ",
+          "lock acquired (resume) 2026-11-03T03:43:56-03:00",
+          "exit-resume 143 after 2037 s at 2026-11-03T04:17:53-03:00"
+        ],
+        "peak_rss_kib": 2447720,
+        "resume_peak_rss_kib": 860932,
+        "resume_wall_clock": "33:56.97",
+        "wall_clock": "1:12:18"
+      },
+      "results": {
+        "mid_pnr_setup_ws_nom_tt_ns": {
+          "openroad-stamidpnr": -103.996,
+          "openroad-stamidpnr-1": -0.1612,
+          "openroad-stamidpnr-2": 0.8724
+        },
+        "synthesis_cells": 96840,
+        "synthesis_area_um2": 1010898.281601
+      },
+      "files": {
+        "last-step-metrics.json": {
+          "sha256": "eb20caf820931ae2b1b003b1e29b8666ce13e84f60b43d8326b5c4e355d59e67",
+          "source": "37-openroad-stamidpnr-2/state_out.json",
+          "source_sha256": "aa24ac3847148e7611dee353f9c477b52c520a45a4ea31b6770aa679f558853c",
+          "transform": "the metrics object of the last completed step's state_out.json (no final/)"
+        },
+        "openlane-error.log": {
+          "sha256": "d680006fb39ccc8b5d5f0acddb25740e4f514c61518618a441bd027a48dc289a",
+          "source": "error.log",
+          "source_sha256": "d680006fb39ccc8b5d5f0acddb25740e4f514c61518618a441bd027a48dc289a",
+          "transform": "verbatim"
+        },
+        "openlane-flow.log": {
+          "sha256": "957d345f8ce626025e91492d2c8c02998e96a6b6d748d0ae99da9362ca2236b2",
+          "source": "flow.log",
+          "source_sha256": "387812136a08a62565724ceda34d0dad9524aeb0fb4072bf672a4e93ae6296ba",
+          "transform": "paths"
+        },
+        "openlane-warning.log": {
+          "sha256": "b8578ffe7984b6406df3df36f60fbe1c62f11e1044abd6664b1df0d0c5aa9ada",
+          "source": "warning.log",
+          "source_sha256": "b8578ffe7984b6406df3df36f60fbe1c62f11e1044abd6664b1df0d0c5aa9ada",
+          "transform": "verbatim"
+        },
+        "openroad-globalrouting-resume/openroad-globalrouting.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source": "39-openroad-globalrouting/openroad-globalrouting.log",
+          "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "transform": "verbatim"
+        },
+        "openroad-globalrouting/metrics.json": {
+          "sha256": "b4d8f96a27aa9f200b0d532fc05defc7af70b88cf168789f9aa08476a953b5ee",
+          "source": "38-openroad-globalrouting/or_metrics_out.json",
+          "source_sha256": "b4d8f96a27aa9f200b0d532fc05defc7af70b88cf168789f9aa08476a953b5ee",
+          "transform": "verbatim"
+        },
+        "openroad-globalrouting/openroad-globalrouting.log": {
+          "sha256": "41b6d2207be876f2a52d9fdea65f6b843e745fd4a4f9ff3d0ac66babac11211a",
+          "source": "38-openroad-globalrouting/openroad-globalrouting.log",
+          "source_sha256": "e31e6575beb2712f33110ff155db1feb115810260c9c8412bc3a226865bae84d",
+          "transform": "paths"
+        },
+        "openroad-stamidpnr-1/metrics.json": {
+          "sha256": "4f5b128e6ff3d7e51e4b0f85b3915dc848aee48e3598722a5bad9d06f6c8521e",
+          "source": "35-openroad-stamidpnr-1/or_metrics_out.json",
+          "source_sha256": "4f5b128e6ff3d7e51e4b0f85b3915dc848aee48e3598722a5bad9d06f6c8521e",
+          "transform": "verbatim"
+        },
+        "openroad-stamidpnr-2/max.rpt.gz": {
+          "sha256": "9f13f75170ae4b1aa3973cda4f316373123b22ff7c3475c770f030d15fd52f1a",
+          "source": "37-openroad-stamidpnr-2/max.rpt",
+          "source_sha256": "d53f3ca86fd16ac9326d9a3c93c850a156a36defe05b3753bb8aeb6851bb5118",
+          "transform": "gzip"
+        },
+        "openroad-stamidpnr-2/metrics.json": {
+          "sha256": "a4ee4294941304bdf5540e68192b3acca41dc1a3f447a2003be645cef9f403aa",
+          "source": "37-openroad-stamidpnr-2/or_metrics_out.json",
+          "source_sha256": "a4ee4294941304bdf5540e68192b3acca41dc1a3f447a2003be645cef9f403aa",
+          "transform": "verbatim"
+        },
+        "openroad-stamidpnr/metrics.json": {
+          "sha256": "7b2bbacb62f670a874c5fd5f20247ffb0d72d61360a7cc4a0e3aa65a610a89b0",
+          "source": "30-openroad-stamidpnr/or_metrics_out.json",
+          "source_sha256": "7b2bbacb62f670a874c5fd5f20247ffb0d72d61360a7cc4a0e3aa65a610a89b0",
+          "transform": "verbatim"
+        },
+        "resolved.json": {
+          "sha256": "b0e3a9586c94920316d27893e1b76b386e64aca6b68234b54ee479b42b2c7cac",
+          "source": "resolved.json",
+          "source_sha256": "5277b1460a92db3042ae45f3a1332290e5f416f05d227c4034e97d85f832109a",
+          "transform": "paths"
+        },
+        "yosys-synthesis/stat.rpt": {
+          "sha256": "ea841bb2bc7da98031c72a69002e20e353ed8b74f4e994aaa45fa280c61d1fe6",
+          "source": "06-yosys-synthesis/reports/stat.rpt",
+          "source_sha256": "ea841bb2bc7da98031c72a69002e20e353ed8b74f4e994aaa45fa280c61d1fe6",
+          "transform": "verbatim"
+        }
+      }
+    },
+    "freq/C-F-U4-E3S-fast": {
+      "label": "table conditions",
+      "row": "F-U4-E3S (EXEC_STAGES=3, SPARSE_PORTS=1)",
+      "top": "freq_opt_filter",
+      "conditions": "table conditions",
+      "outcome": "OpenROAD.GlobalRouting failed with GRT-0118 (routing congestion too high) after 53 min, exit 2",
+      "rtl": "this PR",
+      "netlist_check": "verify/F-U4-E3S-synth gives the same netlist sha256",
+      "synthesis_netlist_sha256": "0ecb9a341197f6f30dc89212a1fb72d6e753863ea1259317e407c9374d896c47",
+      "command": {
+        "log": [
+          "queued 2026-11-03T04:18:06-03:00: openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir <checkout>/.build/freq-proxy/runs/F-U4-E3S-fast -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SYNTH_PARAMETERS=EXEC_STAGES=3\\,SPARSE_PORTS=1\\,U=4 <checkout>/openlane/freq_opt/config.json ",
+          "lock acquired 2026-11-03T04:18:06-03:00",
+          "exit 2 after 3213 s at 2026-11-03T05:11:39-03:00"
+        ],
+        "peak_rss_kib": 2344396,
+        "wall_clock": "53:32.91"
+      },
+      "results": {
+        "mid_pnr_setup_ws_nom_tt_ns": {
+          "openroad-stamidpnr": -77.5546,
+          "openroad-stamidpnr-1": 0.3112,
+          "openroad-stamidpnr-2": 1.1194
+        },
+        "synthesis_cells": 88000,
+        "synthesis_area_um2": 925804.169601
+      },
+      "files": {
+        "last-step-metrics.json": {
+          "sha256": "8e37c66dd5f69f4114491a608607ca65e230cb1ade7968533fd16a1567b21d24",
+          "source": "37-openroad-stamidpnr-2/state_out.json",
+          "source_sha256": "2dea09f262b703e3c248693059ba487e6664e639de144434dccf8abc87784b96",
+          "transform": "the metrics object of the last completed step's state_out.json (no final/)"
+        },
+        "openlane-error.log": {
+          "sha256": "d680006fb39ccc8b5d5f0acddb25740e4f514c61518618a441bd027a48dc289a",
+          "source": "error.log",
+          "source_sha256": "d680006fb39ccc8b5d5f0acddb25740e4f514c61518618a441bd027a48dc289a",
+          "transform": "verbatim"
+        },
+        "openlane-flow.log": {
+          "sha256": "03e3409824596a7da6fccd8bc09318b714796212502e5da035ff0469a4551c9a",
+          "source": "flow.log",
+          "source_sha256": "bb3514844a0e22958e7e21f7b801815c5ad27f938384a1e036ac6d3f1edd6eb9",
+          "transform": "paths"
+        },
+        "openlane-warning.log": {
+          "sha256": "39c43be68bca0daf66964bba7115f61ac87e4e1db855f3c8d1d471b8449ee29a",
+          "source": "warning.log",
+          "source_sha256": "39c43be68bca0daf66964bba7115f61ac87e4e1db855f3c8d1d471b8449ee29a",
+          "transform": "verbatim"
+        },
+        "openroad-globalrouting/metrics.json": {
+          "sha256": "b4d8f96a27aa9f200b0d532fc05defc7af70b88cf168789f9aa08476a953b5ee",
+          "source": "38-openroad-globalrouting/or_metrics_out.json",
+          "source_sha256": "b4d8f96a27aa9f200b0d532fc05defc7af70b88cf168789f9aa08476a953b5ee",
+          "transform": "verbatim"
+        },
+        "openroad-globalrouting/openroad-globalrouting.log": {
+          "sha256": "ef756dfe411cbb4c58925cfea806851ae1e973a1300038c51697fe406796a0d8",
+          "source": "38-openroad-globalrouting/openroad-globalrouting.log",
+          "source_sha256": "8aa137be7cdfbb6e50caca06676a67a70098c41c924a744ee71a84cbc72a8db0",
+          "transform": "paths"
+        },
+        "openroad-stamidpnr-1/metrics.json": {
+          "sha256": "92190c662ec5daba55ebe91e50d641cfe91b926fe55982ee3c9fb40c09d23002",
+          "source": "35-openroad-stamidpnr-1/or_metrics_out.json",
+          "source_sha256": "92190c662ec5daba55ebe91e50d641cfe91b926fe55982ee3c9fb40c09d23002",
+          "transform": "verbatim"
+        },
+        "openroad-stamidpnr-2/max.rpt.gz": {
+          "sha256": "1813bc7ed1a6a5ccac24e065e896539cd64e5bc686051185d2ab6194cc1b2360",
+          "source": "37-openroad-stamidpnr-2/max.rpt",
+          "source_sha256": "4f70a95c8b5cb33f83ddd01adcbef215d5c50b7d845e238710ae89ce2ef6f169",
+          "transform": "gzip"
+        },
+        "openroad-stamidpnr-2/metrics.json": {
+          "sha256": "6de2ee5b2486ded3d7e0cd34890821b2795d1f8adb1dc9851ccbcd276e8e45c2",
+          "source": "37-openroad-stamidpnr-2/or_metrics_out.json",
+          "source_sha256": "6de2ee5b2486ded3d7e0cd34890821b2795d1f8adb1dc9851ccbcd276e8e45c2",
+          "transform": "verbatim"
+        },
+        "openroad-stamidpnr/metrics.json": {
+          "sha256": "33a71fa5805fc06872eb0c9c21e0f716cfddd7a870d3e819ef05cd2764b3e81b",
+          "source": "30-openroad-stamidpnr/or_metrics_out.json",
+          "source_sha256": "33a71fa5805fc06872eb0c9c21e0f716cfddd7a870d3e819ef05cd2764b3e81b",
+          "transform": "verbatim"
+        },
+        "resolved.json": {
+          "sha256": "417f9bd0856699e3a1041bcf2bba2c286fead92764057aef20c3f086f670b305",
+          "source": "resolved.json",
+          "source_sha256": "47379203b202643938a300aba82d75d8ec1498e254d86289ff6ebcd367d978d3",
+          "transform": "paths"
+        },
+        "yosys-synthesis/stat.rpt": {
+          "sha256": "b3cd4ecdab1350ffef9988651b2583b43d5a8067861cca556cd16dbafbb04b30",
+          "source": "06-yosys-synthesis/reports/stat.rpt",
+          "source_sha256": "b3cd4ecdab1350ffef9988651b2583b43d5a8067861cca556cd16dbafbb04b30",
+          "transform": "verbatim"
+        }
+      }
+    },
+    "freq/D-F-U4-E3S-u50-fast": {
+      "label": "relaxed conditions (deviation, not a table result)",
+      "row": "F-U4-E3S (EXEC_STAGES=3, SPARSE_PORTS=1)",
+      "top": "freq_opt_filter",
+      "conditions": "FP_CORE_UTIL 50 (table: 55) and GRT_ALLOW_CONGESTION 1 (table: 0); everything else as the table",
+      "outcome": "all 74 steps ran; global routing ended with 32 overflowed edges; detailed routing converged to 0; setup and hold violations at tt (deferred checker errors), exit 2, no final/",
+      "rtl": "this PR",
+      "netlist_check": "verify/F-U4-E3S-synth gives the same netlist sha256 (also equal to run C)",
+      "synthesis_netlist_sha256": "0ecb9a341197f6f30dc89212a1fb72d6e753863ea1259317e407c9374d896c47",
+      "command": {
+        "log": [
+          "queued 2026-11-03T05:16:09-03:00: openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir <checkout>/.build/freq-proxy/runs/F-U4-E3S-u50-fast -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SYNTH_PARAMETERS=EXEC_STAGES=3\\,SPARSE_PORTS=1\\,U=4 -c FP_CORE_UTIL=50 -c GRT_ALLOW_CONGESTION=1 <checkout>/openlane/freq_opt/config.json ",
+          "lock acquired 2026-11-03T05:20:42-03:00",
+          "exit 2 after 26744 s at 2026-11-03T12:46:26-03:00"
+        ],
+        "peak_rss_kib": 6224792,
+        "wall_clock": "7:25:43"
+      },
+      "results": {
+        "post_route_setup_ws_ns": {
+          "nom_tt_025C_1v80": -0.7434,
+          "min_tt_025C_1v80": -0.0352,
+          "max_tt_025C_1v80": -1.5359
+        },
+        "post_route_hold_ws_ns": {
+          "nom_tt_025C_1v80": -0.1705,
+          "min_tt_025C_1v80": -0.1013,
+          "max_tt_025C_1v80": -0.2725
+        },
+        "post_route_setup_violators": {
+          "nom_tt_025C_1v80": 15,
+          "min_tt_025C_1v80": 1,
+          "max_tt_025C_1v80": 125
+        },
+        "route_drc_errors": 0,
+        "magic_drc_errors": 0,
+        "klayout_drc_errors": 0,
+        "lvs_errors": 0,
+        "antenna_violating_nets": 371,
+        "instance_area_um2": 853203,
+        "mid_pnr_setup_ws_nom_tt_ns": {
+          "openroad-stamidpnr": -79.8499,
+          "openroad-stamidpnr-1": 0.4505,
+          "openroad-stamidpnr-2": 1.179,
+          "openroad-stamidpnr-3": 1.0198
+        },
+        "detailed_routing_violations_per_iteration": [
+          95797,
+          61213,
+          57892,
+          17214,
+          6429,
+          3277,
+          2075,
+          1069,
+          712,
+          475,
+          134,
+          120,
+          94,
+          76,
+          7,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          0
+        ],
+        "synthesis_cells": 88000,
+        "synthesis_area_um2": 925804.169601
+      },
+      "files": {
+        "last-step-metrics.json": {
+          "sha256": "c70f32dba3d7f5e4b854513704c3c9ae2a448170e8ba4c91b5ac0d9b315d12aa",
+          "source": "74-misc-reportmanufacturability/state_out.json",
+          "source_sha256": "0d5f2042d0ae0fb251f3ba0c2e8d74debf718d49c9b87b446e93c0ca7df4c863",
+          "transform": "the metrics object of the last completed step's state_out.json (no final/)"
+        },
+        "misc-reportmanufacturability/manufacturability.rpt": {
+          "sha256": "f42c50db2ff27d1498fdd10db6b967f9816c9064dd7df548322687f6e55263ab",
+          "source": "74-misc-reportmanufacturability/manufacturability.rpt",
+          "source_sha256": "f42c50db2ff27d1498fdd10db6b967f9816c9064dd7df548322687f6e55263ab",
+          "transform": "verbatim"
+        },
+        "openlane-error.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source": "error.log",
+          "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "transform": "verbatim"
+        },
+        "openlane-flow.log": {
+          "sha256": "d54de66083e8028da6a0e34063f87b4f4b1dcacc5c469b65c86df8bf36dc1532",
+          "source": "flow.log",
+          "source_sha256": "d47b65640bb66fe46b8267b9f843d1bfa7beaa3201f1e8aa876ab2399864d2c5",
+          "transform": "paths"
+        },
+        "openlane-warning.log": {
+          "sha256": "fc900343512f7919d61300a3a8093695d61f7cc53fbeeca5825c05c671e9d2dc",
+          "source": "warning.log",
+          "source_sha256": "fc900343512f7919d61300a3a8093695d61f7cc53fbeeca5825c05c671e9d2dc",
+          "transform": "verbatim"
+        },
+        "openroad-checkantennas/antenna_summary.rpt": {
+          "sha256": "ab6b967dfd10e74d82c8c89d6ac4768b13055baffe6c8128bf7bf553371c1617",
+          "source": "45-openroad-checkantennas-1/reports/antenna_summary.rpt",
+          "source_sha256": "ab6b967dfd10e74d82c8c89d6ac4768b13055baffe6c8128bf7bf553371c1617",
+          "transform": "verbatim"
+        },
+        "openroad-detailedrouting/metrics.json": {
+          "sha256": "09ae6ccbf8a220e2c4c4cdffc8a6a3cd2d973f1f083cbeb3f331da9dd3b22a1e",
+          "source": "43-openroad-detailedrouting/or_metrics_out.json",
+          "source_sha256": "09ae6ccbf8a220e2c4c4cdffc8a6a3cd2d973f1f083cbeb3f331da9dd3b22a1e",
+          "transform": "verbatim"
+        },
+        "openroad-globalrouting/metrics.json": {
+          "sha256": "5e722adc91c9ffc1a33e38951373dd9f66c5aa9a08c947516b5aeff193bc308f",
+          "source": "38-openroad-globalrouting/or_metrics_out.json",
+          "source_sha256": "5e722adc91c9ffc1a33e38951373dd9f66c5aa9a08c947516b5aeff193bc308f",
+          "transform": "verbatim"
+        },
+        "openroad-globalrouting/openroad-globalrouting.log.gz": {
+          "sha256": "4bb432ca6506122e4bccf3cead767adb4dcaf37fd2f03fcefcfa4516bc24f009",
+          "source": "38-openroad-globalrouting/openroad-globalrouting.log",
+          "source_sha256": "191590add45d2e60217fa1a4467c263bac49e42e0be38d8fc752a94613520fe2",
+          "transform": "paths+gzip"
+        },
+        "openroad-stamidpnr-1/metrics.json": {
+          "sha256": "b3a65a62615159e17f4bd34ee3e042476b962780c5c8dfa241a8bbe31c8b8ed6",
+          "source": "35-openroad-stamidpnr-1/or_metrics_out.json",
+          "source_sha256": "b3a65a62615159e17f4bd34ee3e042476b962780c5c8dfa241a8bbe31c8b8ed6",
+          "transform": "verbatim"
+        },
+        "openroad-stamidpnr-2/metrics.json": {
+          "sha256": "f61cb3413510c529156ebfd0918066f073a6a07794a58e203be71b2d703e140b",
+          "source": "37-openroad-stamidpnr-2/or_metrics_out.json",
+          "source_sha256": "f61cb3413510c529156ebfd0918066f073a6a07794a58e203be71b2d703e140b",
+          "transform": "verbatim"
+        },
+        "openroad-stamidpnr-3/max.rpt.gz": {
+          "sha256": "b12ef13b6cdddb5cf0bb45fe07f82b70f973e8e76cb8733ea208153bb1950d29",
+          "source": "42-openroad-stamidpnr-3/max.rpt",
+          "source_sha256": "8aae7a8ce898baaf93bbd26e79fd2738a209334b6ccff52347c17fc59c1edbca",
+          "transform": "gzip"
+        },
+        "openroad-stamidpnr-3/metrics.json": {
+          "sha256": "28da0effff3d03ff6f9b78c933c0df7ac4dc7ed10be2e03f247afd5ef175bf38",
+          "source": "42-openroad-stamidpnr-3/or_metrics_out.json",
+          "source_sha256": "28da0effff3d03ff6f9b78c933c0df7ac4dc7ed10be2e03f247afd5ef175bf38",
+          "transform": "verbatim"
+        },
+        "openroad-stamidpnr/metrics.json": {
+          "sha256": "96e39c02698e5b9f65c5cf9eebf6abc79d351ec1e6135f43d6181343cca3ad90",
+          "source": "30-openroad-stamidpnr/or_metrics_out.json",
+          "source_sha256": "96e39c02698e5b9f65c5cf9eebf6abc79d351ec1e6135f43d6181343cca3ad90",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/max_tt_025C_1v80/checks.rpt": {
+          "sha256": "c6a522f7b8142d0d6ac88193fa80b7951dd76a8605281a77325f1d3a4682302f",
+          "source": "54-openroad-stapostpnr/max_tt_025C_1v80/checks.rpt",
+          "source_sha256": "c6a522f7b8142d0d6ac88193fa80b7951dd76a8605281a77325f1d3a4682302f",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/max_tt_025C_1v80/max.rpt.gz": {
+          "sha256": "4d135e38f105fbcfae6518f4ccf8ece91c2d34e9d6ff8209a833ad75d31c4c0c",
+          "source": "54-openroad-stapostpnr/max_tt_025C_1v80/max.rpt",
+          "source_sha256": "fbe3333d04d24ede2ee71b27cd0709e8be4f053f607a017c25e0ff5be952a83a",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/max_tt_025C_1v80/min.rpt.gz": {
+          "sha256": "7529a64fa0a1b32d0c2bf77381f037561bf9d5207746bbf56a20db0b5706c051",
+          "source": "54-openroad-stapostpnr/max_tt_025C_1v80/min.rpt",
+          "source_sha256": "e4878bb703153b450fdadbd6c96def9bc8e4a6856c42302c7ba56efb9de43d15",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/max_tt_025C_1v80/violator_list.rpt": {
+          "sha256": "317f94d29615e3880863090982245786d0bf4671e8084cd06faa1a1a971de138",
+          "source": "54-openroad-stapostpnr/max_tt_025C_1v80/violator_list.rpt",
+          "source_sha256": "317f94d29615e3880863090982245786d0bf4671e8084cd06faa1a1a971de138",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/min_tt_025C_1v80/checks.rpt": {
+          "sha256": "7767a3b3c3bf5f83fdc5e3e5175da0a8aef59cc4181e3fa70e7f9a8f85639606",
+          "source": "54-openroad-stapostpnr/min_tt_025C_1v80/checks.rpt",
+          "source_sha256": "7767a3b3c3bf5f83fdc5e3e5175da0a8aef59cc4181e3fa70e7f9a8f85639606",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/min_tt_025C_1v80/max.rpt.gz": {
+          "sha256": "b8edce0da5ed9e16002b7a2f08ca352031cd74bf15a3db5b3df0e0a1d0552866",
+          "source": "54-openroad-stapostpnr/min_tt_025C_1v80/max.rpt",
+          "source_sha256": "6d7b6de3c4648b81ab14c5eea1c70daa5099e8a3fd29a20809ed3c198cbd8184",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/min_tt_025C_1v80/min.rpt.gz": {
+          "sha256": "c0a0853cbd06002743d447f3b742add326d78547823819f8905f1914c0fe5522",
+          "source": "54-openroad-stapostpnr/min_tt_025C_1v80/min.rpt",
+          "source_sha256": "3611a39d08ea72726c39b684a0ee6aade3defc8fa4cb3533760087c43b5ca8f8",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/min_tt_025C_1v80/violator_list.rpt": {
+          "sha256": "89af4a15dad8e3bb04843084abaa40beb8122836716535c8d8f6bef55cce01c7",
+          "source": "54-openroad-stapostpnr/min_tt_025C_1v80/violator_list.rpt",
+          "source_sha256": "89af4a15dad8e3bb04843084abaa40beb8122836716535c8d8f6bef55cce01c7",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/nom_tt_025C_1v80/checks.rpt": {
+          "sha256": "307bc85c2ae64f413f7b306de33fe293afe0662c8f173e51b8c20286883b0753",
+          "source": "54-openroad-stapostpnr/nom_tt_025C_1v80/checks.rpt",
+          "source_sha256": "307bc85c2ae64f413f7b306de33fe293afe0662c8f173e51b8c20286883b0753",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/nom_tt_025C_1v80/max.rpt.gz": {
+          "sha256": "9bd54ce45f5908fa2e66d5785701ad5b8c044f6eb1e92f90c297a464502767f7",
+          "source": "54-openroad-stapostpnr/nom_tt_025C_1v80/max.rpt",
+          "source_sha256": "9c4a5c41125b0aa37d748e32ab6db8a698b0c188dddcd31e23c2d8cc47f8f5cf",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/nom_tt_025C_1v80/min.rpt.gz": {
+          "sha256": "7b36ccb664c40255f2fcec99b19ec6d1e54e8a1278dbcd10816f6cfd6672b805",
+          "source": "54-openroad-stapostpnr/nom_tt_025C_1v80/min.rpt",
+          "source_sha256": "6f9bf3d03afc4583d3d3b36b31da6ac987ebe6d654ae000ab516859d8a5f4247",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/nom_tt_025C_1v80/violator_list.rpt": {
+          "sha256": "da6a65e3e520e191bb1b625a6242f53291e6869dacad1fa39c306b5f0122a322",
+          "source": "54-openroad-stapostpnr/nom_tt_025C_1v80/violator_list.rpt",
+          "source_sha256": "da6a65e3e520e191bb1b625a6242f53291e6869dacad1fa39c306b5f0122a322",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/summary.rpt": {
+          "sha256": "6e6905e31f7971e50dfcf20c7195a96dcddb9d13c9edd34bbb2730fef0f14351",
+          "source": "54-openroad-stapostpnr/summary.rpt",
+          "source_sha256": "6e6905e31f7971e50dfcf20c7195a96dcddb9d13c9edd34bbb2730fef0f14351",
+          "transform": "verbatim"
+        },
+        "resolved.json": {
+          "sha256": "2a13298ccb401dc8eb1c4a506b676e408698bfb6322a5d1806171d519f81f780",
+          "source": "resolved.json",
+          "source_sha256": "e9094e1b84df46ffd1a6124ebcf6c55cbc17a147c05079528a5de2bbf24c988c",
+          "transform": "paths"
+        },
+        "yosys-synthesis/stat.rpt": {
+          "sha256": "b3cd4ecdab1350ffef9988651b2583b43d5a8067861cca556cd16dbafbb04b30",
+          "source": "06-yosys-synthesis/reports/stat.rpt",
+          "source_sha256": "b3cd4ecdab1350ffef9988651b2583b43d5a8067861cca556cd16dbafbb04b30",
+          "transform": "verbatim"
+        }
+      }
+    },
+    "freq/E-F-U8-E3S-synth": {
+      "label": "table conditions, synthesis only",
+      "row": "F-U8-E3S (EXEC_STAGES=3, SPARSE_PORTS=1)",
+      "top": "freq_opt_filter",
+      "conditions": "table conditions, --to Yosys.Synthesis",
+      "outcome": "synthesis finished, exit 0",
+      "rtl": "this PR",
+      "netlist_check": "verify/F-U8-E3S-synth gives the same netlist sha256",
+      "synthesis_netlist_sha256": "083faeefc410943d77c3f9afae583032383a08b50ae2e2a1a0f696525e0d16aa",
+      "command": {
+        "log": [
+          "queued 2026-11-03T05:13:46-03:00: openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir <checkout>/.build/freq-proxy/runs/F-U8-E3S-synth --to Yosys.Synthesis -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SYNTH_PARAMETERS=EXEC_STAGES=3\\,SPARSE_PORTS=1\\,U=8 <checkout>/openlane/freq_opt/config.json ",
+          "lock acquired 2026-11-03T05:13:46-03:00",
+          "exit 0 after 416 s at 2026-11-03T05:20:42-03:00"
+        ],
+        "peak_rss_kib": 1420088,
+        "wall_clock": "6:56.33"
+      },
+      "results": {
+        "synthesis_cells": 156715,
+        "synthesis_area_um2": 1626133.340802
+      },
+      "files": {
+        "final/metrics.json": {
+          "sha256": "de3bd2f0b7d5f5c1b21a5d91412bd2fffea334f020948fb24dd7f8f94aeb0cc6",
+          "source": "final/metrics.json",
+          "source_sha256": "de3bd2f0b7d5f5c1b21a5d91412bd2fffea334f020948fb24dd7f8f94aeb0cc6",
+          "transform": "verbatim"
+        },
+        "openlane-error.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source": "error.log",
+          "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "transform": "verbatim"
+        },
+        "openlane-flow.log": {
+          "sha256": "d1693d496d309c5313876878465267eda7f39abb2f4f4fd516cb8dc4ec484954",
+          "source": "flow.log",
+          "source_sha256": "83fdf154efb793d0cc63f0a53511b3eb88c68c9c8e29795477f11b2643e9866d",
+          "transform": "paths"
+        },
+        "openlane-warning.log": {
+          "sha256": "1581099906272146a74feaaf9b102b8b1fb74cf41f8fa1342088eec172c30af4",
+          "source": "warning.log",
+          "source_sha256": "1581099906272146a74feaaf9b102b8b1fb74cf41f8fa1342088eec172c30af4",
+          "transform": "verbatim"
+        },
+        "resolved.json": {
+          "sha256": "ac7d9511a89d7af2b8cfffe05147b600b9b68986c010291bba13ec595c9f2077",
+          "source": "resolved.json",
+          "source_sha256": "2b17fae843379e3382e6333175ba46e993f7937df12a2dac6b0ab9d7dbfe5b97",
+          "transform": "paths"
+        },
+        "yosys-synthesis/stat.rpt": {
+          "sha256": "30529dd43177a149b7a4996174d5f5a11d39038bd1e27d70d892e7c57f48889b",
+          "source": "06-yosys-synthesis/reports/stat.rpt",
+          "source_sha256": "30529dd43177a149b7a4996174d5f5a11d39038bd1e27d70d892e7c57f48889b",
+          "transform": "verbatim"
+        }
+      }
+    },
+    "freq/L1-first-synth": {
+      "label": "synthesis check",
+      "row": "F-serial (EXEC_STAGES=1) with the first pipelined engine revision",
+      "top": "freq_serial_filter",
+      "conditions": "freq_serial config at FAST, --to Yosys.Synthesis",
+      "outcome": "exit 0; netlist differs from main's F-serial (per-lane write enables)",
+      "rtl": "first pipelined revision of rrc_freq_engine.sv (per-lane write enables at L=1), not in this PR",
+      "netlist_check": "not reproducible from this PR's RTL",
+      "synthesis_netlist_sha256": "fa151a59ca6526a4324796118d0f57a3be3186a901e6973dbef3f520d5256db0",
+      "command": {
+        "log": [
+          "queued 2026-11-02T23:29:29-03:00: openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir <checkout>/.build/freq-proxy/runs/serial-L1-synth --to Yosys.Synthesis -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc <checkout>/openlane/freq_serial/config.json ",
+          "lock acquired 2026-11-02T23:33:06-03:00",
+          "exit 0 after 121 s at 2026-11-02T23:35:07-03:00"
+        ],
+        "peak_rss_kib": 577912,
+        "wall_clock": "2:00.67"
+      },
+      "results": {
+        "synthesis_cells": 30663,
+        "synthesis_area_um2": 328616.4192
+      },
+      "files": {
+        "final/metrics.json": {
+          "sha256": "79552f127b243a5dc9c8684896dba6a8f047cb4a72bfaa85c2215bae412e3c1e",
+          "source": "final/metrics.json",
+          "source_sha256": "79552f127b243a5dc9c8684896dba6a8f047cb4a72bfaa85c2215bae412e3c1e",
+          "transform": "verbatim"
+        },
+        "openlane-error.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source": "error.log",
+          "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "transform": "verbatim"
+        },
+        "openlane-flow.log": {
+          "sha256": "33dd12121e5c9175aa9919b701ac63b8ad1a74e0cfcca048246c8bd28914deff",
+          "source": "flow.log",
+          "source_sha256": "91dc8fe25688e21753ab931fe71a8c4b6c4bf85cfa302fd4e5af948ba2220293",
+          "transform": "paths"
+        },
+        "openlane-warning.log": {
+          "sha256": "1581099906272146a74feaaf9b102b8b1fb74cf41f8fa1342088eec172c30af4",
+          "source": "warning.log",
+          "source_sha256": "1581099906272146a74feaaf9b102b8b1fb74cf41f8fa1342088eec172c30af4",
+          "transform": "verbatim"
+        },
+        "resolved.json": {
+          "sha256": "693d6288bfbd1362810ce59b7bf0b2adbcde29cefb97b160ea8052541d8217c7",
+          "source": "resolved.json",
+          "source_sha256": "7b9775d5c27adb46e1ef726fcdbd6e2c2104d56f8416d4cf6ce64539e36d1051",
+          "transform": "paths"
+        },
+        "yosys-synthesis/stat.rpt": {
+          "sha256": "61b06cfcdc836d1889b318c342421eeebaf29a50f3b3cf3abb87426ba8146d38",
+          "source": "06-yosys-synthesis/reports/stat.rpt",
+          "source_sha256": "61b06cfcdc836d1889b318c342421eeebaf29a50f3b3cf3abb87426ba8146d38",
+          "transform": "verbatim"
+        }
+      }
+    },
+    "freq/L1-restructured-synth": {
+      "label": "synthesis check",
+      "row": "F-serial (EXEC_STAGES=1) after the shared-valid restructure",
+      "top": "freq_serial_filter",
+      "conditions": "freq_serial config at FAST, --to Yosys.Synthesis",
+      "outcome": "exit 0",
+      "rtl": "revision after the shared-valid restructure, before SPARSE_PORTS, not in this PR",
+      "netlist_check": "not reproducible from this PR's RTL",
+      "synthesis_netlist_sha256": "29c21ac0d0b8b1386c1e42fea7a01c70f459313864e330525425e6d4e4916721",
+      "command": {
+        "log": [
+          "queued 2026-11-03T00:34:41-03:00: openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir <checkout>/.build/freq-proxy/runs/serial-L1b-synth --to Yosys.Synthesis -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc <checkout>/openlane/freq_serial/config.json ",
+          "lock acquired 2026-11-03T01:44:13-03:00",
+          "exit 0 after 100 s at 2026-11-03T01:45:53-03:00"
+        ],
+        "peak_rss_kib": 595548,
+        "wall_clock": "1:39.93"
+      },
+      "results": {
+        "synthesis_cells": 30435,
+        "synthesis_area_um2": 328567.6224
+      },
+      "files": {
+        "final/metrics.json": {
+          "sha256": "3c8b3c137fab14756c9a5ae518b3d75e07bb3d4a20b2cf76425770174f4ac7ef",
+          "source": "final/metrics.json",
+          "source_sha256": "3c8b3c137fab14756c9a5ae518b3d75e07bb3d4a20b2cf76425770174f4ac7ef",
+          "transform": "verbatim"
+        },
+        "openlane-error.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source": "error.log",
+          "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "transform": "verbatim"
+        },
+        "openlane-flow.log": {
+          "sha256": "498356e1e7b7859cc48be5eb793c050f2e10aef0c9852673681976714ed96155",
+          "source": "flow.log",
+          "source_sha256": "c649cae04748aa9dc092ba4c062b92272eca21a758e3e6c1cb1419789bfb4be5",
+          "transform": "paths"
+        },
+        "openlane-warning.log": {
+          "sha256": "1581099906272146a74feaaf9b102b8b1fb74cf41f8fa1342088eec172c30af4",
+          "source": "warning.log",
+          "source_sha256": "1581099906272146a74feaaf9b102b8b1fb74cf41f8fa1342088eec172c30af4",
+          "transform": "verbatim"
+        },
+        "resolved.json": {
+          "sha256": "693d6288bfbd1362810ce59b7bf0b2adbcde29cefb97b160ea8052541d8217c7",
+          "source": "resolved.json",
+          "source_sha256": "7b9775d5c27adb46e1ef726fcdbd6e2c2104d56f8416d4cf6ce64539e36d1051",
+          "transform": "paths"
+        },
+        "yosys-synthesis/stat.rpt": {
+          "sha256": "0d0d0dcc13a24b1d5ece51d53a0c4ea408d3ef7ef474e10b62d6aeb2ea548b2a",
+          "source": "06-yosys-synthesis/reports/stat.rpt",
+          "source_sha256": "0d0d0dcc13a24b1d5ece51d53a0c4ea408d3ef7ef474e10b62d6aeb2ea548b2a",
+          "transform": "verbatim"
+        }
+      }
+    },
+    "freq/L1-main-copy-synth": {
+      "label": "synthesis check (naming noise)",
+      "row": "F-serial with main's engine copied to another path",
+      "top": "freq_serial_filter",
+      "conditions": "freq_serial config at FAST, --to Yosys.Synthesis",
+      "outcome": "exit 0; netlist identical to main's F-serial",
+      "rtl": "main's rrc_freq_engine.sv (5beadf1) copied to another path",
+      "netlist_check": "same netlist sha256 as L1-main-shifted-synth: path and line numbers do not change the netlist",
+      "synthesis_netlist_sha256": "d13b74a5cde6af4f3724f9858ce597ce1271783e29fa290c2eaa28c946b4477d",
+      "command": {
+        "log": [
+          "queued 2026-11-02T23:36:19-03:00: openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir <checkout>/.build/freq-proxy/runs/serial-head-synth --to Yosys.Synthesis -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc <checkout>/.build/freq-proxy/head/config.json ",
+          "lock acquired 2026-11-03T00:13:06-03:00",
+          "exit 0 after 91 s at 2026-11-03T00:14:37-03:00"
+        ],
+        "peak_rss_kib": 583688,
+        "wall_clock": "1:30.24"
+      },
+      "results": {
+        "synthesis_cells": 30389,
+        "synthesis_area_um2": 328721.52
+      },
+      "files": {
+        "final/metrics.json": {
+          "sha256": "db3ff55e6db9d0818a4ac75c344fe020615d9155e34a7e2a97c0d77b4363bfcf",
+          "source": "final/metrics.json",
+          "source_sha256": "db3ff55e6db9d0818a4ac75c344fe020615d9155e34a7e2a97c0d77b4363bfcf",
+          "transform": "verbatim"
+        },
+        "openlane-error.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source": "error.log",
+          "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "transform": "verbatim"
+        },
+        "openlane-flow.log": {
+          "sha256": "1d757b3536b9c014db99b57a384ea3f695ed22e041ae81f823e5ba794c8be56e",
+          "source": "flow.log",
+          "source_sha256": "4b63d5f62bb6b5ad869d4fd17312a01a551fbd1716e29d2df8969c49b86bcdce",
+          "transform": "paths"
+        },
+        "openlane-warning.log": {
+          "sha256": "1581099906272146a74feaaf9b102b8b1fb74cf41f8fa1342088eec172c30af4",
+          "source": "warning.log",
+          "source_sha256": "1581099906272146a74feaaf9b102b8b1fb74cf41f8fa1342088eec172c30af4",
+          "transform": "verbatim"
+        },
+        "resolved.json": {
+          "sha256": "5f3464c26373b2778f303de207e2eeae9d0a586e2f045ea60c424d4f7a8c1147",
+          "source": "resolved.json",
+          "source_sha256": "d97114c94fabe720af58b59901b0cc59d236fd17a6311285387086279c229a8c",
+          "transform": "paths"
+        },
+        "yosys-synthesis/stat.rpt": {
+          "sha256": "caf4deb6b7363d34532b8e06934d45d4844b2d811a6660b4260bcc6b8b95535c",
+          "source": "06-yosys-synthesis/reports/stat.rpt",
+          "source_sha256": "caf4deb6b7363d34532b8e06934d45d4844b2d811a6660b4260bcc6b8b95535c",
+          "transform": "verbatim"
+        }
+      }
+    },
+    "freq/L1-main-shifted-synth": {
+      "label": "synthesis check (naming noise)",
+      "row": "F-serial with main's engine plus 37 comment lines",
+      "top": "freq_serial_filter",
+      "conditions": "freq_serial config at FAST, --to Yosys.Synthesis",
+      "outcome": "exit 0; netlist identical to main's F-serial",
+      "rtl": "main's rrc_freq_engine.sv (5beadf1) with 37 comment lines added",
+      "netlist_check": "same netlist sha256 as L1-main-copy-synth",
+      "synthesis_netlist_sha256": "d13b74a5cde6af4f3724f9858ce597ce1271783e29fa290c2eaa28c946b4477d",
+      "command": {
+        "log": [
+          "queued 2026-11-03T00:14:37-03:00: openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir <checkout>/.build/freq-proxy/runs/serial-shift-synth --to Yosys.Synthesis -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=<checkout>/openlane/sdc/sky130_100MHz.sdc <checkout>/.build/freq-proxy/shift/config.json ",
+          "lock acquired 2026-11-03T00:30:23-03:00",
+          "exit 0 after 91 s at 2026-11-03T00:31:54-03:00"
+        ],
+        "peak_rss_kib": 584484,
+        "wall_clock": "1:31.06"
+      },
+      "results": {
+        "synthesis_cells": 30389,
+        "synthesis_area_um2": 328721.52
+      },
+      "files": {
+        "final/metrics.json": {
+          "sha256": "db3ff55e6db9d0818a4ac75c344fe020615d9155e34a7e2a97c0d77b4363bfcf",
+          "source": "final/metrics.json",
+          "source_sha256": "db3ff55e6db9d0818a4ac75c344fe020615d9155e34a7e2a97c0d77b4363bfcf",
+          "transform": "verbatim"
+        },
+        "openlane-error.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source": "error.log",
+          "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "transform": "verbatim"
+        },
+        "openlane-flow.log": {
+          "sha256": "4b9f84947f54717e448873900f50df59a60f8b603d6b896522288f813d02e0a4",
+          "source": "flow.log",
+          "source_sha256": "3f63fdda5a156016a107d030b3f621d610681ff1b6d7f72115d8d5bd08236446",
+          "transform": "paths"
+        },
+        "openlane-warning.log": {
+          "sha256": "1581099906272146a74feaaf9b102b8b1fb74cf41f8fa1342088eec172c30af4",
+          "source": "warning.log",
+          "source_sha256": "1581099906272146a74feaaf9b102b8b1fb74cf41f8fa1342088eec172c30af4",
+          "transform": "verbatim"
+        },
+        "resolved.json": {
+          "sha256": "8604f315cb8459ca2933cbb73d0516cb1f94eea6ad27eabcf63eba36ceb82339",
+          "source": "resolved.json",
+          "source_sha256": "05e1726f05b3b19c9df7f0bcb7a1a143ee4554cdbad2bfedb2c46b33d4b4244d",
+          "transform": "paths"
+        },
+        "yosys-synthesis/stat.rpt": {
+          "sha256": "caf4deb6b7363d34532b8e06934d45d4844b2d811a6660b4260bcc6b8b95535c",
+          "source": "06-yosys-synthesis/reports/stat.rpt",
+          "source_sha256": "caf4deb6b7363d34532b8e06934d45d4844b2d811a6660b4260bcc6b8b95535c",
+          "transform": "verbatim"
+        }
+      }
+    },
+    "verify/F-U4-E3S-synth": {
+      "label": "verification synthesis",
+      "row": "F-U4-E3S with this PR's RTL",
+      "top": "freq_opt_filter",
+      "conditions": "table conditions, --to Yosys.Synthesis, run from the main checkout",
+      "outcome": "exit 0; the netlist is byte-identical to the synthesis of runs C and D",
+      "rtl": "this PR",
+      "netlist_check": "reference for runs C and D",
+      "synthesis_netlist_sha256": "0ecb9a341197f6f30dc89212a1fb72d6e753863ea1259317e407c9374d896c47",
+      "command": {
+        "log": [
+          "queued 2026-11-03T16:34:38-03:00: openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir /home/majac/curso/qpsk-rrc-filter-time-frequency/.build/ppa/closure-check/F-U4-E3S-synth --to Yosys.Synthesis -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc -c SYNTH_PARAMETERS=EXEC_STAGES=3\\,SPARSE_PORTS=1\\,U=4 /home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/freq_opt/config.json ",
+          "lock acquired 2026-11-03T16:34:38-03:00",
+          "exit 0 after 349 s at 2026-11-03T16:40:27-03:00"
+        ],
+        "peak_rss_kib": 786688,
+        "wall_clock": "5:49.22"
+      },
+      "results": {
+        "synthesis_cells": 88000,
+        "synthesis_area_um2": 925804.169601
+      },
+      "files": {
+        "final/metrics.json": {
+          "sha256": "c90810182b3eb0549ae133a425834e89204c774033cf69117b42ed5195b7e466",
+          "source": "final/metrics.json",
+          "source_sha256": "c90810182b3eb0549ae133a425834e89204c774033cf69117b42ed5195b7e466",
+          "transform": "verbatim"
+        },
+        "openlane-error.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source": "error.log",
+          "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "transform": "verbatim"
+        },
+        "openlane-flow.log": {
+          "sha256": "eca63d8d7ea76dc1f19ed54b8ec6a10ce16d6a1ff7a05c35565942c51cece4aa",
+          "source": "flow.log",
+          "source_sha256": "eca63d8d7ea76dc1f19ed54b8ec6a10ce16d6a1ff7a05c35565942c51cece4aa",
+          "transform": "verbatim"
+        },
+        "openlane-warning.log": {
+          "sha256": "1581099906272146a74feaaf9b102b8b1fb74cf41f8fa1342088eec172c30af4",
+          "source": "warning.log",
+          "source_sha256": "1581099906272146a74feaaf9b102b8b1fb74cf41f8fa1342088eec172c30af4",
+          "transform": "verbatim"
+        },
+        "resolved.json": {
+          "sha256": "da1378914dd7e88eb26d5ad1fa0a4faa5e7cef318c85c9f92f89fd946820cda4",
+          "source": "resolved.json",
+          "source_sha256": "da1378914dd7e88eb26d5ad1fa0a4faa5e7cef318c85c9f92f89fd946820cda4",
+          "transform": "verbatim"
+        },
+        "yosys-synthesis/stat.rpt": {
+          "sha256": "b3cd4ecdab1350ffef9988651b2583b43d5a8067861cca556cd16dbafbb04b30",
+          "source": "06-yosys-synthesis/reports/stat.rpt",
+          "source_sha256": "b3cd4ecdab1350ffef9988651b2583b43d5a8067861cca556cd16dbafbb04b30",
+          "transform": "verbatim"
+        }
+      }
+    },
+    "verify/F-U8-E3S-synth": {
+      "label": "verification synthesis",
+      "row": "F-U8-E3S with this PR's RTL",
+      "top": "freq_opt_filter",
+      "conditions": "table conditions, --to Yosys.Synthesis, run from the main checkout",
+      "outcome": "exit 0; the netlist is byte-identical to the synthesis of run E",
+      "rtl": "this PR",
+      "netlist_check": "reference for run E",
+      "synthesis_netlist_sha256": "083faeefc410943d77c3f9afae583032383a08b50ae2e2a1a0f696525e0d16aa",
+      "command": {
+        "log": [
+          "queued 2026-11-03T16:42:58-03:00: openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir /home/majac/curso/qpsk-rrc-filter-time-frequency/.build/ppa/closure-check/F-U8-E3S-synth --to Yosys.Synthesis -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc -c SYNTH_PARAMETERS=EXEC_STAGES=3\\,SPARSE_PORTS=1\\,U=8 /home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/freq_opt/config.json ",
+          "lock acquired 2026-11-03T16:42:58-03:00",
+          "exit 0 after 535 s at 2026-11-03T16:51:53-03:00"
+        ],
+        "peak_rss_kib": 1420072,
+        "wall_clock": "8:55.06"
+      },
+      "results": {
+        "synthesis_cells": 156715,
+        "synthesis_area_um2": 1626133.340802
+      },
+      "files": {
+        "final/metrics.json": {
+          "sha256": "de3bd2f0b7d5f5c1b21a5d91412bd2fffea334f020948fb24dd7f8f94aeb0cc6",
+          "source": "final/metrics.json",
+          "source_sha256": "de3bd2f0b7d5f5c1b21a5d91412bd2fffea334f020948fb24dd7f8f94aeb0cc6",
+          "transform": "verbatim"
+        },
+        "openlane-error.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source": "error.log",
+          "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "transform": "verbatim"
+        },
+        "openlane-flow.log": {
+          "sha256": "57dfc19582a68c595ceed09f5e22aec14eb083935fb25dfa062f376bbc0091ec",
+          "source": "flow.log",
+          "source_sha256": "57dfc19582a68c595ceed09f5e22aec14eb083935fb25dfa062f376bbc0091ec",
+          "transform": "verbatim"
+        },
+        "openlane-warning.log": {
+          "sha256": "1581099906272146a74feaaf9b102b8b1fb74cf41f8fa1342088eec172c30af4",
+          "source": "warning.log",
+          "source_sha256": "1581099906272146a74feaaf9b102b8b1fb74cf41f8fa1342088eec172c30af4",
+          "transform": "verbatim"
+        },
+        "resolved.json": {
+          "sha256": "41fe43973449b92fb01c37ee597580acde8a47403f42c93995923879415ebdc7",
+          "source": "resolved.json",
+          "source_sha256": "41fe43973449b92fb01c37ee597580acde8a47403f42c93995923879415ebdc7",
+          "transform": "verbatim"
+        },
+        "yosys-synthesis/stat.rpt": {
+          "sha256": "30529dd43177a149b7a4996174d5f5a11d39038bd1e27d70d892e7c57f48889b",
+          "source": "06-yosys-synthesis/reports/stat.rpt",
+          "source_sha256": "30529dd43177a149b7a4996174d5f5a11d39038bd1e27d70d892e7c57f48889b",
+          "transform": "verbatim"
+        }
+      }
+    },
+    "verify/F-serial-L1-final-synth": {
+      "label": "verification synthesis",
+      "row": "F-serial (EXEC_STAGES=1) with this PR's RTL",
+      "top": "freq_serial_filter",
+      "conditions": "freq_serial config at FAST, --to Yosys.Synthesis, run from the main checkout",
+      "outcome": "exit 0; the netlist differs from main's F-serial (30352 vs 30389 cells, 328239.8 vs 328721.5 um2)",
+      "rtl": "this PR",
+      "netlist_check": "differs from main's F-serial (L1-main-copy-synth): the EXEC_STAGES=1 code is functionally identical (tests) but not netlist-identical",
+      "synthesis_netlist_sha256": "7858594b7512f523d03e10d55a1e4969a8e8f78c2718f805d03fd2bd0a121c0d",
+      "command": {
+        "log": [
+          "queued 2026-11-03T16:40:27-03:00: openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir /home/majac/curso/qpsk-rrc-filter-time-frequency/.build/ppa/closure-check/F-serial-synth --to Yosys.Synthesis -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc /home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/freq_serial/config.json ",
+          "lock acquired 2026-11-03T16:40:27-03:00",
+          "exit 0 after 151 s at 2026-11-03T16:42:58-03:00"
+        ],
+        "peak_rss_kib": 585548,
+        "wall_clock": "2:31.08"
+      },
+      "results": {
+        "synthesis_cells": 30352,
+        "synthesis_area_um2": 328239.808
+      },
+      "files": {
+        "final/metrics.json": {
+          "sha256": "2dd82153b2b7349b58957b03f424345ffc1a40dbec8a55849efa74e4639585bb",
+          "source": "final/metrics.json",
+          "source_sha256": "2dd82153b2b7349b58957b03f424345ffc1a40dbec8a55849efa74e4639585bb",
+          "transform": "verbatim"
+        },
+        "openlane-error.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source": "error.log",
+          "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "transform": "verbatim"
+        },
+        "openlane-flow.log": {
+          "sha256": "98de8105c87692933544e13deebb9c97a5081faf839c7e6f50e855dc48df617f",
+          "source": "flow.log",
+          "source_sha256": "98de8105c87692933544e13deebb9c97a5081faf839c7e6f50e855dc48df617f",
+          "transform": "verbatim"
+        },
+        "openlane-warning.log": {
+          "sha256": "1581099906272146a74feaaf9b102b8b1fb74cf41f8fa1342088eec172c30af4",
+          "source": "warning.log",
+          "source_sha256": "1581099906272146a74feaaf9b102b8b1fb74cf41f8fa1342088eec172c30af4",
+          "transform": "verbatim"
+        },
+        "resolved.json": {
+          "sha256": "e6ea75a5e121bee466c38541601b5b79177e098deb260d8c2fd0c7266f079866",
+          "source": "resolved.json",
+          "source_sha256": "e6ea75a5e121bee466c38541601b5b79177e098deb260d8c2fd0c7266f079866",
+          "transform": "verbatim"
+        },
+        "yosys-synthesis/stat.rpt": {
+          "sha256": "719221228d01eda0f044b7230d1e16f43259585f46043499ce9fef504b188f10",
+          "source": "06-yosys-synthesis/reports/stat.rpt",
+          "source_sha256": "719221228d01eda0f044b7230d1e16f43259585f46043499ce9fef504b188f10",
+          "transform": "verbatim"
+        }
+      }
+    },
+    "verify/T-S4P1-base-synth": {
+      "label": "verification synthesis",
+      "row": "T-S4P1 (CAST_REGISTER=0, the default) with this PR's RTL",
+      "top": "time_opt_filter",
+      "conditions": "T41 conditions, --to Yosys.Synthesis, run from the main checkout",
+      "outcome": "exit 0; the netlist differs from main's (6492 cells both, 73270.3 vs 73304.1 um2); main's RTL, synthesized the same day, reproduces the T41 netlist sha256 e38e4061590286ab... byte for byte",
+      "rtl": "this PR",
+      "netlist_check": "differs from the T41 T-S4P1 FAST synthesis (main's RTL)",
+      "synthesis_netlist_sha256": "18384b1d4ea77ca149d74afc1cfe2d2c5db7cfce178cd8a4d325a91a4ea77188",
+      "command": {
+        "log": [
+          "queued 2026-11-03T17:22:38-03:00: openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir /home/majac/curso/qpsk-rrc-filter-time-frequency/.build/ppa/closure-check/T-S4P1-base-synth --to Yosys.Synthesis -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc -c SYNTH_PARAMETERS=PIPELINE_DEPTH=1\\,SYSTOLIC_PES=4 /home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/time_opt/config.json ",
+          "lock acquired 2026-11-03T17:22:38-03:00",
+          "exit 0 after 47 s at 2026-11-03T17:23:25-03:00"
+        ],
+        "peak_rss_kib": 586908,
+        "wall_clock": "0:47.25"
+      },
+      "results": {
+        "synthesis_cells": 6492,
+        "synthesis_area_um2": 73270.272
+      },
+      "files": {
+        "final/metrics.json": {
+          "sha256": "cfe360d01fec98179f34ea3ea315582d418a20333b4667eca5db5896f484135f",
+          "source": "final/metrics.json",
+          "source_sha256": "cfe360d01fec98179f34ea3ea315582d418a20333b4667eca5db5896f484135f",
+          "transform": "verbatim"
+        },
+        "openlane-error.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source": "error.log",
+          "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "transform": "verbatim"
+        },
+        "openlane-flow.log": {
+          "sha256": "956c945398106415c35109af2cbc14d5548b81f5887163a547cc1c4586ad8b64",
+          "source": "flow.log",
+          "source_sha256": "956c945398106415c35109af2cbc14d5548b81f5887163a547cc1c4586ad8b64",
+          "transform": "verbatim"
+        },
+        "openlane-warning.log": {
+          "sha256": "7040fa3dfd1aa768b707ea47377de52729c8afbacbfac1a7c3bfb7f0841ca692",
+          "source": "warning.log",
+          "source_sha256": "7040fa3dfd1aa768b707ea47377de52729c8afbacbfac1a7c3bfb7f0841ca692",
+          "transform": "verbatim"
+        },
+        "resolved.json": {
+          "sha256": "a13b391a42af3f16d19178d55b3f2dae0ea56179ef1ca632dac09c8b7420d5ae",
+          "source": "resolved.json",
+          "source_sha256": "a13b391a42af3f16d19178d55b3f2dae0ea56179ef1ca632dac09c8b7420d5ae",
+          "transform": "verbatim"
+        },
+        "yosys-synthesis/stat.rpt": {
+          "sha256": "5ee3f07ba89c00fde947d9cd37b995e347e92d5b9ccd7af719ecbc7513b196c5",
+          "source": "06-yosys-synthesis/reports/stat.rpt",
+          "source_sha256": "5ee3f07ba89c00fde947d9cd37b995e347e92d5b9ccd7af719ecbc7513b196c5",
+          "transform": "verbatim"
+        }
+      }
+    },
+    "verify/T-S8P1-base-synth": {
+      "label": "verification synthesis",
+      "row": "T-S8P1 (CAST_REGISTER=0, the default) with this PR's RTL",
+      "top": "time_opt_filter",
+      "conditions": "T41 conditions, --to Yosys.Synthesis, run from the main checkout",
+      "outcome": "exit 0; the netlist differs from main's (7173 vs 7179 cells, 78930.7 vs 78520.3 um2); main's RTL, synthesized the same day, reproduces the T41 netlist sha256 159e313cde0a9d53... byte for byte",
+      "rtl": "this PR",
+      "netlist_check": "differs from the T41 T-S8P1 FAST synthesis (main's RTL)",
+      "synthesis_netlist_sha256": "b85eb9175b5ee40c6a592941926c828ecfb3c282f8d8a3a668b1dda61c1be5bf",
+      "command": {
+        "log": [
+          "queued 2026-11-03T17:23:25-03:00: openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir /home/majac/curso/qpsk-rrc-filter-time-frequency/.build/ppa/closure-check/T-S8P1-base-synth --to Yosys.Synthesis -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc -c SYNTH_PARAMETERS=PIPELINE_DEPTH=1\\,SYSTOLIC_PES=8 /home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/time_opt/config.json ",
+          "lock acquired 2026-11-03T17:23:25-03:00",
+          "exit 0 after 40 s at 2026-11-03T17:24:05-03:00"
+        ],
+        "peak_rss_kib": 593000,
+        "wall_clock": "0:39.55"
+      },
+      "results": {
+        "synthesis_cells": 7173,
+        "synthesis_area_um2": 78930.7008
+      },
+      "files": {
+        "final/metrics.json": {
+          "sha256": "a9bc64c592f89289666107571b4be10a63751886c1cb06669bf26ef7689bb130",
+          "source": "final/metrics.json",
+          "source_sha256": "a9bc64c592f89289666107571b4be10a63751886c1cb06669bf26ef7689bb130",
+          "transform": "verbatim"
+        },
+        "openlane-error.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source": "error.log",
+          "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "transform": "verbatim"
+        },
+        "openlane-flow.log": {
+          "sha256": "3a532e4c8c6ec054e1363b54912e009017870a1fca1e523b3b4d3fb8ccb55b62",
+          "source": "flow.log",
+          "source_sha256": "3a532e4c8c6ec054e1363b54912e009017870a1fca1e523b3b4d3fb8ccb55b62",
+          "transform": "verbatim"
+        },
+        "openlane-warning.log": {
+          "sha256": "7040fa3dfd1aa768b707ea47377de52729c8afbacbfac1a7c3bfb7f0841ca692",
+          "source": "warning.log",
+          "source_sha256": "7040fa3dfd1aa768b707ea47377de52729c8afbacbfac1a7c3bfb7f0841ca692",
+          "transform": "verbatim"
+        },
+        "resolved.json": {
+          "sha256": "7e9c855dd958b14cb7254e27f89587ed75a5f92bfc055f4b1be8dcfca66a8293",
+          "source": "resolved.json",
+          "source_sha256": "7e9c855dd958b14cb7254e27f89587ed75a5f92bfc055f4b1be8dcfca66a8293",
+          "transform": "verbatim"
+        },
+        "yosys-synthesis/stat.rpt": {
+          "sha256": "84510ea7ab209f93fce8937e0096ea0d4c45e589e82a1329ed193ebd5dda2bf4",
+          "source": "06-yosys-synthesis/reports/stat.rpt",
+          "source_sha256": "84510ea7ab209f93fce8937e0096ea0d4c45e589e82a1329ed193ebd5dda2bf4",
+          "transform": "verbatim"
+        }
+      }
+    },
+    "time/T-S8P1-C-fast": {
+      "label": "table conditions (run only, not collected)",
+      "row": "T-S8P1-C (T-S8P1 with CAST_REGISTER=1)",
+      "top": "time_opt_filter",
+      "conditions": "table conditions (ppa_stage run with an in-memory row)",
+      "outcome": "exit 0, final/ written; no ppa_stage collect: no F3 metadata, gate-level matching or power",
+      "rtl": "this PR (time_opt_filter.sv unchanged since the run)",
+      "netlist_check": "not rerun",
+      "synthesis_netlist_sha256": "3f67eb9fe4a1ddeeb3f25f98b907e36afa587c75a8b579bb854df829fe0c1f10",
+      "results": {
+        "post_route_setup_ws_ns": {
+          "nom_tt_025C_1v80": 1.9741,
+          "min_tt_025C_1v80": 2.0745,
+          "max_tt_025C_1v80": 1.8575
+        },
+        "post_route_hold_ws_ns": {
+          "nom_tt_025C_1v80": 0.3572,
+          "min_tt_025C_1v80": 0.3564,
+          "max_tt_025C_1v80": 0.3584
+        },
+        "post_route_setup_violators": {
+          "nom_tt_025C_1v80": 0,
+          "min_tt_025C_1v80": 0,
+          "max_tt_025C_1v80": 0
+        },
+        "route_drc_errors": 0,
+        "magic_drc_errors": 0,
+        "klayout_drc_errors": 0,
+        "lvs_errors": 0,
+        "antenna_violating_nets": 2,
+        "instance_area_um2": 83911.7,
+        "mid_pnr_setup_ws_nom_tt_ns": {
+          "openroad-stamidpnr": -3.9234,
+          "openroad-stamidpnr-1": 1.6148,
+          "openroad-stamidpnr-2": 2.3507,
+          "openroad-stamidpnr-3": 2.1789
+        },
+        "detailed_routing_violations_per_iteration": [
+          2722,
+          1081,
+          969,
+          36,
+          0
+        ],
+        "synthesis_cells": 7207,
+        "synthesis_area_um2": 79677.6672
+      },
+      "files": {
+        "final/metrics.json": {
+          "sha256": "e042269704c0f5d2ca6697fa90922d6fea3249c55d786cb00f2f3b0f1adb802e",
+          "source": "final/metrics.json",
+          "source_sha256": "e042269704c0f5d2ca6697fa90922d6fea3249c55d786cb00f2f3b0f1adb802e",
+          "transform": "verbatim"
+        },
+        "misc-reportmanufacturability/manufacturability.rpt": {
+          "sha256": "df1911f48812122187c21f87a7f91df5f19d4e009d2fa9a3bd77bf9a315af3b9",
+          "source": "74-misc-reportmanufacturability/manufacturability.rpt",
+          "source_sha256": "df1911f48812122187c21f87a7f91df5f19d4e009d2fa9a3bd77bf9a315af3b9",
+          "transform": "verbatim"
+        },
+        "openlane-error.log": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source": "error.log",
+          "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "transform": "verbatim"
+        },
+        "openlane-flow.log": {
+          "sha256": "56b3efd6192c1b64db70a0502b381402734848526122130ce0b79da079d2ce8e",
+          "source": "flow.log",
+          "source_sha256": "56b3efd6192c1b64db70a0502b381402734848526122130ce0b79da079d2ce8e",
+          "transform": "verbatim"
+        },
+        "openlane-warning.log": {
+          "sha256": "1c93a8afa9af5b3e068fbc179920da18e963f1f61170f787fbe36a9c7cd668f7",
+          "source": "warning.log",
+          "source_sha256": "1c93a8afa9af5b3e068fbc179920da18e963f1f61170f787fbe36a9c7cd668f7",
+          "transform": "verbatim"
+        },
+        "openroad-checkantennas/antenna_summary.rpt": {
+          "sha256": "7f887d8d421b9d469cba89deb251dc7c01d8c54268bbcf115b1d6e1f191683ae",
+          "source": "45-openroad-checkantennas-1/reports/antenna_summary.rpt",
+          "source_sha256": "7f887d8d421b9d469cba89deb251dc7c01d8c54268bbcf115b1d6e1f191683ae",
+          "transform": "verbatim"
+        },
+        "openroad-detailedrouting/metrics.json": {
+          "sha256": "adebc97b4505f0ca5ef65bd9978865c70b735cfe47b848ca2d566382ae0b3d66",
+          "source": "43-openroad-detailedrouting/or_metrics_out.json",
+          "source_sha256": "adebc97b4505f0ca5ef65bd9978865c70b735cfe47b848ca2d566382ae0b3d66",
+          "transform": "verbatim"
+        },
+        "openroad-globalrouting/metrics.json": {
+          "sha256": "4e6245c1bebb733bd98ee493af58187e15a45996c83bc21b632aecc02fedfe63",
+          "source": "38-openroad-globalrouting/or_metrics_out.json",
+          "source_sha256": "4e6245c1bebb733bd98ee493af58187e15a45996c83bc21b632aecc02fedfe63",
+          "transform": "verbatim"
+        },
+        "openroad-globalrouting/openroad-globalrouting.log": {
+          "sha256": "6427611a65f2f0b74bd8e210d22bdd8ec18ea45f5b39853c0e0910fc50825030",
+          "source": "38-openroad-globalrouting/openroad-globalrouting.log",
+          "source_sha256": "6427611a65f2f0b74bd8e210d22bdd8ec18ea45f5b39853c0e0910fc50825030",
+          "transform": "verbatim"
+        },
+        "openroad-stamidpnr-1/metrics.json": {
+          "sha256": "a6df7c3b99020cc230529841bbccb8d6b364fbd6cf1ffa3c259c0d1581f751d9",
+          "source": "35-openroad-stamidpnr-1/or_metrics_out.json",
+          "source_sha256": "a6df7c3b99020cc230529841bbccb8d6b364fbd6cf1ffa3c259c0d1581f751d9",
+          "transform": "verbatim"
+        },
+        "openroad-stamidpnr-2/metrics.json": {
+          "sha256": "2d17fa197fbf37c3ca980625749648f03007e73ad63e251238545218eb43a91d",
+          "source": "37-openroad-stamidpnr-2/or_metrics_out.json",
+          "source_sha256": "2d17fa197fbf37c3ca980625749648f03007e73ad63e251238545218eb43a91d",
+          "transform": "verbatim"
+        },
+        "openroad-stamidpnr-3/max.rpt.gz": {
+          "sha256": "405994f98dbc144f35a49b5031affb02569e20fca07e9ff769a94885a2e0b998",
+          "source": "42-openroad-stamidpnr-3/max.rpt",
+          "source_sha256": "93fa6c5e3e000ef0b9040a1aad852b3fb980b2d6d86ff66fc1b71b32d559c862",
+          "transform": "gzip"
+        },
+        "openroad-stamidpnr-3/metrics.json": {
+          "sha256": "f8fbac27dfb16e49cbd48a927d358684a73bd3ac64a95903f670f5bddf447a0f",
+          "source": "42-openroad-stamidpnr-3/or_metrics_out.json",
+          "source_sha256": "f8fbac27dfb16e49cbd48a927d358684a73bd3ac64a95903f670f5bddf447a0f",
+          "transform": "verbatim"
+        },
+        "openroad-stamidpnr/metrics.json": {
+          "sha256": "d168849e09efdd3e6114068bfb39336ed1a5f05a1218466ed8fd74e2af6e4dca",
+          "source": "30-openroad-stamidpnr/or_metrics_out.json",
+          "source_sha256": "d168849e09efdd3e6114068bfb39336ed1a5f05a1218466ed8fd74e2af6e4dca",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/max_tt_025C_1v80/checks.rpt": {
+          "sha256": "e5b615d8c454e2aa6a101a728390cc9bf5c4ae0cdab4318196a127c76fbeb7f0",
+          "source": "54-openroad-stapostpnr/max_tt_025C_1v80/checks.rpt",
+          "source_sha256": "e5b615d8c454e2aa6a101a728390cc9bf5c4ae0cdab4318196a127c76fbeb7f0",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/max_tt_025C_1v80/max.rpt.gz": {
+          "sha256": "545867be0a2b071a7f2f9aa06ddbc5ccbbb76564169bd26908f0cdb998a7b63a",
+          "source": "54-openroad-stapostpnr/max_tt_025C_1v80/max.rpt",
+          "source_sha256": "108d7d32a283db02c25ce01bf3eadb4c85d85c9fcdf5e039e18611c34edb6ea7",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/max_tt_025C_1v80/min.rpt.gz": {
+          "sha256": "ad952dcf7d693837b70a9012e9ab441b3a6870b6951fc7782853bea66fecaa0e",
+          "source": "54-openroad-stapostpnr/max_tt_025C_1v80/min.rpt",
+          "source_sha256": "217869442230f665abeef6c2dcaf69a237a12ac32cf8691d17e2e428fcb1dc1b",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/max_tt_025C_1v80/violator_list.rpt": {
+          "sha256": "ad509148993d884e4fbf3729f30640d97ff8d99713fef0ad5813096f1f83b9d7",
+          "source": "54-openroad-stapostpnr/max_tt_025C_1v80/violator_list.rpt",
+          "source_sha256": "ad509148993d884e4fbf3729f30640d97ff8d99713fef0ad5813096f1f83b9d7",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/min_tt_025C_1v80/checks.rpt": {
+          "sha256": "d53e866a49cec53e15af56d597a7cf1a8a1ac3c2c27edd054ae167d95a9b1fd5",
+          "source": "54-openroad-stapostpnr/min_tt_025C_1v80/checks.rpt",
+          "source_sha256": "d53e866a49cec53e15af56d597a7cf1a8a1ac3c2c27edd054ae167d95a9b1fd5",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/min_tt_025C_1v80/max.rpt.gz": {
+          "sha256": "f56120f250577b7f191ae622776f293b2dee71d5e6127d19dd4b7be7faf5cbbb",
+          "source": "54-openroad-stapostpnr/min_tt_025C_1v80/max.rpt",
+          "source_sha256": "03448efd3f7102d07eea631edb3b6fda1cfd2787d4458a1b24850b6a783a43fd",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/min_tt_025C_1v80/min.rpt.gz": {
+          "sha256": "e310ad9ca793085c28cb2d0c393cb320e6dae63cbe2e272dca94617981a1afd6",
+          "source": "54-openroad-stapostpnr/min_tt_025C_1v80/min.rpt",
+          "source_sha256": "3aa6408bcc97df3dc34ab259e9427f479218be7c07b9f499a37bbe61e556df1b",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/min_tt_025C_1v80/violator_list.rpt": {
+          "sha256": "ad509148993d884e4fbf3729f30640d97ff8d99713fef0ad5813096f1f83b9d7",
+          "source": "54-openroad-stapostpnr/min_tt_025C_1v80/violator_list.rpt",
+          "source_sha256": "ad509148993d884e4fbf3729f30640d97ff8d99713fef0ad5813096f1f83b9d7",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/nom_tt_025C_1v80/checks.rpt": {
+          "sha256": "09f558ec949d554d3fee29747900e70129138ec018a93156ed1e826ee04d5187",
+          "source": "54-openroad-stapostpnr/nom_tt_025C_1v80/checks.rpt",
+          "source_sha256": "09f558ec949d554d3fee29747900e70129138ec018a93156ed1e826ee04d5187",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/nom_tt_025C_1v80/max.rpt.gz": {
+          "sha256": "34262b0f0419ee2046a7d2c9bd6a10c3c9d85b5cdffd505d573a347a4c57fcb9",
+          "source": "54-openroad-stapostpnr/nom_tt_025C_1v80/max.rpt",
+          "source_sha256": "c5a557c9dafe8679db36029325c169b00f213c349681bafcb7d579e2b3217d18",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/nom_tt_025C_1v80/min.rpt.gz": {
+          "sha256": "ef0691bc1e650a129126d21b7f32639ac90b9afbfd1784ff3cab8d9f37686f78",
+          "source": "54-openroad-stapostpnr/nom_tt_025C_1v80/min.rpt",
+          "source_sha256": "fdd8a44e7d9f84e8b83939098f360c0b704cdcb3787959b2bbd331328efb7052",
+          "transform": "gzip"
+        },
+        "openroad-stapostpnr/nom_tt_025C_1v80/violator_list.rpt": {
+          "sha256": "ad509148993d884e4fbf3729f30640d97ff8d99713fef0ad5813096f1f83b9d7",
+          "source": "54-openroad-stapostpnr/nom_tt_025C_1v80/violator_list.rpt",
+          "source_sha256": "ad509148993d884e4fbf3729f30640d97ff8d99713fef0ad5813096f1f83b9d7",
+          "transform": "verbatim"
+        },
+        "openroad-stapostpnr/summary.rpt": {
+          "sha256": "b90b09fd9b1147085ca5d7e26bc23c3e68df2ee990971a8274d92061cd3caeee",
+          "source": "54-openroad-stapostpnr/summary.rpt",
+          "source_sha256": "b90b09fd9b1147085ca5d7e26bc23c3e68df2ee990971a8274d92061cd3caeee",
+          "transform": "verbatim"
+        },
+        "resolved.json": {
+          "sha256": "6721c60df50066906b476b0a44edea9f051405468df9cd9f209fd9e17956354c",
+          "source": "resolved.json",
+          "source_sha256": "6721c60df50066906b476b0a44edea9f051405468df9cd9f209fd9e17956354c",
+          "transform": "verbatim"
+        },
+        "run.json": {
+          "sha256": "c9d0d798d6e7e999a09006792113d6c6660a548209cce4cb6fd236afd69d0f19",
+          "source": "run.json (ppa_stage run record)",
+          "source_sha256": "c9d0d798d6e7e999a09006792113d6c6660a548209cce4cb6fd236afd69d0f19",
+          "transform": "verbatim"
+        },
+        "yosys-synthesis/stat.rpt": {
+          "sha256": "f437c70d384ae709c50daa22313681ac1e66e247135cb67bfcabf416aeabbe64",
+          "source": "06-yosys-synthesis/reports/stat.rpt",
+          "source_sha256": "f437c70d384ae709c50daa22313681ac1e66e247135cb67bfcabf416aeabbe64",
+          "transform": "verbatim"
+        }
+      }
+    }
+  },
+  "analysis": {
+    "routing-demand estimate (RUDY)": {
+      "script": "analysis/rudy.py",
+      "note": "an estimate from the placement after the post-CTS resizer, 20 um bins; the global router's overflow is the measurement",
+      "outputs": {
+        "analysis/rudy_A-proxy-U1-E3-fast.txt": {
+          "run": "freq/A-proxy-U1-E3-fast",
+          "input": "36-openroad-resizertimingpostcts/freq_proxy_filter.def of that run (placed design after the post-CTS resizer, not published)",
+          "input_sha256": "f21e75c180111d17bee4ac97490c97257af7a3040ea1b273c6ceae27e43ac86e",
+          "command": "python3 analysis/rudy.py <that DEF>  (20 um bins)",
+          "output_sha256": "28a92c35414184fb98f7ade88f238e37825a6271e58215973fe38d96baf8d106"
+        },
+        "analysis/rudy_C-F-U4-E3S-fast.txt": {
+          "run": "freq/C-F-U4-E3S-fast",
+          "input": "36-openroad-resizertimingpostcts/freq_opt_filter.def of that run (placed design after the post-CTS resizer, not published)",
+          "input_sha256": "b01fa945ecf623f84c5e160b0a77493ac8aec3a2ccabd63fc7b6f7b57c67413f",
+          "command": "python3 analysis/rudy.py <that DEF>  (20 um bins)",
+          "output_sha256": "05bc93ac50981879295cb5708fe06fc103fa6ea09d93d880671176e339b5e409"
+        },
+        "analysis/rudy_D-F-U4-E3S-u50-fast.txt": {
+          "run": "freq/D-F-U4-E3S-u50-fast",
+          "input": "36-openroad-resizertimingpostcts/freq_opt_filter.def of that run (placed design after the post-CTS resizer, not published)",
+          "input_sha256": "e18dc9f1bc0c28cdcfa74ff05511b927077016066da5a6b33f06d40b4bb04c5d",
+          "command": "python3 analysis/rudy.py <that DEF>  (20 um bins)",
+          "output_sha256": "ebc4e87df7fc27ab3bc99fae68846d6a553c6aa8eb2f09ecd213eea3605a6841"
+        }
+      }
+    }
+  }
+}
