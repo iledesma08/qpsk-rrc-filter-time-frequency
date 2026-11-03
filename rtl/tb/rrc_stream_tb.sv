@@ -383,13 +383,16 @@ module rrc_stream_tb;
     end
 `ifdef FREQ_ENGINE_DUT
     // Optional +vcd_file=<path>: dump the ports and the engine control state over the whole
-    // unstalled run (all blocks). Not the full-design activity file of T43.
+    // unstalled run (all blocks). Not the full-design activity file of T43. The control signals are
+    // RTL hierarchy: the flattened netlist of a target run has none, so it uses +activity_vcd instead.
+`ifndef GATE_LEVEL
     if ($value$plusargs("vcd_file=%s", vcd_file)) begin
       $dumpfile(vcd_file);
       $dumpvars(0, clk, rst_n, valid_i, ready_o, sample_i, valid_o, ready_i, sample_o,
                 dut.datapath.engine.state, dut.datapath.engine.cnt, dut.datapath.engine.pass,
                 dut.datapath.engine.step, dut.datapath.engine.emit_idx);
     end
+`endif
 `endif
     run_frame(1'b0);
 `ifdef FREQ_ENGINE_DUT

@@ -14,12 +14,12 @@ Conditions: OpenLane 2.3.10 Classic, sky130A / sky130_fd_sc_hd, canonical #15 fr
 | T-S4P1-FAST | main | FAIL: timing violated (setup WS -0.560 ns) | 71,702.5 | 0.539 | -0.560 | 94.7 | 2 | 50.00 | 697.3 | 9.72 | 0.194 | 1 (1.13, met1) |
 | T-S8P1-SLOW | secondary | **pass** ¹ | 69,870.8 | 0.493 | +88.980 | 90.7 | 1 | 10.00 | 143.1 | 0.87 | 0.087 | 3 (1.72, met1) |
 | T-S8P1-FAST | main | **pass** | 72,927.4 | 0.514 | +0.023 | 100.2 | 1 | 100.00 | 1,371.2 | 8.88 | 0.089 | 0 |
-| F-serial-SLOW | main | pending | — | — | — | — | — | — | — | — | — | — |
-| F-serial-FAST | secondary | pending | — | — | — | — | — | — | — | — | — | — |
-| F-U4-SLOW | secondary | pending | — | — | — | — | — | — | — | — | — | — |
-| F-U4-FAST | main | pending | — | — | — | — | — | — | — | — | — | — |
-| F-U8-SLOW | secondary | pending | — | — | — | — | — | — | — | — | — | — |
-| F-U8-FAST | main | pending | — | — | — | — | — | — | — | — | — | — |
+| F-serial-SLOW | main | FAIL: antenna 117 nets, max ratio 5.13 over the amendment bound | 314,206.0 | 0.526 | +80.872 | 52.3 | 107 | 0.75 | 2.4 | 3.60 | 4.820 | 117 (5.13, met1,met2,met3,met4) |
+| F-serial-FAST | secondary | FAIL: antenna 129 nets, max ratio 6.17 over the amendment bound; timing violated (setup WS -7.752 ns) | 317,850.0 | 0.532 | -7.752 | 56.3 | 107 | 7.48 | 23.5 | 36.48 | 4.879 | 129 (6.17, met1,met2,met3,met4) |
+| F-U4-SLOW | secondary | unrun | — | — | — | — | — | — | — | — | — | — |
+| F-U4-FAST | main | unrun | — | — | — | — | — | — | — | — | — | — |
+| F-U8-SLOW | secondary | unrun | — | — | — | — | — | — | — | — | — | — |
+| F-U8-FAST | main | unrun | — | — | — | — | — | — | — | — | — | — |
 
 ¹ Passes physical signoff under the antenna amendment: residual post-route nets ≤ 3, ratio ≤ 1.72. The nets stay reported in each run's `evidence_manifest.json`.
 
@@ -53,9 +53,9 @@ Cross-target runs never share a front.
 - T-serial-SLOW: met
 - T-S4P1-FAST: FAILED
 - T-S8P1-FAST: met
-- F-serial-SLOW: pending
-- F-U4-FAST: pending
-- F-U8-FAST: pending
+- F-serial-SLOW: FAILED
+- F-U4-FAST: unrun
+- F-U8-FAST: unrun
 
 ## Delivery evidence (D7: one improved axis per domain)
 
