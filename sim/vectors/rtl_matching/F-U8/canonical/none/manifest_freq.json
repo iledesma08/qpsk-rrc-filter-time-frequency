@@ -37,15 +37,15 @@
     "samples_dtype": "<c16"
   },
   "hashes": {
-    "coefficient_table_sha256": "741e6c12a41042d53affe17a369afdd9a3441036fbcc823b9082646f35ef588e",
+    "coefficient_table_sha256": "d70bc231aa281f1a02b99052a4f0ade9cfc6fe46d2954d5527831e98d1430324",
     "expected_hex_sha256": "6e17aab73e5cca9c22d4a167a9d0f1b0ee656450f1783a1bbba9a0b3edc0aa51",
-    "f1_manifest_sha256": "f632f1d751795de41bceb3ff92e22781bb44216c078f4357276ed8f68ad2aec0",
-    "fxp_expected_manifest_sha256": "f330a13c64643fd180c1381b4dd0a2cff07e681229852527a09087505faee8ab",
+    "f1_manifest_sha256": "428ef3fd7b389b10a61ec917c741b858ecf839159e1fe9a815a00ff5391336b5",
+    "fxp_expected_manifest_sha256": "6e08d004612040721aaad42d391b6e9b1bdc4b9a9135134fd8e705da3bc95b3f",
     "input_codes_sha256": "68e95c6b8d6a79013cf88e4a57a5fb5cce741d6b4b161c2d7b8396bf58759fb9",
     "input_hex_sha256": "20944e8726af4412334af3f52c84414b29372a8cff4e57f18cd4580d9e6077ee",
     "output_codes_sha256": "202312fc748c3a77c27fa31f89f7f85d9d725c41a521afefcd0e994714e80752",
     "rrc8_manifest_sha256": "9cc340c2ec210ec2648231f365a664bdafcb4ea1d3dde4c63bb735fa6e0e7a22",
-    "t21_evidence_sha256": "41c76aa20e853bc1b7c06951c32dd87da42c410c01a7926185a32fc0e849830c",
+    "t21_evidence_sha256": "a3b6d67e859f64c6f1d5aad5b37eb3b54f975f3693dbc81aa02844b402d9fc84",
     "vector_manifest_svh_sha256": "2e98184c1d5e388a05be26c659e37bf17464f5a2883706ad3dfc0ddb8dfc7227"
   },
   "ifft_scale": "divide_by_16_then_cast_to_Q2.14",
@@ -74,7 +74,7 @@
   "provenance": {
     "generator": "sim/python/gen_vectors.py",
     "source_sha256": {
-      "gen_vectors.py": "a495747438790aaa1143258db52eb68fafa30d3fb71d0fec3a3b4a2bd40c9b8b"
+      "gen_vectors.py": "bae92886fea7e98e220402460f292340e42657d96adae017878f75db383b0b89"
     }
   },
   "random_seed": 2026,

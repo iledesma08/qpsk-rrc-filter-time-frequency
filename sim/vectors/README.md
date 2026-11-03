@@ -104,12 +104,15 @@ python sim/python/gen_vectors.py --stage rtl_matching --variant T-S4P1-C --outpu
 python sim/python/gen_vectors.py --stage rtl_matching --variant F-serial --output-dir sim/vectors
 python sim/python/gen_vectors.py --stage rtl_matching --variant F-U4 --output-dir sim/vectors
 python sim/python/gen_vectors.py --stage rtl_matching --variant F-U8 --output-dir sim/vectors
+python sim/python/gen_vectors.py --stage rtl_matching --variant F-U4-E3S --output-dir sim/vectors
+python sim/python/gen_vectors.py --stage rtl_matching --variant F-U8-E3S --output-dir sim/vectors
 ```
 
 `T-serial` (T31, #48), `T-S4P1` and `T-S8P1` (T40, #51), `F-serial` (T33, #50) and
-`F-U4`/`F-U8` (T42, #53) are implemented: the whole base matrix. `T-S4P1-C` (#55)
-is the proposed timing-closure variant of `T-S4P1`, not a base row. The extension rows
-(`F-U2`, `F-F2`) refuse instead of guessing their data.
+`F-U4`/`F-U8` (T42, #53) are implemented: the whole base matrix. `T-S4P1-C` is the
+proposed timing-closure variant of `T-S4P1`, and `F-U4-E3S` and `F-U8-E3S` are the
+proposed FAST variants of `F-U4`/`F-U8` (#91, follow-up of T44 #55); none of them is a
+base row. The extension rows (`F-U2`, `F-F2`) refuse instead of guessing their data.
 
 Layout: `rtl_matching/<variant_id>/<vector_set>/<vector_case>/`, metadata only:
 
@@ -128,7 +131,11 @@ Layout: `rtl_matching/<variant_id>/<vector_set>/<vector_case>/`, metadata only:
   `F-U4` and 29 / 19 for `F-U8` (RUN is `80/U + 9` cycles). `F-U4`/`F-U8` are two
   rows of one RTL source (`rtl_variant: freq_opt`); their manifests add
   `rtl_parameters {"U": 4|8}`, which the runner turns into `--lanes`, and bind
-  the same payloads as `F-serial`, since the three are bit-exact.
+  the same payloads as `F-serial`, since the three are bit-exact. `F-U4-E3S` and
+  `F-U8-E3S` (#55) are the same source with `rtl_parameters {"U": 4|8,
+  "EXEC_STAGES": 3, "SPARSE_PORTS": 1}` (`--exec-stages`, `--sparse-ports`):
+  57 / 47 and 47 / 37 cycles (RUN is `80/U + 9L` with `L` execute cycles per
+  lane), the same payloads again.
 - `T-S4P1`/`T-S8P1` are two rows of one RTL source (`rtl_variant: time_opt`).
   Their manifests add `rtl_parameters` (`SYSTOLIC_PES` 4 or 8,
   `PIPELINE_DEPTH` 1), which the runner turns into the module parameters. It

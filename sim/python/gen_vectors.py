@@ -124,8 +124,8 @@ _SVH_FIELDS = (
 # latency_* is the variant's declared design latency. The matching testbench
 # asserts it in the unstalled ready_i=1 run, so a wrong value fails matching.
 # rtl_parameters names the matrix row of a parameterized RTL source (T40: one
-# time_opt_filter for T-S4P1/T-S8P1; T42: one freq_opt_filter for F-U4/F-U8); the
-# runner passes it to the testbench.
+# time_opt_filter for T-S4P1/T-S8P1; T42: one freq_opt_filter for F-U4/F-U8, and
+# #55 its FAST variants F-U4-E3S/F-U8-E3S); the runner passes it to the testbench.
 # It stays out of the .svh and never uses the legacy name "S".
 _RTL_VARIANTS = {
     "F-serial": {
@@ -158,6 +158,25 @@ _RTL_VARIANTS = {
             "evidence_file": f"sim/python/artifacts/t42-freq-opt-matching/{variant_id}/evidence_manifest.json",
         }
         for variant_id, lanes in (("F-U4", 4), ("F-U8", 8))
+    },
+    # #55: the FAST variants of F-U4/F-U8, the same source with EXEC_STAGES execute cycles per lane (the base
+    # rows have 1) and the sparse work-buffer ports (SPARSE_PORTS=1, which changes no cycle). A pass drains for
+    # EXEC_STAGES cycles, so it takes 8/U + EXEC_STAGES cycles (16/U + EXEC_STAGES for the product) and RUN is
+    # 80/U + 9 * EXEC_STAGES (47 and 37 at EXEC_STAGES=3); the first output still follows the accept edge by
+    # RUN + 10.
+    **{
+        f"F-U{lanes}-E{stages}S": {
+            "model_domain": "frequency",
+            "rtl_variant": "freq_opt",
+            "rtl_parameters": {"U": lanes, "EXEC_STAGES": stages, "SPARSE_PORTS": 1},
+            "SPC": 1,
+            "latency_samples": 0,
+            "latency_cycles": 80 // lanes + 9 * stages + 10,
+            "fft_pipeline_cycles": 80 // lanes + 9 * stages,
+            "flush_samples": 8,
+            "evidence_file": f"sim/python/artifacts/t42-freq-opt-matching/F-U{lanes}-E{stages}S/evidence_manifest.json",
+        }
+        for lanes, stages in ((4, 3), (8, 3))
     },
     "T-serial": {
         "model_domain": "time",
