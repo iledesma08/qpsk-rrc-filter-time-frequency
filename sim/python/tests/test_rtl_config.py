@@ -222,6 +222,57 @@ def test_freq_opt_rejects_a_lane_count_that_is_not_a_base_row(tmp_path, lanes):
     assert "UNSUPPORTED ROW SURVIVED" not in result.stdout
 
 
+# #55: freq_opt runs one (base rows), two or three execute cycles per lane.
+@pytest.mark.parametrize("stages", [0, 4, -1])
+def test_freq_opt_rejects_an_execute_depth_it_does_not_implement(tmp_path, stages):
+    result = simulate(tmp_path, f"""
+  freq_opt_filter #(.U(4), .EXEC_STAGES({stages})) dut (
+    .clk(1'b0), .rst_n(1'b0), .valid_i(1'b0), .ready_o(),
+    .sample_i('0), .valid_o(), .ready_i(1'b0), .sample_o());
+  initial begin #1; $display("UNSUPPORTED DEPTH SURVIVED"); $finish; end
+""", "freq_opt")
+    assert result.returncode != 0, "depth survived: " + result.stdout
+    assert "only EXEC_STAGES in {1, 2, 3} is implemented" in result.stdout
+    assert "Time: 0" in result.stdout
+    assert "UNSUPPORTED DEPTH SURVIVED" not in result.stdout
+
+
+@pytest.mark.parametrize("sparse", [2, -1])
+def test_freq_opt_rejects_a_sparse_ports_value_that_is_not_a_bit(tmp_path, sparse):
+    result = simulate(tmp_path, f"""
+  freq_opt_filter #(.U(8), .EXEC_STAGES(3), .SPARSE_PORTS({sparse})) dut (
+    .clk(1'b0), .rst_n(1'b0), .valid_i(1'b0), .ready_o(),
+    .sample_i('0), .valid_o(), .ready_i(1'b0), .sample_o());
+  initial begin #1; $display("UNSUPPORTED PORTS SURVIVED"); $finish; end
+""", "freq_opt")
+    assert result.returncode != 0, "ports survived: " + result.stdout
+    assert "SPARSE_PORTS is 0 or 1" in result.stdout
+    assert "Time: 0" in result.stdout
+    assert "UNSUPPORTED PORTS SURVIVED" not in result.stdout
+
+
+# The runner names a variant's depth (>= 2) and sparse ports (1) only when given, and only for freq_opt.
+_ONLY_FREQ_OPT = "--lanes, --exec-stages and --sparse-ports apply only to freq_opt"
+
+
+@pytest.mark.parametrize("arguments,message", [
+    (("freq_opt", "--lanes", "4", "--exec-stages", "1"), "selects a pipelined variant (L >= 2)"),
+    (("freq_opt", "--lanes", "8", "--exec-stages", "x"), "selects a pipelined variant (L >= 2)"),
+    (("freq_opt", "--lanes", "8", "--exec-stages", "3", "--sparse-ports", "0"), "--sparse-ports 1 selects"),
+    (("freq_serial", "--exec-stages", "3"), _ONLY_FREQ_OPT),
+    (("freq_serial", "--sparse-ports", "1"), _ONLY_FREQ_OPT),
+    (("time_opt", "--systolic-pes", "4", "--exec-stages", "3"), _ONLY_FREQ_OPT),
+])
+def test_runner_rejects_an_execute_depth_outside_freq_opt_variants(tmp_path, arguments, message):
+    result = subprocess.run(
+        ["bash", str(ROOT / "rtl/run_variant.sh"), *arguments],
+        cwd=tmp_path, capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 2
+    assert message in result.stderr
+    assert not result.stdout
+
+
 def test_unknown_runner_variant_reports_error(tmp_path):
     result = subprocess.run(
         ["bash", str(ROOT / "rtl/run_variant.sh"), "unknown_config_variant"],

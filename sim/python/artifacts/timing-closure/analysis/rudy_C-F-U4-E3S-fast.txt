@@ -1,0 +1,30 @@
+die 1308 x 1319 um, grid 65x65 (20 um bins), mean RUDY 2.102 um/um2
+bins 4225: p50 2.12, p90 4.12, p99 5.06, max 5.57 um/um2
+  area with RUDY > 3 um/um2: 0.2917 mm2 (16.9 % of the die)
+  area with RUDY > 4 um/um2: 0.1875 mm2 (10.9 % of the die)
+  area with RUDY > 5 um/um2: 0.0257 mm2 (1.5 % of the die)
+top bins: RUDY/mean, bin (i,j), cells, groups of named cells
+   2.65x  (26,29)     30 cells  {'anonymous': 27, 'output': 2, 'X3 operand (product reg)': 1}
+   2.57x  (31,32)     40 cells  {'anonymous': 34, 'X1 select': 3, 'fetch regs': 2, 'work buffer': 1}
+   2.57x  (19,40)     33 cells  {'anonymous': 31, 'work buffer': 2}
+   2.57x  (27,38)     38 cells  {'anonymous': 35, 'work buffer': 2, 'fetch regs': 1}
+   2.56x  (33,34)     38 cells  {'anonymous': 37, 'work buffer': 1}
+   2.56x  (27,32)     43 cells  {'anonymous': 41, 'X2 multiply': 2}
+   2.53x  (30,30)     39 cells  {'anonymous': 35, 'X1 select': 3, 'X2 multiply': 1}
+   2.53x  (33,29)     28 cells  {'anonymous': 27, 'work buffer': 1}
+   2.52x  (30,28)     48 cells  {'anonymous': 45, 'work buffer': 2, 'X1 select': 1}
+   2.52x  (29,30)     38 cells  {'anonymous': 37, 'work buffer': 1}
+   2.50x  (37,41)     31 cells  {'anonymous': 26, 'work buffer': 5}
+   2.50x  (26,38)     35 cells  {'anonymous': 34, 'frame': 1}
+group centroids (bin units):
+  X1 select                       720 cells  centroid ( 31.4, 35.9)
+  X2 multiply                    1323 cells  centroid ( 33.5, 33.0)
+  X3 operand (product reg)        472 cells  centroid ( 34.7, 33.0)
+  fetch regs                      720 cells  centroid ( 30.9, 36.4)
+  frame                           512 cells  centroid ( 37.6, 40.0)
+  lane0 other                     102 cells  centroid ( 32.3, 46.7)
+  lane1 other                      98 cells  centroid ( 34.7, 31.6)
+  lane2 other                      98 cells  centroid ( 30.0, 26.0)
+  lane3 other                      95 cells  centroid ( 27.5, 36.1)
+  output                           36 cells  centroid ( 26.0, 23.1)
+  work buffer                    1440 cells  centroid ( 30.8, 34.6)

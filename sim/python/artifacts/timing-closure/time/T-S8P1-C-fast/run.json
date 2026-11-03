@@ -1,0 +1,43 @@
+{
+  "exit_code": 0,
+  "finished": "2026-11-03T00:30:23-03:00",
+  "machine": {
+    "cpus": 4,
+    "memory_gib": 7.8
+  },
+  "openlane_command": "openlane --pdk sky130A --scl sky130_fd_sc_hd --flow Classic --force-run-dir /home/majac/curso/qpsk-rrc-filter-time-frequency/.build/ppa/T-S8P1-C/fast/openlane -c CLOCK_PERIOD=10.0 -c PNR_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc -c SIGNOFF_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc -c SYNTH_PARAMETERS=CAST_REGISTER=1,PIPELINE_DEPTH=1,SYSTOLIC_PES=8 /home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/time_opt/config.json",
+  "overrides": [
+    "CLOCK_PERIOD=10.0",
+    "PNR_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc",
+    "SIGNOFF_SDC_FILE=/home/majac/curso/qpsk-rrc-filter-time-frequency/openlane/sdc/sky130_100MHz.sdc",
+    "SYNTH_PARAMETERS=CAST_REGISTER=1,PIPELINE_DEPTH=1,SYSTOLIC_PES=8"
+  ],
+  "resources": {
+    "peak_rss_mib": 1024.0,
+    "peak_rss_step": "31-openroad-repairdesignpostgpl",
+    "summed_step_runtime_s": 893.8
+  },
+  "row": "T-S8P1-C",
+  "run_tag": "T-S8P1-C-FAST",
+  "sizing": {
+    "FP_CORE_UTIL": 55,
+    "die_area_override": null,
+    "die_floor_um": [
+      200,
+      200
+    ],
+    "floor_applied": false,
+    "prepass_wall_time_s": 45.3,
+    "rule": "relative sizing at FP_CORE_UTIL; absolute max(sized, floor) per side under the PDN floor",
+    "sized_die_bbox_um": [
+      0.0,
+      0.0,
+      391.655,
+      402.375
+    ],
+    "sized_instance_utilization": 0.553974
+  },
+  "started": "2026-11-03T00:15:21-03:00",
+  "target": "FAST",
+  "wall_time_s": 939.2
+}

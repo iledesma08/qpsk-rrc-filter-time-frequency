@@ -25,6 +25,8 @@ VARIANTS = {
     "F-serial": (ROOT / "sim/python/artifacts/t33-freq-matching", "freq", "00000000\n"),
     "F-U4": (ROOT / "sim/python/artifacts/t42-freq-opt-matching/F-U4", "freq", "00000000\n"),
     "F-U8": (ROOT / "sim/python/artifacts/t42-freq-opt-matching/F-U8", "freq", "00000000\n"),
+    "F-U4-E3S": (ROOT / "sim/python/artifacts/t42-freq-opt-matching/F-U4-E3S", "freq", "00000000\n"),
+    "F-U8-E3S": (ROOT / "sim/python/artifacts/t42-freq-opt-matching/F-U8-E3S", "freq", "00000000\n"),
 }
 variants = pytest.mark.parametrize("variant", sorted(VARIANTS))
 

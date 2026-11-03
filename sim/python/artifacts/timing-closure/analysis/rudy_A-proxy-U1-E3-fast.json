@@ -1,0 +1,7 @@
+{
+  "run": "freq/A-proxy-U1-E3-fast",
+  "input": "36-openroad-resizertimingpostcts/freq_proxy_filter.def of that run (placed design after the post-CTS resizer, not published)",
+  "input_sha256": "f21e75c180111d17bee4ac97490c97257af7a3040ea1b273c6ceae27e43ac86e",
+  "command": "python3 analysis/rudy.py <that DEF>  (20 um bins)",
+  "output_sha256": "28a92c35414184fb98f7ade88f238e37825a6271e58215973fe38d96baf8d106"
+}

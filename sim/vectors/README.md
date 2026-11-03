@@ -100,14 +100,19 @@ Regenerate after F2, with the F2 frames already in the output directory
 python sim/python/gen_vectors.py --stage rtl_matching --variant T-serial --output-dir sim/vectors
 python sim/python/gen_vectors.py --stage rtl_matching --variant T-S4P1 --output-dir sim/vectors
 python sim/python/gen_vectors.py --stage rtl_matching --variant T-S8P1 --output-dir sim/vectors
+python sim/python/gen_vectors.py --stage rtl_matching --variant T-S4P1-C --output-dir sim/vectors
 python sim/python/gen_vectors.py --stage rtl_matching --variant F-serial --output-dir sim/vectors
 python sim/python/gen_vectors.py --stage rtl_matching --variant F-U4 --output-dir sim/vectors
 python sim/python/gen_vectors.py --stage rtl_matching --variant F-U8 --output-dir sim/vectors
+python sim/python/gen_vectors.py --stage rtl_matching --variant F-U4-E3S --output-dir sim/vectors
+python sim/python/gen_vectors.py --stage rtl_matching --variant F-U8-E3S --output-dir sim/vectors
 ```
 
 `T-serial` (T31, #48), `T-S4P1` and `T-S8P1` (T40, #51), `F-serial` (T33, #50) and
-`F-U4`/`F-U8` (T42, #53) are implemented: the whole base matrix. The extension rows
-(`F-U2`, `F-F2`) refuse instead of guessing their data.
+`F-U4`/`F-U8` (T42, #53) are implemented: the whole base matrix. `T-S4P1-C` is the
+proposed timing-closure variant of `T-S4P1`, and `F-U4-E3S` and `F-U8-E3S` are the
+proposed FAST variants of `F-U4`/`F-U8` (#91, follow-up of T44 #55); none of them is a
+base row. The extension rows (`F-U2`, `F-F2`) refuse instead of guessing their data.
 
 Layout: `rtl_matching/<variant_id>/<vector_set>/<vector_case>/`, metadata only:
 
@@ -126,13 +131,21 @@ Layout: `rtl_matching/<variant_id>/<vector_set>/<vector_case>/`, metadata only:
   `F-U4` and 29 / 19 for `F-U8` (RUN is `80/U + 9` cycles). `F-U4`/`F-U8` are two
   rows of one RTL source (`rtl_variant: freq_opt`); their manifests add
   `rtl_parameters {"U": 4|8}`, which the runner turns into `--lanes`, and bind
-  the same payloads as `F-serial`, since the three are bit-exact.
+  the same payloads as `F-serial`, since the three are bit-exact. `F-U4-E3S` and
+  `F-U8-E3S` (#55) are the same source with `rtl_parameters {"U": 4|8,
+  "EXEC_STAGES": 3, "SPARSE_PORTS": 1}` (`--exec-stages`, `--sparse-ports`):
+  57 / 47 and 47 / 37 cycles (RUN is `80/U + 9L` with `L` execute cycles per
+  lane), the same payloads again.
 - `T-S4P1`/`T-S8P1` are two rows of one RTL source (`rtl_variant: time_opt`).
   Their manifests add `rtl_parameters` (`SYSTOLIC_PES` 4 or 8,
   `PIPELINE_DEPTH` 1), which the runner turns into the module parameters. It
   stays out of the `.svh`, whose localparams are the T03 list, and never uses
   the legacy name `S`. Both rows declare latency 0 samples / 2 cycles and bind
   the same payloads as `T-serial`, since all three are bit-exact.
+- `T-S4P1-C` is the same source with `rtl_parameters`
+  `{SYSTOLIC_PES: 4, PIPELINE_DEPTH: 1, CAST_REGISTER: 1}`: the y[n] register
+  before the output cast adds one cycle, so it declares latency 0 samples /
+  3 cycles. It binds the same payloads as `T-serial` (bit-exact).
 - `vector_manifest.svh`: the integer localparams the testbench includes, the
   same values as the JSON manifest. Generated SystemVerilog is metadata only.
 - A `<file>.sha256` sidecar for each.
@@ -146,7 +159,7 @@ variant's declared design latency; the matching run asserts it in the unstalled
 run, and its evidence is
 `sim/python/artifacts/t31-time-matching/evidence_manifest.json` (T-serial) and
 `sim/python/artifacts/t40-time-opt-matching/<variant_id>/evidence_manifest.json`
-(T-S4P1, T-S8P1). The manifests
+(T-S4P1, T-S8P1, T-S4P1-C). The manifests
 carry no host tool versions, so a fresh export is byte-identical to the
 committed one. `sim/python/tests/rtl_matching_stage.py` stages a frame for the
 testbench after checking every binding; see `rtl/tb/README.md`.

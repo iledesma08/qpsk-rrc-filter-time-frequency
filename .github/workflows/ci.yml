@@ -72,6 +72,10 @@ jobs:
               --top-module time_opt_filter -GSYSTOLIC_PES=$pes -GPIPELINE_DEPTH=1 \
               rtl/common/rrc_pkg.sv rtl/common/rrc_reset_sync.sv rtl/time_opt/time_opt_filter.sv
           done
+          # Proposed registered-cast variant T-S4P1-C (#55).
+          verilator --lint-only -sv -Wall -Wno-fatal \
+            --top-module time_opt_filter -GSYSTOLIC_PES=4 -GPIPELINE_DEPTH=1 -GCAST_REGISTER=1 \
+            rtl/common/rrc_pkg.sv rtl/common/rrc_reset_sync.sv rtl/time_opt/time_opt_filter.sv
           for lanes in 4 8; do
             verilator --lint-only -sv -Wall -Wno-fatal \
               --top-module freq_opt_filter -GU=$lanes \

@@ -1,4 +1,4 @@
-"""Review plots of the RTL vector matching evidence (T31 #48 time, T33 #50 and T42 #53 frequency).
+"""Review plots of the RTL vector matching evidence (T31 #48 time, T33 #50, T42 #53 and #55 frequency).
 
 Reads the matching evidence written by ``tests/rtl_matching_stage.py
 --evidence-dir`` and the RTL outputs its continuous runs captured, checks that
@@ -36,6 +36,8 @@ _VARIANTS = {
     "F-serial": ("t33-freq-matching", "T33 (#50)"),
     "F-U4": ("t42-freq-opt-matching/F-U4", "T42 (#53)"),
     "F-U8": ("t42-freq-opt-matching/F-U8", "T42 (#53)"),
+    "F-U4-E3S": ("t42-freq-opt-matching/F-U4-E3S", "#55"),
+    "F-U8-E3S": ("t42-freq-opt-matching/F-U8-E3S", "#55"),
 }
 _DEFAULT_VARIANT = "T-serial"
 _DEFAULT_EVIDENCE_DIR = _SIM_DIR / "artifacts" / _VARIANTS[_DEFAULT_VARIANT][0]
@@ -197,7 +199,7 @@ def generate_matching_plots(evidence_dir: Path = _DEFAULT_EVIDENCE_DIR, capture_
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Plot the RTL vector matching evidence (T31, T33, T42)")
+    parser = argparse.ArgumentParser(description="Plot the RTL vector matching evidence (T31, T33, T42, #55)")
     parser.add_argument("--variant", choices=sorted(_VARIANTS), default=_DEFAULT_VARIANT,
                         help="variant whose evidence to plot; sets the default directories")
     parser.add_argument("--evidence-dir", type=Path,

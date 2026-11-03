@@ -54,7 +54,10 @@ control state of the unstalled run.
 runs F-U4 and F-U8 on their committed `rtl_matching` vectors, one row per run with
 `--lanes U` (the runner defines `FREQ_OPT_DUT` and `FREQ_LANES`, which the TB passes
 to the instance, and the TB prints `DUT parameters U=...`). It has the same
-`Block timing` line and `--vcd` as `freq_serial`.
+`Block timing` line and `--vcd` as `freq_serial`. The FAST variants of #55 add
+`--exec-stages L` and `--sparse-ports 1` (`FREQ_EXEC_STAGES`, `FREQ_SPARSE_PORTS`):
+the TB passes them to the instance and appends them to the `DUT parameters`
+line only when they are defined, so a base row prints exactly what it did.
 
 ## T31 vector matching (#48)
 
@@ -93,6 +96,14 @@ read back from the instance. `bash rtl/time_opt/run.sh` without
 `--capture` belong to one row, so the script refuses them without it. The `.svh` is unchanged: the row comes from the JSON
 manifest's `rtl_parameters`, which `rtl_matching_stage.py` turns into those
 arguments.
+
+The proposed registered-cast variant `T-S4P1-C` (#55, not a base row) adds
+`--cast-register 1`. Only then does the runner define `TIME_CAST_REGISTER`:
+the TB passes `.CAST_REGISTER` to the instance and prints
+`DUT parameters SYSTOLIC_PES=4 PIPELINE_DEPTH=1 CAST_REGISTER=1`. Without the
+option the base rows compile, elaborate and print exactly as before. On the
+generated fixture the option selects the fixture variant
+`time_opt_cast_register`, which declares 3 cycles of latency.
 
 The two rows emit the same codes with the same latency, so the TB alone
 cannot tell their runs apart. The evidence does that: it requires the printed
