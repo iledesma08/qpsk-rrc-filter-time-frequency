@@ -52,6 +52,14 @@ module rrc_stream_tb;
 `ifdef FREQ_OPT_DUT
     // Matrix row of freq_opt (T42): the runner defines the lane count from --lanes.
     , .U(`FREQ_LANES)
+`ifdef FREQ_EXEC_STAGES
+    // Pipelined variant (#55): only --exec-stages defines it; the base rows keep the default 1.
+    , .EXEC_STAGES(`FREQ_EXEC_STAGES)
+`endif
+`ifdef FREQ_SPARSE_PORTS
+    // Sparse work-buffer ports (#55): only --sparse-ports defines it; the base rows keep the full ports.
+    , .SPARSE_PORTS(`FREQ_SPARSE_PORTS)
+`endif
 `endif
   ) dut (.*);
 `endif
@@ -374,7 +382,15 @@ module rrc_stream_tb;
 `endif
 `ifdef FREQ_OPT_DUT
 `ifndef GATE_LEVEL
-    $display("DUT parameters U=%0d", dut.U);
+    // A variant's own parameters only when the runner defines them, so a base row prints "U=..." alone.
+    $write("DUT parameters U=%0d", dut.U);
+`ifdef FREQ_EXEC_STAGES
+    $write(" EXEC_STAGES=%0d", dut.EXEC_STAGES);
+`endif
+`ifdef FREQ_SPARSE_PORTS
+    $write(" SPARSE_PORTS=%0d", dut.SPARSE_PORTS);
+`endif
+    $display("");
 `endif
 `endif
     activity_dump = $value$plusargs("activity_vcd=%s", activity_vcd);
