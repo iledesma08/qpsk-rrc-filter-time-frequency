@@ -132,30 +132,49 @@ too few, a product register that takes the fetch stage's entry, a sparse port
 that misses one entry), and the reset in RUN with butterflies in the execute
 stages (`test_rtl_freq_serial.py`).
 
-### Physical exploration (not PPA evidence)
+### Physical exploration (#91, not table rows)
 
-OpenLane 2.3.10 Classic, sky130A/hd, FAST SDC, `tt_025C_1v80`, run in a
-development worktree, so nothing below is committed PPA evidence (T43 owns
-that) and every number is a measurement of one run:
+OpenLane 2.3.10 Classic, sky130A/hd, FAST SDC. Slacks are at the tt signoff
+corners. Every number is a measurement of one run.
+
+The curated reports, commands and hashes are in
+`sim/python/artifacts/timing-closure/evidence_manifest.json`. The decision is
+in `docs/research/timing-closure-summary.md`. None of these runs is a row of
+`openlane/ppa_runs.json`.
 
 | Run | What | Result |
 | --- | --- | --- |
-| U=1 proxy, L=3 (full ports) | `freq_opt_filter` without the row check, full Classic flow | post-route setup WS **+1.05 ns at max_tt** (nom_tt +1.28, ff +4.59), hold +0.10; DRC 0 (magic, KLayout, route), LVS 0, 151 antenna nets; 328432 um2. Base F-serial FAST: -7.75 ns |
-| F-U4, L=3, full ports | real-row config (55 %) | synthesis 4:34 (the base F-U4 had not finished ABC after 25 min); post-CTS resizer +0.87 ns; global routing fails, congestion (GRT-0118) |
-| F-U4-E3S | real-row config (55 %) | synthesis 3:19, 925804 um2 (-8 %); post-CTS resizer +1.12 ns; global routing fails, congestion |
-| F-U4-E3S, `FP_CORE_UTIL=50`, `GRT_ALLOW_CONGESTION=1` | sizing at the low end of the 50-60 % band | global routing ends with 32 overflowed edges (54.9 % usage); post-GRT setup +1.02 ns (nom_tt); detailed routing converges slowly (95797 -> 61213 -> 57892 violations in the first three iterations, about 35 min each) |
-| F-U8-E3S | synthesis only | 6:43, peak 1.42 GB, 156715 cells, 1626133 um2 (the base F-U8 used 6.3 GB in ABC and had not finished after 1 h) |
+| A: U=1 proxy, L=3 (full ports) | `freq_opt_filter` without the row check, full Classic flow | post-route setup WS **+1.053 ns at max_tt** (nom_tt +1.277, min_tt +1.469); hold at tt +0.282; DRC 0 (magic, KLayout, route), LVS 0, 151 antenna nets; 328432 um2. Base F-serial FAST: -7.75 ns |
+| B: F-U4, L=3, full ports | table conditions (55 %) | synthesis 4:34 (the base F-U4 had not finished ABC after 25 min); post-CTS resizer +0.87 ns; global routing fails, congestion (GRT-0118) |
+| C: F-U4-E3S | table conditions (55 %) | synthesis 3:19, 925804 um2 (-8 %); post-CTS resizer +1.12 ns; global routing fails, congestion (GRT-0118) |
+| D: F-U4-E3S, `FP_CORE_UTIL=50`, `GRT_ALLOW_CONGESTION=1` | relaxed, not the table's conditions | global routing ends with 32 overflowed edges (54.9 % usage); detailed routing converges (0 violations), DRC/LVS pass; post-route setup **-1.536 ns at max_tt** (nom_tt -0.743, min_tt -0.035), hold -0.273 ns at max_tt; 371 antenna nets; 7 h 26 min, 6.2 GB |
+| E: F-U8-E3S | synthesis only | 6:43, peak 1.42 GB, 156715 cells, 1626133 um2 (the base F-U8 used 6.3 GB in ABC and had not finished after 1 h) |
 
-What it shows: the cuts move the critical path from the 17.6 ns control +
-multiply + round + add cycle to the 45x16 product alone (about 7.5 ns), and
-they make synthesis of the unfolded rows cheap. What stops the real rows is
-routing: every lane exchanges about 360 bits per butterfly with the one shared
-work buffer, so the placer gathers the lanes around it and the centre of the
-die congests (estimated routing demand 2.4x the mean there). Sparse ports
-shrink the multiplexers but not that traffic. Closing F-U4/F-U8 at FAST in the
-table's conditions needs a different work-buffer organisation (banks per lane,
-or a pipelined FFT without a shared buffer); a larger die is a sizing-rule
-decision of the team.
+**What the cuts fix.** They move the critical path from the 17.6 ns cycle
+(control, multiply, round and add) to the 45x16 product alone, about 7.5 ns.
+They also make synthesis of the unfolded rows cheap.
+
+**What stops the real rows: routing around the one shared work buffer.**
+
+- Every lane exchanges about 360 bits per butterfly with that buffer.
+- At 55 % utilization the global router cannot remove the overflow (B, C).
+- In the placement, the area with an estimated routing demand above
+  4 um/um2 is about 0.19 mm2 for F-U4-E3S, against 0.044 mm2 for the one-lane
+  proxy, which routes without overflow. The estimate is RUDY at 20 um bins.
+- Sparse ports shrink the multiplexers but not that traffic.
+
+**Relaxed placement and routing do not close timing either (D).**
+
+- The design routes, but the paths into and out of the buffer get long wires
+  and loaded drivers.
+- The write-back from the product register into `wr_re`/`wr_im` reaches
+  -0.96 ns.
+- The emit read through the output cast reaches -1.54 ns.
+- The pipelined multiplier is only -0.21 ns.
+
+**What closing would take.** Closing F-U4/F-U8 at FAST needs a different
+work-buffer organisation: banks per lane, or a pipelined FFT without a shared
+buffer. That is a team decision.
 
 ## Status
 
@@ -211,9 +230,9 @@ These are functional results.
   a 62-bit sum, the RNE and the add/subtract in one cycle, so closing 10 ns in
   sky130 is not assured (T-S4P1, with much smaller arithmetic, missed it by
   0.56 ns in T41), and synthesis time grows with `U`. If a row misses FAST it is
-  recorded as a failed main goal. The registers that #55 adds for that are the
-  `EXEC_STAGES` variants above, with their own matching; their physical
-  exploration is not PPA evidence.
+  recorded as a failed main goal. The registers that #91 adds for that are the
+  `EXEC_STAGES` variants above, with their own matching. Their physical
+  exploration is evidence of #91, not rows of the PPA table.
 - **PPA claims.** The deltas against F-serial at a matched target and the
   "improves at least one axis" claim belong to T43/T44; nothing in this
   directory states a throughput/area/power result.

@@ -156,8 +156,12 @@ captures equal to the `T-serial` ones.
 
 FAST 100 MHz result. This is a proposal run: `T-S4P1` with
 `CAST_REGISTER=1`, under the same conditions as the T41 run (same config, SDC,
-sizing rule, default Classic flow). It is not in `openlane/ppa_runs.json` and
-its evidence is not committed.
+sizing rule, default Classic flow). It is not in `openlane/ppa_runs.json`. Its
+evidence, collected with `ppa_stage.py` like a T41 row, is
+`sim/python/artifacts/t41-time-ppa/T-S4P1-C/fast/evidence_manifest.json`. The
+`T-S8P1-C` FAST run (+1.858 ns, 83,911.7 um², not collected) is in
+`sim/python/artifacts/timing-closure/time/T-S8P1-C-fast/`, and the summary of
+#91 is `docs/research/timing-closure-summary.md`.
 
 | Run | Worst tt setup WS (ns) | fmax tt (MHz) | Cell area (um²) | Util | Power (mW) | Energy/output (nJ) | Antenna nets |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
