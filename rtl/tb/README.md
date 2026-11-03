@@ -94,6 +94,14 @@ read back from the instance. `bash rtl/time_opt/run.sh` without
 manifest's `rtl_parameters`, which `rtl_matching_stage.py` turns into those
 arguments.
 
+The proposed registered-cast variant `T-S4P1-C` (#55, not a base row) adds
+`--cast-register 1`. Only then does the runner define `TIME_CAST_REGISTER`:
+the TB passes `.CAST_REGISTER` to the instance and prints
+`DUT parameters SYSTOLIC_PES=4 PIPELINE_DEPTH=1 CAST_REGISTER=1`. Without the
+option the base rows compile, elaborate and print exactly as before. On the
+generated fixture the option selects the fixture variant
+`time_opt_cast_register`, which declares 3 cycles of latency.
+
 The two rows emit the same codes with the same latency, so the TB alone
 cannot tell their runs apart. The evidence does that: it requires the printed
 row to equal `rtl_parameters` and the measured `II` to be `8/S`. The TB still

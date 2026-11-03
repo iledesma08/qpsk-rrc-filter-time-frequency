@@ -44,6 +44,10 @@ module rrc_stream_tb;
 `ifdef TIME_OPT_DUT
     // Matrix row of time_opt (T40): the runner defines both from its arguments.
     , .SYSTOLIC_PES(`SYSTOLIC_PES), .PIPELINE_DEPTH(`PIPELINE_DEPTH)
+`ifdef TIME_CAST_REGISTER
+    // Proposed registered-cast variant (T-S4P1-C): --cast-register of the runner.
+    , .CAST_REGISTER(`TIME_CAST_REGISTER)
+`endif
 `endif
 `ifdef FREQ_OPT_DUT
     // Matrix row of freq_opt (T42): the runner defines the lane count from --lanes.
@@ -360,7 +364,12 @@ module rrc_stream_tb;
 `ifdef TIME_OPT_DUT
 `ifndef GATE_LEVEL
     // The row the instance elaborated, read back from it for the evidence.
+`ifdef TIME_CAST_REGISTER
+    $display("DUT parameters SYSTOLIC_PES=%0d PIPELINE_DEPTH=%0d CAST_REGISTER=%0d",
+             dut.SYSTOLIC_PES, dut.PIPELINE_DEPTH, dut.CAST_REGISTER);
+`else
     $display("DUT parameters SYSTOLIC_PES=%0d PIPELINE_DEPTH=%0d", dut.SYSTOLIC_PES, dut.PIPELINE_DEPTH);
+`endif
 `endif
 `endif
 `ifdef FREQ_OPT_DUT
