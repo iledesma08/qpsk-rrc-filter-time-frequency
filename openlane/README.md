@@ -298,7 +298,7 @@ The pipeline is adapted to the block engines; `F-serial` has both runs, `F-U4` a
   | Item | `F-serial` SLOW (10 MHz, main) | `F-serial` FAST (100 MHz, secondary) |
   | --- | --- | --- |
   | Run status | passed | failed: timing |
-  | Flow time and peak memory | 63.0 min, about 2 GiB (detailed routing) | 160.8 min on a second machine (86.9 min in the first run), 2 GiB (detailed routing) |
+  | Flow time and peak memory | 63.0 min, about 2 GiB (detailed routing) | 86.9 min, 2 GiB (detailed routing) |
   | Cell area | 314,206 um2 (41,989 cells, 2,230 sequential) | 317,850 um2 |
   | Setup at the tt corners | +80.87 ns | -7.20 ns (nom), -7.75 ns worst of the tt corners |
   | Hold at tt | +0.359 ns | +0.361 ns |
@@ -311,10 +311,10 @@ The pipeline is adapted to the block engines; `F-serial` has both runs, `F-U4` a
 
   `F-serial` FAST fails its 100 MHz target, and a SLOW pass does not fulfil it. Like the failed FAST runs of T41, it
   still carries its gate-level matching, activity and annotated power at the actual 10 ns period, so it is the FAST
-  power baseline of the `F-U4` and `F-U8` pairs. Its evidence comes from a second run on another machine of the same
-  class (WSL, 4 CPUs, 7.8 GiB). Its flow metrics equal those of the first run, which left the activity out, so the
-  160.8 min flow time measures the machine, and the flow times of SLOW and FAST are not comparable. Its gate-level run
-  took 43 min. The run directories stay in `.build/ppa/F-serial/{slow,fast}/`.
+  power baseline of the `F-U4` and `F-U8` pairs. The flow ran once (86.9 min) and the activity was collected from it; a
+  rerun of the flow on a second machine of the same class (WSL, 4 CPUs, 7.8 GiB) gave the same timing, area, signoff
+  and synthesis metrics, 129 antenna nets and the same gate-level result, so both agree. Its gate-level run took 15.6 min
+  against 21.8 min for SLOW. The run directories stay in `.build/ppa/F-serial/{slow,fast}/`.
 - **Why the machine was not enough for the rest.** The T41 rows had 47,000 to 73,000 um2 of cells, flows of 8 to 17 min
   and window VCDs of 56 to 286 MB on the same machine class (4 CPUs, 7.8 GiB). `F-serial` has about 4 to 7 times the
   cells and a 63 min flow, and the size of the netlist makes the Yosys ABC step grow faster than linearly: it measured
