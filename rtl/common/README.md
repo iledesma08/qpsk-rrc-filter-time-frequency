@@ -76,7 +76,10 @@ narrowing functions (RNE shift by F, and the final cast with saturation).
 `rrc_freq_engine.sv` is the `U`-parameterized engine of the frequency lane:
 `U` butterfly lanes, each with its own complex multiplier. `U=1` is the serial
 baseline wrapped by `rtl/freq_serial/`; `U=4` and `U=8` are the F-U4 and F-U8
-rows wrapped by `rtl/freq_opt/` (T42). Any other `U` stops at elaboration. All
+rows wrapped by `rtl/freq_opt/` (T42). Any other `U` stops at elaboration.
+`EXEC_STAGES` (1-3, default 1) and `SPARSE_PORTS` (0/1, default 0) select the
+pipelined lane and the sparse work-buffer ports of the FAST variants of #55
+(`rtl/freq_opt/README.md`); the defaults are the base rows. All
 rows share this one source instead of copies, and they are bit-exact with each
 other (see `rtl/freq_opt/README.md`). They are listed after
 `rrc_pkg.sv`/`rrc_reset_sync.sv` in every source list; `rrc_stream_shell.sv` is

@@ -54,7 +54,10 @@ control state of the unstalled run.
 runs F-U4 and F-U8 on their committed `rtl_matching` vectors, one row per run with
 `--lanes U` (the runner defines `FREQ_OPT_DUT` and `FREQ_LANES`, which the TB passes
 to the instance, and the TB prints `DUT parameters U=...`). It has the same
-`Block timing` line and `--vcd` as `freq_serial`.
+`Block timing` line and `--vcd` as `freq_serial`. The FAST variants of #55 add
+`--exec-stages L` and `--sparse-ports 1` (`FREQ_EXEC_STAGES`, `FREQ_SPARSE_PORTS`):
+the TB passes them to the instance and appends them to the `DUT parameters`
+line only when they are defined, so a base row prints exactly what it did.
 
 ## T31 vector matching (#48)
 
