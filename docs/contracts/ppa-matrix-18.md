@@ -562,7 +562,21 @@ only for antenna; DRC and LVS stay zero-tolerance.
 - The bound is the residual measured on the six T41 time runs (1-3 nets,
   ratios 1.00-1.72, all on met1 except one met3 net at 401.68/400) under the
   shared Classic repair (`GRT_ANTENNA_ITERS` 3, `GRT_ANTENNA_MARGIN` 10 %).
-  It is not loosened for later runs: the frequency rows meet the same bound.
+  It is fitted to those runs, not derived from a process limit: it is a
+  recorded exception for a known residual, and it is not widened for any
+  later run. The heuristic-diode trial (#89) takes the six time runs to 0
+  nets, at +14 % to +18 % cell area and +5 % to +8 % energy per output,
+  without changing any verdict or ranking; it is kept as a comparison
+  (`docs/ppa/antenna-diodes-comparison.md`), not as the baseline, so this
+  tolerance stays.
+- **The frequency rows do not meet it.** Under the same configuration
+  F-serial has 117 nets (max ratio 5.13) at SLOW and 129 (6.17) at FAST
+  (T43, #88), so both fail physical signoff. F-U4 and F-U8 compare against
+  F-serial, so no frequency candidate is comparable and **D7 is not
+  demonstrated for the frequency domain**; the T44 table and the slides
+  state it as an open result, with the antenna figures. The heuristic-diode
+  trial (#89) cuts F-serial SLOW to 8 nets (3.11), still over the bound, so it
+  does not change this verdict.
 - Why: the global-routing repair runs before detailed routing lengthens some
   nets and nothing repairs after it; stronger uniform repair did not converge
   (T41 trials) and per-row tuning would break Measurement Conditions. Under the

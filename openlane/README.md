@@ -106,7 +106,9 @@ The T41 runs record antenna without gating it (lane owner approval,
 2026-10-18). The T44 owner settled the deviation on 2026-10-24 as the
 ppa-matrix-18 amendment *Antenna Residual Tolerance*: at most 3 violating
 nets per run, each with ratio ≤ 1.72; `sim/python/tests/ppa_table.py` applies
-that gate (`docs/ppa/t44-ppa-table.md`).
+that gate (`docs/ppa/t44-ppa-table.md`). The bound is the time-row residual;
+the frequency rows (F-serial: 117 nets at SLOW, 129 at FAST) do not meet it
+and fail physical signoff, so D7 is not demonstrated for frequency.
 
 Every run still records its post-route antenna check:
 - the count of violating nets in the row;

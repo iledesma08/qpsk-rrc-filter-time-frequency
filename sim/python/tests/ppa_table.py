@@ -261,6 +261,12 @@ def markdown(result: dict) -> str:
         "**signoff and power at the typical corner `tt_025C_1v80` only** (not worst case: the FAST "
         "runs miss by ~9-10 ns at `ss_100C_1v60`). Power is OpenSTA with gate-level SAIF activity at the run's period.",
         "",
+        "RTL revision: the base rows were produced from the RTL on `main` before #92 (FAST timing-closure "
+        "variants). After #92 the base rows' RTL at its default parameters is functionally identical but "
+        "synthesizes to different netlists (T-S4P1 −0.05 %, T-S8P1 +0.5 %, F-serial −0.15 % synthesis area), "
+        "so a rerun reproduces these rows functionally, not byte for byte; reproduce them from the commit "
+        "that merged #90.",
+        "",
         "## All target runs",
         "",
         "| Run | Role | Gates | Cell area (µm²) | Util | Setup WS (ns) | fmax (MHz) | II | Throughput (MS/s) "
