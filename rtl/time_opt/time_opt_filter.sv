@@ -12,13 +12,20 @@
 // T20 model's 0..7: no partial sum can leave the 35-bit accumulator (bound
 // below), so the integer sum and the codes are the same (fxp-policy-16,
 // time accumulation-order clarification).
+// CAST_REGISTER=1 (proposed variant T-S4P1-C, not a base row) registers y[n]
+// before its RNE/saturating cast: the cast runs one edge later, which takes it
+// off the operand-select -> 35-bit add path that limits T-S4P1 at 100 MHz.
+// Same sums, same casts, same II; one more cycle of latency. CAST_REGISTER=0
+// elaborates the base rows unchanged.
 module time_opt_filter #(
   parameter integer DATA_WIDTH = rrc_pkg::DATA_WIDTH,
   parameter integer SAMPLES_PER_CLOCK = rrc_pkg::SAMPLES_PER_CLOCK,
   // Defaults elaborate T-S8P1 for lint and source-list checks; matching runs
   // set both explicitly (rtl_parameters of the rtl_matching manifest).
   parameter integer SYSTOLIC_PES = 8,
-  parameter integer PIPELINE_DEPTH = 1
+  parameter integer PIPELINE_DEPTH = 1,
+  // 1: register y[n] between the tap-0 add and the output cast (+1 cycle latency).
+  parameter integer CAST_REGISTER = 0
 ) (
   input  logic clk,
   input  logic rst_n,
@@ -67,6 +74,9 @@ module time_opt_filter #(
     if ((SYSTOLIC_PES != 4 && SYSTOLIC_PES != 8) || PIPELINE_DEPTH != 1) begin : invalid_row
       initial $fatal(1, "time_opt_filter implements the base rows SYSTOLIC_PES=4/8 at PIPELINE_DEPTH=1; other values are extension-only");
     end
+    if (CAST_REGISTER != 0 && CAST_REGISTER != 1) begin : invalid_cast_register
+      initial $fatal(1, "time_opt_filter: CAST_REGISTER is 0 (base rows) or 1 (registered cast)");
+    end
   endgenerate
 
   wire rst_sync_n;
@@ -88,11 +98,13 @@ module time_opt_filter #(
   logic last_slot, step, out_load, out_pop, sample_en;
   logic signed [DATA_WIDTH-1:0] x_i, x_q;
   logic [2*DATA_WIDTH-1:0] result;
+  // y_close: slot 0 closes y[n] this cycle. out_free: y[n] has somewhere to go.
+  logic y_close, out_free;
 
   assign last_slot = slot == SLOT_W'(SLOTS - 1);
   // Slot 0 holds tap 0, which needs a free output entry.
-  assign step = busy && (slot != '0 || !out_full);
-  assign out_load = step && slot == '0;
+  assign step = busy && (slot != '0 || out_free);
+  assign y_close = step && slot == '0;
   assign out_pop = valid_o && ready_i;
   // Registered terms only: no combinational path from valid_i or ready_i.
   assign ready_o = rst_sync_n && (!busy || (step && last_slot));
@@ -156,7 +168,38 @@ module time_opt_filter #(
   endgenerate
 
   // Tap 0 of slot 0 is y[n]: the single RNE/saturating cast to Q2.14.
-  assign result = {rrc_pkg::time_output_cast(pe_q[0]), rrc_pkg::time_output_cast(pe_i[0])};
+  generate
+    if (CAST_REGISTER == 0) begin : g_direct_cast
+      // Base rows: the cast follows the add in the same cycle.
+      assign result = {rrc_pkg::time_output_cast(pe_q[0]), rrc_pkg::time_output_cast(pe_i[0])};
+      assign out_free = !out_full;
+      assign out_load = y_close;
+    end else begin : g_cast_register
+      // y_acc holds the full-precision y[n] for one edge; the cast reads the
+      // register. Slot 0 may close a new y[n] while y_acc is empty or moving
+      // into the output buffer this cycle, so the stage plus the two buffer
+      // entries hold three results and no stall loses one.
+      logic signed [W_ACC-1:0] y_acc_i, y_acc_q;
+      logic y_valid;
+      wire y_move = y_valid && !out_full;
+      assign out_free = !y_valid || !out_full;
+      assign out_load = y_move;
+      assign result = {rrc_pkg::time_output_cast(y_acc_q), rrc_pkg::time_output_cast(y_acc_i)};
+      always_ff @(posedge clk or negedge rst_sync_n) begin
+        if (!rst_sync_n) begin
+          y_acc_i <= '0;
+          y_acc_q <= '0;
+          y_valid <= 1'b0;
+        end else if (y_close) begin
+          y_acc_i <= pe_i[0];
+          y_acc_q <= pe_q[0];
+          y_valid <= 1'b1;
+        end else if (y_move) begin
+          y_valid <= 1'b0;
+        end
+      end
+    end
+  endgenerate
 
   generate
     if (SLOTS > 1) begin : g_slot

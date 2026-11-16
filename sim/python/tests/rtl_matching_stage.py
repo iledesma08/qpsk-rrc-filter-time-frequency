@@ -8,8 +8,8 @@ that the ``.svh`` localparams equal the manifest, then copies ``input.hex``,
 ``expected.hex`` and the ``.svh`` into a build directory (never
 ``sim/vectors/``), where ``rtl/run_variant.sh`` checks the sidecars again before
 compiling. A parameterized RTL source gets its matrix row from the manifest's
-``rtl_parameters`` (T40: ``SYSTOLIC_PES``/``PIPELINE_DEPTH`` of time_opt),
-passed to the runner as arguments. With ``--evidence-dir`` it runs every frame,
+``rtl_parameters`` (T40: ``SYSTOLIC_PES``/``PIPELINE_DEPTH`` of time_opt, plus
+``CAST_REGISTER`` for the proposed variant T-S4P1-C), passed to the runner as arguments. With ``--evidence-dir`` it runs every frame,
 captures the RTL outputs of the continuous run next to each staged frame and
 writes the matching evidence. For the frequency variant the evidence also holds the block timing and
 the VCD coverage of the continuous run (T33). Standard library only, so the RTL CI job needs no
@@ -44,7 +44,9 @@ _BOUND_PAYLOADS = (
 _LOCALPARAM = re.compile(r"^localparam integer (\w+) = (-?\d+);$", re.M)
 _FIELD = re.compile(r"(\w+)=(\S+)")
 # Runner argument of each rtl_parameters entry (rtl/run_variant.sh).
-_RUNNER_FLAGS = {"SYSTOLIC_PES": "--systolic-pes", "PIPELINE_DEPTH": "--pipeline-depth", "U": "--lanes"}
+_RUNNER_FLAGS = {"SYSTOLIC_PES": "--systolic-pes", "PIPELINE_DEPTH": "--pipeline-depth",
+                 "CAST_REGISTER": "--cast-register", "U": "--lanes",
+                 "EXEC_STAGES": "--exec-stages", "SPARSE_PORTS": "--sparse-ports"}
 TIME_TAPS = 8
 # The ports and the engine control state of a frequency variant over the unstalled run (T33, #50).
 # It is the proof that the run covers every block, not the activity file of T43.
@@ -144,9 +146,11 @@ def expected_block_timing(manifest: dict) -> dict | None:
 
     ``None`` unless the variant is one of the frequency engines (F-serial and the F-U rows, one source):
     the schedule below is theirs, and a different architecture must declare its own instead of inheriting
-    it. With ``U`` lanes (``rtl_parameters``, 1 for F-serial) a pass takes ``8/U + 1`` cycles, ``16/U + 1``
-    for the product, so ``fft_pipeline_cycles`` must be ``80/U + 9`` (89, 29, 19). One block takes ``HOP``
-    cycles to accept, one to load, ``fft_pipeline_cycles`` to run, ``EMIT_LEN`` to emit and one to drain,
+    it. With ``U`` lanes and ``L`` execute cycles per lane (``rtl_parameters`` ``U`` and ``EXEC_STAGES``, 1
+    for F-serial and the base rows) a pass takes ``8/U + L`` cycles, ``16/U + L`` for the product, so
+    ``fft_pipeline_cycles`` must be ``80/U + 9L`` (89, 29, 19 at ``L=1``; 47, 37 for ``U = 4, 8`` at
+    ``L=3``, #55). One block takes ``HOP`` cycles to accept, one to load, ``fft_pipeline_cycles`` to run,
+    ``EMIT_LEN`` to emit and one to drain,
     so a continuous run starts a block every ``HOP + 1 + fft_pipeline_cycles + EMIT_LEN + 1`` cycles. The
     first 257 - 1 = 256 intervals are the steady-state ones (ppa-matrix-18, Workload). Fill is the first
     accepted sample to the first valid output; tail is the last accepted sample (the last flush beat) to
@@ -159,8 +163,11 @@ def expected_block_timing(manifest: dict) -> dict | None:
     if manifest["rtl_variant"] not in ("freq_serial", "freq_opt"):
         return None
     lanes = manifest.get("rtl_parameters", {}).get("U", 1)
-    if manifest["fft_pipeline_cycles"] != 80 // lanes + 9:
-        raise ValueError(f"fft_pipeline_cycles: {lanes} lanes run FFT + product + IFFT in {80 // lanes + 9} cycles")
+    stages = manifest.get("rtl_parameters", {}).get("EXEC_STAGES", 1)
+    run_cycles = 80 // lanes + 9 * stages
+    if manifest["fft_pipeline_cycles"] != run_cycles:
+        raise ValueError(f"fft_pipeline_cycles: {lanes} lanes with {stages} execute cycles run FFT + product + IFFT "
+                         f"in {run_cycles} cycles")
     hop, emit = manifest["HOP"], manifest["EMIT_LEN"]
     blocks = manifest["accepted_input_samples"] // hop
     block_ii = hop + 1 + manifest["fft_pipeline_cycles"] + emit + 1

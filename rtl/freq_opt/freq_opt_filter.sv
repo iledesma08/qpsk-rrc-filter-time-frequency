@@ -2,8 +2,12 @@
 // freq_opt: frequency-domain RRC filter, optimized rows F-U4 and F-U8 (T42).
 // Wrapper over the shared rrc_freq_engine, like freq_serial_filter, with the
 // lane count U as the matrix row: one source, never an edited copy per row
-// (ppa-matrix-18.md, Production Practice). U=1 is freq_serial. The datapath is
-// rtl/common/rrc_freq_engine.sv; see rtl/freq_opt/README.md.
+// (ppa-matrix-18.md, Production Practice). U=1 is freq_serial. EXEC_STAGES is
+// the number of execute cycles of a lane (#55): 1 is the base rows; more cut the
+// lane datapath with registers for FAST timing, bit-exact and with a longer
+// RUN; SPARSE_PORTS=1 builds the work-buffer ports only for the entries a lane
+// can address, which shrinks the congested register file. Both are bit-exact. The
+// datapath is rtl/common/rrc_freq_engine.sv; see rtl/freq_opt/README.md.
 module freq_opt_filter #(
   parameter integer DATA_WIDTH = rrc_pkg::DATA_WIDTH,
   parameter integer SAMPLES_PER_CLOCK = rrc_pkg::SAMPLES_PER_CLOCK,
@@ -12,7 +16,9 @@ module freq_opt_filter #(
   parameter integer DISCARD_PREFIX = rrc_pkg::DISCARD_PREFIX,
   parameter integer EMIT_START = DISCARD_PREFIX,
   parameter integer EMIT_LEN = FFT_LEN - DISCARD_PREFIX,
-  parameter integer U = 8   // frequency issue lanes: 4 (F-U4) or 8 (F-U8)
+  parameter integer U = 8,  // frequency issue lanes: 4 (F-U4) or 8 (F-U8)
+  parameter integer EXEC_STAGES = 1,  // execute cycles per lane: 1 (base rows), 2 or 3 (#55)
+  parameter integer SPARSE_PORTS = 0  // 1: work-buffer ports only for the entries a lane addresses (#55)
 ) (
   input  logic clk,
   input  logic rst_n,
@@ -50,7 +56,7 @@ module freq_opt_filter #(
   generate
     if (VALID_FRAMING) begin : datapath
       rrc_freq_engine #(
-        .U(U), .FFT_LEN(FFT_LEN), .HOP(HOP), .DISCARD_PREFIX(DISCARD_PREFIX),
+        .U(U), .EXEC_STAGES(EXEC_STAGES), .SPARSE_PORTS(SPARSE_PORTS), .FFT_LEN(FFT_LEN), .HOP(HOP), .DISCARD_PREFIX(DISCARD_PREFIX),
         .EMIT_START(EMIT_START), .EMIT_LEN(EMIT_LEN)
       ) engine (
         .clk(clk),

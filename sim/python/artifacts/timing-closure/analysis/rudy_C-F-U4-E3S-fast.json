@@ -1,0 +1,7 @@
+{
+  "run": "freq/C-F-U4-E3S-fast",
+  "input": "36-openroad-resizertimingpostcts/freq_opt_filter.def of that run (placed design after the post-CTS resizer, not published)",
+  "input_sha256": "b01fa945ecf623f84c5e160b0a77493ac8aec3a2ccabd63fc7b6f7b57c67413f",
+  "command": "python3 analysis/rudy.py <that DEF>  (20 um bins)",
+  "output_sha256": "05bc93ac50981879295cb5708fe06fc103fa6ea09d93d880671176e339b5e409"
+}

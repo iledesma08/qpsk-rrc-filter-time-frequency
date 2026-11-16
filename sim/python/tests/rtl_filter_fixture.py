@@ -36,8 +36,10 @@ W_ACC_TIME = 2 * WIDTH + 3
 TAPS = 8
 # Design latency per RTL variant; the TB asserts it in the unstalled run.
 # time_serial (T30): accept edge plus eight MAC edges. time_opt (T40): accept
-# edge plus the slot-0 edge that closes y[n], for every S.
-DESIGN_LATENCY_CYCLES = {"time_serial": 9, "time_opt": 2}
+# edge plus the slot-0 edge that closes y[n], for every S. The proposed
+# registered-cast variant (time_opt with CAST_REGISTER=1, T-S4P1-C) adds the
+# edge of the cast register.
+DESIGN_LATENCY_CYCLES = {"time_serial": 9, "time_opt": 2, "time_opt_cast_register": 3}
 LATENCY_CYCLES = DESIGN_LATENCY_CYCLES["time_serial"]
 FLUSH_SAMPLES = TAPS - 1
 FRAMES = ("canonical", "impulse", "rne_ties", "saturation", "arbitrary")

@@ -12,8 +12,15 @@ the parameter checks and the matrix row. A row is never an edited copy.
 bash rtl/freq_opt/run.sh                   # both rows on their rtl_matching vectors
 bash rtl/freq_opt/run.sh --lanes 8         # one row
 bash rtl/freq_opt/run.sh --lanes 4 --vcd .build/f-u4.vcd
+bash rtl/freq_opt/run.sh --exec-stages 3 --sparse-ports 1   # the FAST variants F-U4-E3S and F-U8-E3S (#55)
 python -m pytest sim/python/tests/test_rtl_freq_matching.py sim/python/tests/test_rtl_freq_opt.py -v
 ```
+
+Two more parameters, both default to the base rows and neither changes a code:
+`EXEC_STAGES` (1) is the number of execute cycles of a lane and
+`SPARSE_PORTS` (0) builds the work-buffer ports only for the entries a lane
+can address. The proposed FAST variants of #55 set 3 and 1 (see "FAST variants"
+below).
 
 ## What a lane is
 
@@ -58,6 +65,116 @@ or output saturation, the differential run reaches saturation and checks every
 raw output), and the reset in the middle of RUN, EMIT and DRAIN
 (`test_rtl_freq_serial.py`). The differential check is shown to catch a lane that
 reads the wrong twiddle or writes back the wrong operand.
+
+## FAST variants (#55, proposed)
+
+### Pipelined lane (`EXEC_STAGES`)
+
+The base rows execute a butterfly in the cycle after its fetch: operand select,
+the 45x16 complex product, its 62-bit sum, one RNE, the add/subtract, the mode
+mux and the write-back, about 17.6 ns of logic in the F-serial FAST run, all
+launched by one `mode_q` flop. `EXEC_STAGES` (L) cuts that cycle with
+registers, without touching any operation:
+
+| L | Execute cycles after the fetch |
+| ---: | --- |
+| 1 | select, product, RNE, add/subtract, write back (the base rows) |
+| 2 | select and product / RNE, add/subtract, write back |
+| 3 | select / product / RNE, add/subtract, write back |
+
+Each cut register carries the butterfly's operands, its mode and its two work
+buffer entries, per lane, so no control flop drives the arithmetic of every
+stage. The lanes issue together, so one chain of valid bits (the only reset
+flops added) serves them all and its last bit enables the write-back. The
+select stage registers the multiplier operand (`a-b`, `b` or `X[k]`) and the
+one operand the last cycle adds to (`a+b` for the forward butterfly, `a` for the
+inverse), not `a` and `a+b`. A pass now drains L cycles instead of one, so its last write
+lands before the next pass reads:
+
+| Row | `U` | L | Butterfly pass | Product pass | RUN | Cycles per block | First output | Frame |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| F-U4 | 4 | 1 | 2 (+1) | 4 (+1) | 29 | 47 | 39 | 12079 |
+| F-U4-E3S | 4 | 3 | 2 (+3) | 4 (+3) | 47 | 65 | 57 | 16705 |
+| F-U8 | 8 | 1 | 1 (+1) | 2 (+1) | 19 | 37 | 29 | 9509 |
+| F-U8-E3S | 8 | 3 | 1 (+3) | 2 (+3) | 37 | 55 | 47 | 14135 |
+
+RUN is `80/U + 9L` and every other number follows as for the base rows: each
+extra execute cycle costs 9 cycles per block (one per pass). At 100 MHz the
+block II of 65 and 55 cycles is 12.3 and 14.5 Msample/s (8 outputs per block).
+
+### Sparse work-buffer ports (`SPARSE_PORTS`)
+
+With full ports every lane can read and write any of the 16 entries: `2U`
+read taps and `2U` write sources per entry. The addressing of a lane only ever
+reaches a few of them; the engine enumerates them at elaboration from the same
+address formulas (over the four spans, every fetch step and the product bins)
+and builds the multiplexers over those only. Read taps in use: 44 of 128 at
+`U=4` and 48 of 256 at `U=8`; write sources per entry 1-4 of 8 and 1-5 of 16.
+An address outside the enumeration never occurs; simulation stops with a fatal
+error if the schedule ever issues one. The cycle numbers do not change.
+
+### Matching
+
+The variants are rows of the same source selected with `--exec-stages L
+--sparse-ports 1`; their `rtl_matching` manifests carry `rtl_parameters {"U":
+4|8, "EXEC_STAGES": 3, "SPARSE_PORTS": 1}` and the testbench reads them back
+(`DUT parameters U=... EXEC_STAGES=... SPARSE_PORTS=...`, printed only when the
+runner defines them, so the base rows report as before). Evidence:
+`sim/python/artifacts/t42-freq-opt-matching/F-U{4,8}-E3S/`: 4/4 frames, 8220
+exact codes per variant, fill latency 57 and 47, block II 65 and 55 over the
+first 256 intervals, source tail 121 and 101, VCD over all 257 blocks.
+
+Bit-exactness is checked as for the unfolding: the four T22 frames per variant,
+the differential run of thirteen engines (`U` in {1, 4, 8} x `L` in {1, 2, 3}
+with full ports, and `U` = 4, 8 with sparse ports at `L` = 1 and 3;
+`test_rtl_freq_opt.py`) with three more mutants (a pass that drains one cycle
+too few, a product register that takes the fetch stage's entry, a sparse port
+that misses one entry), and the reset in RUN with butterflies in the execute
+stages (`test_rtl_freq_serial.py`).
+
+### Physical exploration (#91, not table rows)
+
+OpenLane 2.3.10 Classic, sky130A/hd, FAST SDC. Slacks are at the tt signoff
+corners. Every number is a measurement of one run.
+
+The curated reports, commands and hashes are in
+`sim/python/artifacts/timing-closure/evidence_manifest.json`. The decision is
+in `docs/research/timing-closure-summary.md`. None of these runs is a row of
+`openlane/ppa_runs.json`.
+
+| Run | What | Result |
+| --- | --- | --- |
+| A: U=1 proxy, L=3 (full ports) | `freq_opt_filter` without the row check, full Classic flow | post-route setup WS **+1.053 ns at max_tt** (nom_tt +1.277, min_tt +1.469); hold at tt +0.282; DRC 0 (magic, KLayout, route), LVS 0, 151 antenna nets; 328432 um2. Base F-serial FAST: -7.75 ns |
+| B: F-U4, L=3, full ports | table conditions (55 %) | synthesis 4:34 (the base F-U4 had not finished ABC after 25 min); post-CTS resizer +0.87 ns; global routing fails, congestion (GRT-0118) |
+| C: F-U4-E3S | table conditions (55 %) | synthesis 3:19, 925804 um2 (-8 %); post-CTS resizer +1.12 ns; global routing fails, congestion (GRT-0118) |
+| D: F-U4-E3S, `FP_CORE_UTIL=50`, `GRT_ALLOW_CONGESTION=1` | relaxed, not the table's conditions | global routing ends with 32 overflowed edges (54.9 % usage); detailed routing converges (0 violations), DRC/LVS pass; post-route setup **-1.536 ns at max_tt** (nom_tt -0.743, min_tt -0.035), hold -0.273 ns at max_tt; 371 antenna nets; 7 h 26 min, 6.2 GB |
+| E: F-U8-E3S | synthesis only | 6:43, peak 1.42 GB, 156715 cells, 1626133 um2 (the base F-U8 used 6.3 GB in ABC and had not finished after 1 h) |
+
+**What the cuts fix.** They move the critical path from the 17.6 ns cycle
+(control, multiply, round and add) to the 45x16 product alone, about 7.5 ns.
+They also make synthesis of the unfolded rows cheap.
+
+**What stops the real rows: routing around the one shared work buffer.**
+
+- Every lane exchanges about 360 bits per butterfly with that buffer.
+- At 55 % utilization the global router cannot remove the overflow (B, C).
+- In the placement, the area with an estimated routing demand above
+  4 um/um2 is about 0.19 mm2 for F-U4-E3S, against 0.044 mm2 for the one-lane
+  proxy, which routes without overflow. The estimate is RUDY at 20 um bins.
+- Sparse ports shrink the multiplexers but not that traffic.
+
+**Relaxed placement and routing do not close timing either (D).**
+
+- The design routes, but the paths into and out of the buffer get long wires
+  and loaded drivers.
+- The write-back from the product register into `wr_re`/`wr_im` reaches
+  -0.96 ns.
+- The emit read through the output cast reaches -1.54 ns.
+- The pipelined multiplier is only -0.21 ns.
+
+**What closing would take.** Closing F-U4/F-U8 at FAST needs a different
+work-buffer organisation: banks per lane, or a pipelined FFT without a shared
+buffer. That is a team decision.
 
 ## Status
 
@@ -113,8 +230,9 @@ These are functional results.
   a 62-bit sum, the RNE and the add/subtract in one cycle, so closing 10 ns in
   sky130 is not assured (T-S4P1, with much smaller arithmetic, missed it by
   0.56 ns in T41), and synthesis time grows with `U`. If a row misses FAST it is
-  recorded as a failed main goal; adding a register between the product and the
-  add would change the latency of these rows and needs its own matching.
+  recorded as a failed main goal. The registers that #91 adds for that are the
+  `EXEC_STAGES` variants above, with their own matching. Their physical
+  exploration is evidence of #91, not rows of the PPA table.
 - **PPA claims.** The deltas against F-serial at a matched target and the
   "improves at least one axis" claim belong to T43/T44; nothing in this
   directory states a throughput/area/power result.

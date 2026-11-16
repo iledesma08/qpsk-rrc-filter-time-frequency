@@ -1,0 +1,27 @@
+die 791 x 802 um, grid 40x40 (20 um bins), mean RUDY 2.060 um/um2
+bins 1600: p50 2.15, p90 3.80, p99 4.80, max 5.42 um/um2
+  area with RUDY > 3 um/um2: 0.1440 mm2 (22.7 % of the die)
+  area with RUDY > 4 um/um2: 0.0440 mm2 (6.9 % of the die)
+  area with RUDY > 5 um/um2: 0.0028 mm2 (0.4 % of the die)
+top bins: RUDY/mean, bin (i,j), cells, groups of named cells
+   2.63x  (23,33)     34 cells  {'anonymous': 29, 'frame': 2, 'work buffer': 2, 'fetch regs': 1}
+   2.60x  (25,30)     34 cells  {'anonymous': 28, 'work buffer': 4, 'frame': 1, 'fetch regs': 1}
+   2.56x  (24,33)     24 cells  {'anonymous': 21, 'work buffer': 2, 'frame': 1}
+   2.53x  (25,31)     30 cells  {'anonymous': 25, 'frame': 5}
+   2.49x  (25,32)     36 cells  {'anonymous': 31, 'work buffer': 3, 'frame': 2}
+   2.49x  (24,32)     31 cells  {'anonymous': 28, 'work buffer': 2, 'fetch regs': 1}
+   2.49x  (23,32)     37 cells  {'anonymous': 32, 'work buffer': 3, 'frame': 2}
+   2.41x  (26,33)     29 cells  {'anonymous': 26, 'frame': 1, 'fetch regs': 1, 'work buffer': 1}
+   2.40x  (25,33)     34 cells  {'anonymous': 30, 'work buffer': 3, 'frame': 1}
+   2.38x  (26,34)     30 cells  {'anonymous': 29, 'work buffer': 1}
+   2.36x  (31,34)     27 cells  {'anonymous': 27}
+   2.36x  (26,30)     31 cells  {'anonymous': 28, 'work buffer': 2, 'frame': 1}
+group centroids (bin units):
+  X1 select                       180 cells  centroid ( 26.1, 21.1)
+  X2 multiply                     341 cells  centroid ( 20.9, 21.5)
+  X3 operand (product reg)        118 cells  centroid ( 18.3, 19.8)
+  fetch regs                      180 cells  centroid ( 29.4, 21.5)
+  frame                           512 cells  centroid ( 29.8, 32.1)
+  lane0 other                     105 cells  centroid ( 25.3, 22.6)
+  output                           36 cells  centroid ( 37.1, 20.4)
+  work buffer                    1440 cells  centroid ( 29.9, 21.9)

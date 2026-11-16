@@ -5,9 +5,12 @@
 check runs on both rows against the exact integer reference of
 ``rtl_filter_fixture.py``, the same one that drives the serial filter (T30),
 so passing rows are bit-exact with each other and with T-serial on the
-structural frames, including RNE ties, saturation and arbitrary codes. Vector
-matching against ``sim/vectors`` is in ``test_rtl_time_opt_matching.py``. No
-timing or PPA result is claimed here.
+structural frames, including RNE ties, saturation and arbitrary codes. The
+proposed timing-closure variant T-S4P1-C (#55: T-S4P1 with
+``CAST_REGISTER=1``, the y[n] register before the output cast) runs the same
+checks with its own latency (3) and its third stored result. Vector matching
+against ``sim/vectors`` is in ``test_rtl_time_opt_matching.py``. No timing or
+PPA result is claimed here.
 """
 
 from pathlib import Path
@@ -28,8 +31,14 @@ DUT_SOURCES = [
 ]
 # Base matrix rows (ppa-matrix-18): row id -> SYSTOLIC_PES, all at PIPELINE_DEPTH=1.
 ROWS = {"T-S4P1": 4, "T-S8P1": 8}
+# Proposed timing-closure variant (#55), not a base row: T-S4P1 with the registered cast.
+CAST_ROWS = {"T-S4P1-C": 4}
+# Every configuration the checks run: row id -> (SYSTOLIC_PES, CAST_REGISTER). The base rows never name
+# CAST_REGISTER, so they build and report exactly as before it existed.
+CONFIGS = {**{row: (pes, None) for row, pes in ROWS.items()}, **{row: (pes, 1) for row, pes in CAST_ROWS.items()}}
 TAPS = 8
 LATENCY_CYCLES = rtl_filter_fixture.DESIGN_LATENCY_CYCLES["time_opt"]
+CAST_LATENCY_CYCLES = rtl_filter_fixture.DESIGN_LATENCY_CYCLES["time_opt_cast_register"]
 requires_icarus = pytest.mark.skipif(
     not shutil.which("iverilog") or not shutil.which("vvp"),
     reason="Icarus/vvp checks run in the required RTL CI job",
@@ -45,6 +54,23 @@ def run_script(script, *arguments):
 
 def run_row(pes, *arguments):
     return run_script("rtl/time_opt/run.sh", "--systolic-pes", str(pes), "--pipeline-depth", "1", *arguments)
+
+
+def run_config(row, *arguments):
+    """Run one configuration of CONFIGS through the runner (``--cast-register`` only when it names one)."""
+    pes, cast = CONFIGS[row]
+    return run_row(pes, *(("--cast-register", str(cast)) if cast is not None else ()), *arguments)
+
+
+def fixture_variant(row):
+    """The fixture variant whose declared latency the configuration must meet."""
+    return "time_opt_cast_register" if CONFIGS[row][1] == 1 else "time_opt"
+
+
+def parameters_line(row):
+    """The ``DUT parameters`` line the testbench prints for the configuration, in full."""
+    pes, cast = CONFIGS[row]
+    return f"DUT parameters SYSTOLIC_PES={pes} PIPELINE_DEPTH=1" + (f" CAST_REGISTER={cast}" if cast is not None else "")
 
 
 def simulate(tmp_path, source, top="tb"):
@@ -63,24 +89,25 @@ def packed(i_code, q_code):
     return f"{int(q_code) & 0xffff:04x}{int(i_code) & 0xffff:04x}"
 
 
-@pytest.mark.parametrize("row", ROWS)
+@pytest.mark.parametrize("row", CONFIGS)
 @pytest.mark.parametrize("frame", rtl_filter_fixture.FRAMES)
 @requires_icarus
 def test_structural_frame_matches_the_integer_reference_at_ii_8_over_s(tmp_path, frame, row):
-    pes = ROWS[row]
-    rtl_filter_fixture.write_fixture(tmp_path, frame, "time_opt")
+    pes = CONFIGS[row][0]
+    rtl_filter_fixture.write_fixture(tmp_path, frame, fixture_variant(row))
     source = len(rtl_filter_fixture.frame_codes(frame)[0])
     outputs = source + rtl_filter_fixture.FLUSH_SAMPLES
-    result = run_row(pes, "--vectors", str(tmp_path))
+    result = run_config(row, "--vectors", str(tmp_path))
     assert result.returncode == 0, result.stdout + result.stderr
-    assert f"DUT parameters SYSTOLIC_PES={pes} PIPELINE_DEPTH=1" in result.stdout
+    assert parameters_line(row) in result.stdout.splitlines()
     assert f"PASS: vector window W=16 SPC=1 compared={outputs}" in result.stdout
     frames = [line for line in result.stdout.splitlines() if line.startswith("Frame robustness=")]
     assert len(frames) == 2
-    # The TB has asserted latency_cycles=2 on the continuous run; II = 8/S.
+    # The TB has asserted latency_cycles (2, or 3 with the registered cast) on the continuous run; II = 8/S.
     ii = TAPS // pes
+    latency = CAST_LATENCY_CYCLES if row in CAST_ROWS else LATENCY_CYCLES
     assert f"interval_count={outputs - 1} ii_min={ii} ii_max={ii} measured_ii={ii}" in frames[0]
-    assert f"measured_latency_cycles={LATENCY_CYCLES}" in frames[0]
+    assert f"measured_latency_cycles={latency}" in frames[0]
     for line in frames:
         assert f"compared={outputs} accepted_beats={outputs} emitted_beats={outputs}" in line
         assert (f"source_samples={source} flush_samples=7 transport_padding_samples=0 "
@@ -99,10 +126,10 @@ def test_rows_and_the_serial_filter_emit_identical_codes_where_rounding_and_satu
                         "--capture", str(tmp_path / "serial.hex"))
     assert result.returncode == 0, result.stdout + result.stderr
     captures = {"T-serial": (tmp_path / "serial.hex").read_bytes()}
-    for row, pes in ROWS.items():
+    for row in CONFIGS:
         row_dir = tmp_path / row
-        rtl_filter_fixture.write_fixture(row_dir, frame, "time_opt")
-        result = run_row(pes, "--vectors", str(row_dir), "--capture", str(tmp_path / f"{row}.hex"))
+        rtl_filter_fixture.write_fixture(row_dir, frame, fixture_variant(row))
+        result = run_config(row, "--vectors", str(row_dir), "--capture", str(tmp_path / f"{row}.hex"))
         assert result.returncode == 0, result.stdout + result.stderr
         captures[row] = (tmp_path / f"{row}.hex").read_bytes()
     # The fixture writes upper-case hex digits and the TB capture lower-case.
@@ -119,7 +146,7 @@ module tb;
   integer cycle = 0;
   logic [31:0] inputs [0:8];
   integer next = 0;
-  time_opt_filter #(.SYSTOLIC_PES(%PES%), .PIPELINE_DEPTH(1)) dut (
+  time_opt_filter #(.SYSTOLIC_PES(%PES%), .PIPELINE_DEPTH(1)%CAST%) dut (
     .clk(clk), .rst_n(rst_n), .valid_i(valid_i), .ready_o(ready_o), .sample_i(sample_i),
     .valid_o(valid_o), .ready_i(ready_i), .sample_o(sample_o));
   always #5 clk = ~clk;
@@ -140,7 +167,7 @@ module tb;
   task automatic cleared(input string where);
     if (ready_o !== 1'b0 || valid_o !== 1'b0 || sample_o !== '0)
       $fatal(1, "reset did not clear outputs %s", where);
-  endtask
+%CLEARED%  endtask
   initial begin
     inputs[0] = 32'hc0004000;  // x[0] = 1 - j
     for (integer n = 1; n < 9; n = n + 1) inputs[n] = '0;
@@ -151,8 +178,18 @@ endmodule
 """
 
 
-def stream_tb(pes, body):
-    return STREAM_TB.replace("%PES%", str(pes)).replace("%BODY%", body)
+# With the registered cast, reset must also empty the y[n] register.
+CAST_CLEARED = """    if (dut.g_cast_register.y_valid !== 1'b0 || dut.g_cast_register.y_acc_i !== '0 ||
+        dut.g_cast_register.y_acc_q !== '0)
+      $fatal(1, "reset did not clear the cast register %s", where);
+"""
+
+
+def stream_tb(row, body):
+    pes, cast = CONFIGS[row]
+    return (STREAM_TB.replace("%PES%", str(pes)).replace("%BODY%", body)
+            .replace("%CAST%", f", .CAST_REGISTER({cast})" if cast is not None else "")
+            .replace("%CLEARED%", CAST_CLEARED if cast == 1 else ""))
 
 
 def impulse_codes():
@@ -163,16 +200,19 @@ def events(stdout, kind):
     return [(int(m[1]), m[2]) for m in re.finditer(rf"{kind} cycle=(\d+) data=([0-9a-f]+)", stdout)]
 
 
-@pytest.mark.parametrize("row", ROWS)
+@pytest.mark.parametrize("row", CONFIGS)
 @requires_icarus
 def test_sink_stall_fills_both_output_entries_and_backpressures_the_source(tmp_path, row):
-    pes = ROWS[row]
+    pes, cast = CONFIGS[row]
+    # Results the filter holds under a sink stall: the two output entries, plus y[n] in the cast register.
+    stored = 3 if cast == 1 else 2
     body = """
     #2 rst_n = 1'b0;
     #1 cleared("on async assert");
     @(negedge clk) rst_n = 1'b1;
-    // Hold the sink for 40 cycles: y[0] and y[1] fill both output entries, x[2]
-    // is accepted and waits at tap 0, and no fourth input may be accepted.
+    // Hold the sink for 40 cycles: y[0] and y[1] fill both output entries (and
+    // y[2] the cast register), the next input is accepted and waits at tap 0,
+    // and no further input may be accepted.
     repeat (40) @(posedge clk);
     // No combinational path: valid_i/ready_i toggles between edges change nothing.
     @(negedge clk);
@@ -188,12 +228,15 @@ def test_sink_stall_fills_both_output_entries_and_backpressures_the_source(tmp_p
         $fatal(1, "valid_i reached a DUT output combinationally");
       valid_i = ~valid_i; ready_i = 1'b0; #1;
       $display("STALL ready_o=%b valid_o=%b sample_o=%08h full=%b", ready_o, valid_o, sample_o, dut.out_full);
-    end
+%STAGE%    end
     @(negedge clk) ready_i = 1'b1;
     repeat (60) @(posedge clk);
 """
+    # The registered cast also reports what its register holds during the stall.
+    stage = ('      $display("STAGE y_valid=%b y_acc_i=%0d", dut.g_cast_register.y_valid, '
+             'dut.g_cast_register.y_acc_i);\n') if cast == 1 else ""
     # Output hold under the stall is checked cycle by cycle by the monitor below.
-    source = stream_tb(pes, body).replace(
+    source = stream_tb(row, body.replace("%STAGE%", stage)).replace(
         "  initial begin\n    inputs[0]",
         """  logic [31:0] held;
   logic stalled = 1'b0;
@@ -211,17 +254,22 @@ def test_sink_stall_fills_both_output_entries_and_backpressures_the_source(tmp_p
     emits = events(result.stdout, "EMIT")
     stall = re.search(r"STALL ready_o=(\d) valid_o=(\d) sample_o=([0-9a-f]+) full=(\d)", result.stdout)
     assert stall.groups() == ("0", "1", impulse_codes()[0], "1"), result.stdout
+    if cast == 1:
+        # The third result waits in the cast register at full precision: y[2] = c[2] * 2^14 on I.
+        stage_line = re.search(r"STAGE y_valid=(\d) y_acc_i=(-?\d+)", result.stdout)
+        assert stage_line.groups() == ("1", str(rtl_filter_fixture.coefficient_codes()[2] << 14)), result.stdout
     stalled_accepts = [cycle for cycle, _ in accepts if cycle < emits[0][0]]
     ii = TAPS // pes
-    assert [b - a for a, b in zip(stalled_accepts, stalled_accepts[1:])] == [ii, ii]
+    # One accepted input per stored result, plus the one that waits at tap 0.
+    assert [b - a for a, b in zip(stalled_accepts, stalled_accepts[1:])] == [ii] * stored
     # Nothing lost or emitted twice; after the release the rows resume at II = 8/S.
     assert [data for _, data in emits] == impulse_codes()
     assert len(accepts) == 9
-    resumed = [cycle for cycle, _ in accepts[3:]]
+    resumed = [cycle for cycle, _ in accepts[stored + 1:]]
     assert all(b - a == ii for a, b in zip(resumed, resumed[1:]))
 
 
-@pytest.mark.parametrize("row", ROWS)
+@pytest.mark.parametrize("row", CONFIGS)
 @requires_icarus
 def test_reset_is_synchronized_and_clears_partial_sums_mid_computation(tmp_path, row):
     body = """
@@ -249,7 +297,7 @@ def test_reset_is_synchronized_and_clears_partial_sums_mid_computation(tmp_path,
     @(negedge clk) rst_n = 1'b1;
     repeat (60) @(posedge clk);
 """
-    result = simulate(tmp_path, stream_tb(ROWS[row], body))
+    result = simulate(tmp_path, stream_tb(row, body))
     assert result.returncode == 0, result.stdout + result.stderr
     after = result.stdout.split("RESTART", 1)[1]
     # No residue of the pre-reset samples: the restarted impulse response is exact.
@@ -266,6 +314,8 @@ def test_reset_is_synchronized_and_clears_partial_sums_mid_computation(tmp_path,
     (".SYSTOLIC_PES(16)", 16, 1, "extension-only"),
     (".SYSTOLIC_PES(4), .PIPELINE_DEPTH(2)", 16, 1, "extension-only"),
     (".SYSTOLIC_PES(8), .PIPELINE_DEPTH(0)", 16, 1, "extension-only"),
+    (".SYSTOLIC_PES(4), .CAST_REGISTER(2)", 16, 1, "CAST_REGISTER is 0 (base rows) or 1 (registered cast)"),
+    (".SYSTOLIC_PES(4), .CAST_REGISTER(-1)", 16, 1, "CAST_REGISTER is 0 (base rows) or 1 (registered cast)"),
 ])
 @requires_icarus
 def test_parameters_outside_the_base_rows_fail_at_elaboration(tmp_path, parameters, width, lanes, message):
@@ -293,6 +343,11 @@ endmodule
     ("rtl/run_variant.sh", ("time_opt", "--systolic-pes", "four"), "time_opt needs its row: --systolic-pes S"),
     ("rtl/run_variant.sh", ("time_serial", "--systolic-pes", "4"), "apply only to time_opt"),
     ("rtl/run_variant.sh", ("freq_opt", "--pipeline-depth", "1"), "apply only to time_opt"),
+    ("rtl/run_variant.sh", ("time_serial", "--cast-register", "1"), "apply only to time_opt"),
+    ("rtl/run_variant.sh", ("time_opt", "--systolic-pes", "4", "--cast-register", "2"),
+     "--cast-register is 0 (base rows) or 1 (registered cast)"),
+    ("rtl/run_variant.sh", ("time_opt", "--systolic-pes", "4", "--cast-register", "yes"),
+     "--cast-register is 0 (base rows) or 1 (registered cast)"),
     ("rtl/time_opt/run.sh", ("--capture", "out.hex"), "--vectors and --capture need --systolic-pes"),
     ("rtl/time_opt/run.sh", ("--vectors", "fixture"), "--vectors and --capture need --systolic-pes"),
 ])
@@ -308,6 +363,16 @@ def test_runner_reaches_the_elaboration_guard_for_an_extension_row(tmp_path):
     result = run_script("rtl/time_opt/run.sh", "--systolic-pes", "2", "--vectors", str(tmp_path))
     assert result.returncode != 0
     assert "extension-only" in result.stdout
+
+
+@requires_icarus
+def test_an_explicit_cast_register_0_elaborates_the_base_row():
+    # CAST_REGISTER=0 is the base row: latency 2 on the canonical fixture, and the TB reports the parameter.
+    result = run_row(4, "--cast-register", "0")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "DUT parameters SYSTOLIC_PES=4 PIPELINE_DEPTH=1 CAST_REGISTER=0" in result.stdout.splitlines()
+    assert f"measured_latency_cycles={LATENCY_CYCLES}" in result.stdout
+    assert "PASS: vector window W=16 SPC=1 compared=2055" in result.stdout
 
 
 @requires_icarus

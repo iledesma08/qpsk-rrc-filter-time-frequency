@@ -1,4 +1,4 @@
-"""T33 (#50) and T42 (#53): F-serial, F-U4 and F-U8 vector matching against the committed rtl_matching vectors.
+"""T33 (#50), T42 (#53) and #55: F-serial, F-U4, F-U8 and their pipelined variants against the rtl_matching vectors.
 
 Each frame is staged from ``sim/vectors/rtl_matching/<row>`` (metadata) and
 ``sim/vectors/fxp_expected`` (payloads, bound by hash) into ``tmp_path`` and run
@@ -23,8 +23,8 @@ ROOT = Path(__file__).resolve().parents[3]
 BLOCKS, HOP = 257, 8
 # One row of the frequency matrix per run of every test below (the autouse fixture ``row``): the variant, its
 # RTL source and parameters, the declared fill latency, the block II (8 ACCEPT + 1 LOAD + RUN + 8 EMIT + 1
-# DRAIN with RUN = 80/U + 9 cycles), the cycles of a whole frame (257 blocks plus the 8-cycle accept of the
-# first and the drain tail) and the last source sample x[2047] to the last valid output y[2054]: one block
+# DRAIN with RUN = 80/U + 9L cycles, L = EXEC_STAGES, 1 for the base rows), the cycles of a whole frame (257
+# blocks of one block II each) and the last source sample x[2047] to the last valid output y[2054]: one block
 # (block II) + the fill + the positions of the two inside their blocks (6 - 7). That is the cost of the
 # tail-flush block, unlike the tail to the padding output, which only mirrors the fill (HOP == EMIT_LEN).
 ROWS = {
@@ -37,6 +37,13 @@ ROWS = {
     "F-U8": {"RTL_VARIANT": "freq_opt", "PARAMETERS": {"U": 8}, "LATENCY": 29, "BLOCK_CYCLES": 37,
              "FRAME_CYCLES": 9509, "SOURCE_TAIL": 65,
              "EVIDENCE": ROOT / "sim/python/artifacts/t42-freq-opt-matching/F-U8/evidence_manifest.json"},
+    # #55: the FAST variants, EXEC_STAGES=3 and sparse ports: 2 more drain cycles per pass, 9 passes per block.
+    "F-U4-E3S": {"RTL_VARIANT": "freq_opt", "PARAMETERS": {"U": 4, "EXEC_STAGES": 3, "SPARSE_PORTS": 1}, "LATENCY": 57,
+                "BLOCK_CYCLES": 65, "FRAME_CYCLES": 16705, "SOURCE_TAIL": 121,
+                "EVIDENCE": ROOT / "sim/python/artifacts/t42-freq-opt-matching/F-U4-E3S/evidence_manifest.json"},
+    "F-U8-E3S": {"RTL_VARIANT": "freq_opt", "PARAMETERS": {"U": 8, "EXEC_STAGES": 3, "SPARSE_PORTS": 1}, "LATENCY": 47,
+                "BLOCK_CYCLES": 55, "FRAME_CYCLES": 14135, "SOURCE_TAIL": 101,
+                "EVIDENCE": ROOT / "sim/python/artifacts/t42-freq-opt-matching/F-U8-E3S/evidence_manifest.json"},
 }
 VARIANT = RTL_VARIANT = PARAMETERS = EVIDENCE = None
 LATENCY = BLOCK_CYCLES = FRAME_CYCLES = SOURCE_TAIL = None
@@ -248,7 +255,8 @@ def test_expected_block_timing_is_scoped_to_the_serial_engine():
         BLOCK_CYCLES, LATENCY, SOURCE_TAIL)
     # An unrolled variant (T42) must not inherit the serial schedule, nor a time variant any block timing.
     assert matching.expected_block_timing({**manifest, "rtl_variant": "freq_unrolled"}) is None
-    # The declared RUN cycles are checked against the lane count: 80/U + 9 (89, 29, 19 for U = 1, 4, 8).
+    # The declared RUN cycles are checked against the lane count and the execute depth: 80/U + 9L (89, 29, 19
+    # for U = 1, 4, 8 at L = 1; #55).
     with pytest.raises(ValueError, match="fft_pipeline_cycles"):
         matching.expected_block_timing({**manifest, "fft_pipeline_cycles": manifest["fft_pipeline_cycles"] + 1})
     assert matching.expected_block_timing({**manifest, "model_domain": "time", "rtl_variant": "time_serial"}) is None

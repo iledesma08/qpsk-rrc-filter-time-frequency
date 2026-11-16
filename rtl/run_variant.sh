@@ -5,8 +5,11 @@
 # structural frames from an exact integer reference of the accepted policy, and
 # freq_serial (T32/T33) and freq_opt (T42) run the committed rtl_matching vectors
 # of F-serial and F-U4/F-U8 (see rtl_matching_stage.py). time_opt needs its matrix
-# row: --systolic-pes S (4 for T-S4P1, 8 for T-S8P1) and --pipeline-depth P (1);
-# freq_opt needs --lanes U (4 for F-U4, 8 for F-U8).
+# row: --systolic-pes S (4 for T-S4P1, 8 for T-S8P1) and --pipeline-depth P (1),
+# plus --cast-register 1 for the proposed registered-cast variant (T-S4P1-C);
+# freq_opt needs --lanes U (4 for F-U4, 8 for F-U8); --exec-stages L (2 or 3) and
+# --sparse-ports 1 select its pipelined FAST variant (#55, F-U<U>-E<L>S with both);
+# without them the row is the base one.
 # PPA target runs (T41): --clock-period-ns sets the testbench clock (10 ns by
 # default), --netlist runs the final netlist of an OpenLane run instead of the
 # RTL (with the Sky130 cell models of --cell-models) and --activity-vcd dumps
@@ -22,6 +25,8 @@ case "$variant" in
 esac
 BUILD_DIR="$ROOT/.build/rtl/$variant"
 lanes=""
+stages=""
+sparse=""
 vector_dir=""
 capture=""
 vcd=""
@@ -30,13 +35,14 @@ spc=1
 override=0
 pes=""
 depth=""
+cast=""
 period=""
 netlist=""
 cell_models=""
 activity=""
 while (($#)); do
   case "$1" in
-    --vectors|--data-width|--spc|--capture|--vcd|--systolic-pes|--pipeline-depth|--lanes|--clock-period-ns|--netlist|--cell-models|--activity-vcd)
+    --vectors|--data-width|--spc|--capture|--vcd|--systolic-pes|--pipeline-depth|--cast-register|--lanes|--exec-stages|--sparse-ports|--clock-period-ns|--netlist|--cell-models|--activity-vcd)
       if (($# < 2)); then printf 'Missing value for %s\n' "$1" >&2; exit 2; fi
       case "$1" in
         --vectors) vector_dir="$2" ;;
@@ -46,7 +52,10 @@ while (($#)); do
         --spc) spc="$2"; override=1 ;;
         --systolic-pes) pes="$2" ;;
         --pipeline-depth) depth="$2" ;;
+        --cast-register) cast="$2" ;;
         --lanes) lanes="$2" ;;
+        --exec-stages) stages="$2" ;;
+        --sparse-ports) sparse="$2" ;;
         --clock-period-ns) period="$2" ;;
         --netlist) netlist="$2" ;;
         --cell-models) cell_models="$2" ;;
@@ -78,10 +87,14 @@ if [[ "$variant" == time_opt ]]; then
     printf 'time_opt needs its row: --systolic-pes S (4 for T-S4P1, 8 for T-S8P1), --pipeline-depth 1\n' >&2
     exit 2
   fi
+  if [[ -n "$cast" && "$cast" != 0 && "$cast" != 1 ]]; then
+    printf -- '--cast-register is 0 (base rows) or 1 (registered cast)\n' >&2
+    exit 2
+  fi
   # One build directory per row, so the two rows never share a binary.
-  BUILD_DIR="$BUILD_DIR/S${pes}P${depth}"
-elif [[ -n "$pes" || -n "$depth" ]]; then
-  printf -- '--systolic-pes and --pipeline-depth apply only to time_opt\n' >&2
+  BUILD_DIR="$BUILD_DIR/S${pes}P${depth}${cast:+C$cast}"
+elif [[ -n "$pes" || -n "$depth" || -n "$cast" ]]; then
+  printf -- '--systolic-pes, --pipeline-depth and --cast-register apply only to time_opt\n' >&2
   exit 2
 fi
 if [[ "$variant" == freq_opt ]]; then
@@ -93,10 +106,26 @@ if [[ "$variant" == freq_opt ]]; then
     printf 'freq_opt needs its row: --lanes U (4 for F-U4, 8 for F-U8)\n' >&2
     exit 2
   fi
-  # One build directory per row, so the two rows never share a binary.
+  # One build directory per row, so the rows never share a binary.
   BUILD_DIR="$BUILD_DIR/U${lanes}"
-elif [[ -n "$lanes" ]]; then
-  printf -- '--lanes applies only to freq_opt\n' >&2
+  if [[ -n "$stages" ]]; then
+    # The base rows have one execute cycle and no option: only a pipelined variant names its depth.
+    if [[ ! "$stages" =~ ^[0-9]+$ ]] || ((stages < 2)); then
+      printf -- '--exec-stages L selects a pipelined variant (L >= 2); omit it for the base rows F-U4/F-U8\n' >&2
+      exit 2
+    fi
+    BUILD_DIR="$BUILD_DIR-E${stages}"
+  fi
+  if [[ -n "$sparse" ]]; then
+    # Like the depth, only a variant names its ports: the base rows have the full register file.
+    if [[ "$sparse" != 1 ]]; then
+      printf -- '--sparse-ports 1 selects the sparse work-buffer ports; omit it for the full ones\n' >&2
+      exit 2
+    fi
+    BUILD_DIR="${BUILD_DIR}S"
+  fi
+elif [[ -n "$lanes" || -n "$stages" || -n "$sparse" ]]; then
+  printf -- '--lanes, --exec-stages and --sparse-ports apply only to freq_opt\n' >&2
   exit 2
 fi
 if [[ -n "$period" ]] && ! awk -v p="$period" 'BEGIN { exit !(p ~ /^[0-9]+(\.[0-9]+)?$/ && p > 0) }'; then
@@ -120,13 +149,16 @@ fi
 mkdir -p "$BUILD_DIR"
 if [[ -z "$vector_dir" && ( "$variant" == time_serial || "$variant" == time_opt ) ]]; then
   vector_dir="$BUILD_DIR/fixture-canonical"
+  fixture_variant="$variant"
+  # The registered cast declares one more cycle of latency in its fixture.
+  if [[ "$variant" == time_opt && "$cast" == 1 ]]; then fixture_variant=time_opt_cast_register; fi
   "${PYTHON:-python3}" "$ROOT/sim/python/tests/rtl_filter_fixture.py" \
-    --output "$vector_dir" --frame canonical --variant "$variant"
+    --output "$vector_dir" --frame canonical --variant "$fixture_variant"
 elif [[ -z "$vector_dir" && ( "$variant" == freq_serial || "$variant" == freq_opt ) ]]; then
   # The committed rtl_matching vectors of the row (T33 F-serial, T42 F-U4/F-U8): metadata in
   # rtl_matching/, payloads in fxp_expected/.
   row=F-serial
-  if [[ "$variant" == freq_opt ]]; then row="F-U${lanes}"; fi
+  if [[ "$variant" == freq_opt ]]; then row="F-U${lanes}${stages:+-E$stages}${sparse:+S}"; fi
   "${PYTHON:-python3}" "$ROOT/sim/python/tests/rtl_matching_stage.py" \
     --variant "$row" --output "$BUILD_DIR/matching" >/dev/null
   vector_dir="$BUILD_DIR/matching/canonical-none"
@@ -149,8 +181,13 @@ dut_file="$ROOT/rtl/$variant/${variant}_filter.sv"
 if [[ "$variant" == freq_serial || "$variant" == freq_opt ]]; then
   sources+=("$ROOT/rtl/common/rrc_freq_pkg.sv" "$ROOT/rtl/common/rrc_freq_engine.sv")
   if [[ "$variant" == freq_opt ]]; then defines+=(-D FREQ_OPT_DUT -D "FREQ_LANES=$lanes"); fi
+  # Only a variant passes its depth and ports: the base rows build and report exactly as before.
+  if [[ -n "$stages" ]]; then defines+=(-D "FREQ_EXEC_STAGES=$stages"); fi
+  if [[ -n "$sparse" ]]; then defines+=(-D "FREQ_SPARSE_PORTS=$sparse"); fi
 elif [[ "$variant" == time_opt ]]; then
   defines+=(-D TIME_OPT_DUT -D "SYSTOLIC_PES=$pes" -D "PIPELINE_DEPTH=$depth")
+  # Only the proposed variant names CAST_REGISTER, so the base rows build and report as before.
+  if [[ -n "$cast" ]]; then defines+=(-D "TIME_CAST_REGISTER=$cast"); fi
 elif [[ "$variant" == transport ]]; then
   # Test vehicle of the TB mechanics (identity shell), not a filter.
   defines+=(-D RRC_TRANSPORT_DUT)

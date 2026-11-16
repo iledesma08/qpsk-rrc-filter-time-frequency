@@ -44,6 +44,10 @@ output_files/
 !sim/python/artifacts/t41-time-ppa/**/*.rpt
 # Committed OpenLane evidence of the T43 target runs (openlane-env-19).
 !sim/python/artifacts/t43-freq-ppa/**/*.rpt
+# Curated OpenLane evidence of the FAST timing-closure runs (#91): reports and
+# the few step logs that show the routing results.
+!sim/python/artifacts/timing-closure/**/*.rpt
+!sim/python/artifacts/timing-closure/**/*.log
 # Direct OpenLane runs; ppa_stage.py runs the flow under .build/ppa/.
 openlane/*/runs/
 *.sdc.bak

@@ -757,14 +757,22 @@ def test_committed_rtl_matching_is_current(tmp_path):
     for variant_id in gen_vectors._RTL_VARIANTS:
         export_rtl_matching(tmp_path, variant_id, vectors_dir=_COMMITTED_DIR)
 
-    assert sorted(path.name for path in (_COMMITTED_DIR / "rtl_matching").iterdir()) == ["F-U4", "F-U8", "F-serial", "T-S4P1", "T-S8P1", "T-serial"]
+    assert sorted(path.name for path in (_COMMITTED_DIR / "rtl_matching").iterdir()) == [
+        "F-U4", "F-U4-E3S", "F-U8", "F-U8-E3S", "F-serial", "T-S4P1", "T-S4P1-C", "T-S8P1", "T-serial"]
     assert _tree_bytes(_COMMITTED_DIR / "rtl_matching") == _tree_bytes(tmp_path / "rtl_matching")
 
 
-# T40 F3 rtl_matching export (T-S4P1/T-S8P1: one time_opt source, two rows)
+# T40 F3 rtl_matching export (T-S4P1/T-S8P1: one time_opt source, two rows; T-S4P1-C: the proposed
+# registered-cast variant of T-S4P1, #55)
 
 
-_T40_ROWS = {"T-S4P1": 4, "T-S8P1": 8}
+# variant_id -> (rtl_parameters, latency_cycles). T40 design latency: accept edge plus the slot-0 edge, for both
+# rows; the registered cast adds the edge of its register.
+_T40_ROWS = {
+    "T-S4P1": ({"SYSTOLIC_PES": 4, "PIPELINE_DEPTH": 1}, 2),
+    "T-S8P1": ({"SYSTOLIC_PES": 8, "PIPELINE_DEPTH": 1}, 2),
+    "T-S4P1-C": ({"SYSTOLIC_PES": 4, "PIPELINE_DEPTH": 1, "CAST_REGISTER": 1}, 3),
+}
 
 
 @pytest.mark.parametrize("variant_id", _T40_ROWS)
@@ -778,10 +786,10 @@ def test_t40_rows_declare_their_parameters_and_bind_the_t_serial_payloads(tmp_pa
         serial = _load(serial_path)
         assert (manifest["variant_id"], manifest["rtl_variant"]) == (variant_id, "time_opt")
         # The matrix row of the one parameterized source; never the legacy name "S".
-        assert manifest["rtl_parameters"] == {"SYSTOLIC_PES": _T40_ROWS[variant_id], "PIPELINE_DEPTH": 1}
+        parameters, latency = _T40_ROWS[variant_id]
+        assert manifest["rtl_parameters"] == parameters
         assert "S" not in manifest and "rtl_parameters" not in serial
-        # T40 design latency: accept edge plus the slot-0 edge, for both rows.
-        assert (manifest["latency_samples"], manifest["latency_cycles"]) == (0, 2)
+        assert (manifest["latency_samples"], manifest["latency_cycles"]) == (0, latency)
         assert manifest["latency_declaration"]["evidence_file"] == (
             f"sim/python/artifacts/t40-time-opt-matching/{variant_id}/evidence_manifest.json")
         # Bit-exact rows bind the same expected codes and transport as T-serial.
@@ -794,17 +802,22 @@ def test_t40_rows_declare_their_parameters_and_bind_the_t_serial_payloads(tmp_pa
         # The .svh carries only the T03 localparams: the row stays in the JSON manifest.
         fields = _svh_localparams(path.parent / "vector_manifest.svh")
         assert list(fields) == _SVH_LOCALPARAMS
-        assert fields == _svh_localparams(serial_path.parent / "vector_manifest.svh") | {"latency_cycles": 2}
+        assert fields == _svh_localparams(serial_path.parent / "vector_manifest.svh") | {"latency_cycles": latency}
 
 
 # T33/T42 F3 rtl_matching export (F-serial, F-U4, F-U8: frequency domain, 257 blocks of eight)
 
 # variant_id -> (rtl_variant, rtl_parameters, latency_cycles, fft_pipeline_cycles, evidence file). A pass takes
-# 8/U + 1 cycles (16/U + 1 for the product), so RUN is 80/U + 9 and the first output follows RUN + 10.
+# 8/U + L cycles (16/U + L for the product) with L execute cycles per lane (1 for the base rows, EXEC_STAGES for
+# the pipelined variants of #55), so RUN is 80/U + 9L and the first output follows RUN + 10.
 _FREQ_ROWS = {
     "F-serial": ("freq_serial", None, 99, 89, "sim/python/artifacts/t33-freq-matching/evidence_manifest.json"),
     "F-U4": ("freq_opt", {"U": 4}, 39, 29, "sim/python/artifacts/t42-freq-opt-matching/F-U4/evidence_manifest.json"),
     "F-U8": ("freq_opt", {"U": 8}, 29, 19, "sim/python/artifacts/t42-freq-opt-matching/F-U8/evidence_manifest.json"),
+    "F-U4-E3S": ("freq_opt", {"U": 4, "EXEC_STAGES": 3, "SPARSE_PORTS": 1}, 57, 47,
+                "sim/python/artifacts/t42-freq-opt-matching/F-U4-E3S/evidence_manifest.json"),
+    "F-U8-E3S": ("freq_opt", {"U": 8, "EXEC_STAGES": 3, "SPARSE_PORTS": 1}, 47, 37,
+                "sim/python/artifacts/t42-freq-opt-matching/F-U8-E3S/evidence_manifest.json"),
 }
 
 
@@ -842,7 +855,7 @@ def test_frequency_rows_manifests_declare_the_block_schedule_and_transport_count
         assert (manifest["DATA_WIDTH"], manifest["SPC"]) == (16, 1)
         # Block fill is cycle latency, not an index shift: y[0] is the first output.
         assert (manifest["latency_samples"], manifest["latency_cycles"]) == (0, latency)
-        # FFT + spectral product + IFFT: the RUN cycles of the row (89, 29, 19 for U = 1, 4, 8).
+        # FFT + spectral product + IFFT: the RUN cycles of the row (89, 29, 19 for U = 1, 4, 8; 80/U + 9L, #55).
         assert manifest["fft_pipeline_cycles"] == run_cycles
         assert manifest.get("rtl_parameters") == parameters
         assert (manifest["FFT_LEN"], manifest["HOP"], manifest["DISCARD_PREFIX"], manifest["EMIT_START"],
