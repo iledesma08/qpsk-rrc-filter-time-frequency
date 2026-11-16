@@ -621,3 +621,35 @@ def test_each_optimized_row_compares_only_with_the_serial_at_its_own_target():
         assert entry["comparison_status"] in ("comparable", "not-comparable")
         if entry["comparison_status"] == "not-comparable":
             assert entry["throughput_delta"] is None and entry["comparison_reason"]
+
+
+def test_the_antenna_trial_is_opt_in_and_sizes_both_passes():
+    spec = ppa.target_run(TABLE, "T-serial", "SLOW")
+    trial = TABLE["antenna_trial"]["overrides"]
+    assert ppa.overrides(spec) == ppa.overrides(spec, trial=None)
+    values = ppa.overrides(spec, [0, 0, 200, 200], trial)
+    assert values[-2:] == ["FP_SIZING=absolute", "DIE_AREA=0 0 200 200"]
+    assert values[:len(ppa.overrides(spec))] == ppa.overrides(spec)
+    added = dict(value.split("=", 1) for value in values[len(ppa.overrides(spec)):-2])
+    assert added == {"RUN_HEURISTIC_DIODE_INSERTION": "true", "GRT_ANTENNA_ITERS": "10",
+                     "GRT_ANTENNA_MARGIN": "20", "FP_CORE_UTIL": "45"}
+
+
+def test_the_antenna_trial_never_writes_the_baseline_evidence():
+    baseline = ppa.target_run(TABLE, "T-S8P1", "SLOW")
+    trial = ppa.target_run(TABLE, "T-S8P1", "SLOW", antenna_trial=True)
+    assert baseline["evidence_dir"] == f"{TABLE['evidence_dirs']['time']}/T-S8P1/slow"
+    assert trial["evidence_dir"] == f"{TABLE['antenna_trial']['evidence_dir']}/time/T-S8P1/slow"
+    assert {key: value for key, value in trial.items() if key != "evidence_dir"} == \
+        {key: value for key, value in baseline.items() if key != "evidence_dir"}
+
+
+def test_collect_tells_a_trial_run_from_a_baseline_run_by_its_resolved_config():
+    plain = {"RUN_HEURISTIC_DIODE_INSERTION": False, "GRT_ANTENNA_ITERS": 3, "GRT_ANTENNA_MARGIN": 10,
+             "FP_CORE_UTIL": 55}
+    trial = {"RUN_HEURISTIC_DIODE_INSERTION": True, "GRT_ANTENNA_ITERS": 10, "GRT_ANTENNA_MARGIN": 20,
+             "FP_CORE_UTIL": 45.0}
+    assert ppa.trial_mismatch(TABLE, plain, antenna_trial=False) == []
+    assert ppa.trial_mismatch(TABLE, trial, antenna_trial=True) == []
+    assert ppa.trial_mismatch(TABLE, trial, antenna_trial=False)
+    assert len(ppa.trial_mismatch(TABLE, plain, antenna_trial=True)) == 4
